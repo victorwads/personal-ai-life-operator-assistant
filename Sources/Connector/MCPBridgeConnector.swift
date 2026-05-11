@@ -121,6 +121,13 @@ struct MCPHTTPRequest {
     let params: [String: JSONValue]
 }
 
+enum MCPBridgeState: Equatable {
+    case starting(port: Int)
+    case ready(port: Int)
+    case failed(message: String)
+    case stopped
+}
+
 enum MCPBridgeError: LocalizedError {
     case invalidRequest
     case unsupportedMethod(String)
@@ -149,17 +156,23 @@ protocol MCPBridgeConnecting: AnyObject {
     var boundPort: Int { get }
     func configure(host: String, port: Int)
     func setRequestHandler(_ handler: @escaping @Sendable (MCPHTTPRequest) async -> Result<JSONValue, Error>)
+    func setStateHandler(_ handler: @escaping @Sendable (MCPBridgeState) -> Void)
     func start() async throws
     func stop() async
 }
 
 final class MCPBridgeConnector: MCPBridgeConnecting {
+    private final class StartResolution {
+        var hasResolved = false
+    }
+
     private let queue = DispatchQueue(label: "dev.wads.AssistantMCPServer.mcp", qos: .userInitiated)
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
     private var listener: NWListener?
     private var handler: (@Sendable (MCPHTTPRequest) async -> Result<JSONValue, Error>)?
+    private var stateHandler: (@Sendable (MCPBridgeState) -> Void)?
     private(set) var isRunning = false
     private(set) var boundPort: Int = 8080
     private var host = "localhost"
@@ -173,6 +186,10 @@ final class MCPBridgeConnector: MCPBridgeConnecting {
         self.handler = handler
     }
 
+    func setStateHandler(_ handler: @escaping @Sendable (MCPBridgeState) -> Void) {
+        self.stateHandler = handler
+    }
+
     func start() async throws {
         guard listener == nil else {
             return
@@ -184,29 +201,53 @@ final class MCPBridgeConnector: MCPBridgeConnecting {
 
         let parameters = NWParameters.tcp
         let listener = try NWListener(using: parameters, on: port)
+        let stateHandler = self.stateHandler
         listener.newConnectionHandler = { [weak self] connection in
             self?.handle(connection: connection)
         }
-        listener.stateUpdateHandler = { [weak self] state in
-            switch state {
-            case .ready:
-                self?.isRunning = true
-            case .failed, .cancelled:
-                self?.isRunning = false
-                self?.listener = nil
-            default:
-                break
-            }
-        }
-
         self.listener = listener
-        listener.start(queue: queue)
+        stateHandler?(.starting(port: boundPort))
+
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            let resolution = StartResolution()
+            listener.stateUpdateHandler = { [weak self] state in
+                guard let self else { return }
+
+                switch state {
+                case .ready:
+                    self.isRunning = true
+                    stateHandler?(.ready(port: self.boundPort))
+                    guard !resolution.hasResolved else { return }
+                    resolution.hasResolved = true
+                    continuation.resume()
+                case .failed(let error):
+                    self.isRunning = false
+                    self.listener = nil
+                    stateHandler?(.failed(message: error.localizedDescription))
+                    guard !resolution.hasResolved else { return }
+                    resolution.hasResolved = true
+                    continuation.resume(throwing: error)
+                case .cancelled:
+                    self.isRunning = false
+                    self.listener = nil
+                    stateHandler?(.stopped)
+                    guard !resolution.hasResolved else { return }
+                    resolution.hasResolved = true
+                    continuation.resume(throwing: MCPBridgeError.listenerStartFailed)
+                default:
+                    break
+                }
+            }
+
+            listener.start(queue: self.queue)
+        }
     }
 
     func stop() async {
         listener?.cancel()
         listener = nil
         isRunning = false
+        stateHandler?(.stopped)
     }
 
     private func handle(connection: NWConnection) {

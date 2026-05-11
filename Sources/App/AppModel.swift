@@ -35,6 +35,7 @@ final class AppModel: ObservableObject {
     private let debugDirectory = URL(fileURLWithPath: "/tmp/AssistantMCPServer", isDirectory: true)
     private var cancellables: Set<AnyCancellable> = []
     private let blockedConversationDefaultsKey = "blockedConversationNames"
+    private var mcpRestartTask: Task<Void, Never>?
 
     init() {
         loadBlockedConversationNames()
@@ -190,21 +191,20 @@ final class AppModel: ObservableObject {
 
         do {
             try await mcpConnector.start()
-            mcpServerRunning = mcpConnector.isRunning
-            mcpServerStatusDescription = mcpServerRunning ? "Listening on \(mcpServerAddress)" : "Starting"
-            appendLog("MCP HTTP server listening on \(mcpServerAddress).")
         } catch {
             mcpServerRunning = false
             mcpServerStatusDescription = "Failed: \(error.localizedDescription)"
             appendLog("Failed to start MCP server: \(error.localizedDescription)", level: .error)
+            scheduleMCPRestart()
         }
     }
 
     func stopMCPServer() async {
+        mcpRestartTask?.cancel()
+        mcpRestartTask = nil
         await mcpConnector.stop()
         mcpServerRunning = false
         mcpServerStatusDescription = "Stopped"
-        appendLog("Stopped MCP HTTP server.")
     }
 
     func restartMCPServer() async {
@@ -415,6 +415,54 @@ final class AppModel: ObservableObject {
             }
 
             return await self.handleMCPRequest(request)
+        }
+
+        mcpConnector.setStateHandler { [weak self] state in
+            Task { @MainActor [weak self] in
+                self?.handleMCPStateChange(state)
+            }
+        }
+    }
+
+    private func handleMCPStateChange(_ state: MCPBridgeState) {
+        switch state {
+        case .starting(let port):
+            mcpServerRunning = false
+            mcpServerStatusDescription = "Starting on localhost:\(port)"
+            appendLog("Starting MCP HTTP server on localhost:\(port).")
+        case .ready(let port):
+            mcpRestartTask?.cancel()
+            mcpRestartTask = nil
+            mcpServerRunning = true
+            mcpServerStatusDescription = "Listening on localhost:\(port)"
+            appendLog("MCP HTTP server listening on localhost:\(port).")
+        case .failed(let message):
+            mcpServerRunning = false
+            mcpServerStatusDescription = "Failed: \(message)"
+            appendLog("MCP HTTP server failed: \(message)", level: .error)
+            scheduleMCPRestart()
+        case .stopped:
+            mcpServerRunning = false
+            mcpServerStatusDescription = "Stopped"
+            appendLog("MCP HTTP server stopped.", level: .warning)
+        }
+    }
+
+    private func scheduleMCPRestart() {
+        guard mcpRestartTask == nil else {
+            return
+        }
+
+        mcpRestartTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                self?.appendLog("Retrying MCP HTTP server startup.", level: .warning)
+            }
+            await self?.startMCPServer()
+            await MainActor.run {
+                self?.mcpRestartTask = nil
+            }
         }
     }
 
