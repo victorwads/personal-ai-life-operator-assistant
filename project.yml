@@ -5,7 +5,7 @@ options:
     macOS: "14.0"
 settings:
   base:
-    PRODUCT_BUNDLE_IDENTIFIER: com.victorwads.AssistantMCPServer
+    PRODUCT_BUNDLE_IDENTIFIER: dev.wads.AssistantMCPServer
     CURRENT_PROJECT_VERSION: 1
     MARKETING_VERSION: 0.1.0
 targets:
