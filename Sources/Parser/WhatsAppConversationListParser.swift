@@ -5,7 +5,13 @@ struct WhatsAppConversationListParser {
 
     func parseConversations(from accessibilityObject: AccessibilityObject) -> [ConversationSummary] {
         let root = accessibilityObject.root
-        let candidates = accessibilityMap.chatList(in: root)?.children.filter(isConversationRow(_:)) ?? []
+        let candidates: [RawAXNode]
+        if let chatList = accessibilityMap.chatList(in: root) {
+            // WhatsApp often wraps each row in nested groups; scan descendants instead of only direct children.
+            candidates = chatList.flattened.filter(isConversationRow(_:))
+        } else {
+            candidates = []
+        }
 
         var seenIds = Set<String>()
         let conversations = candidates.compactMap { candidate -> ConversationSummary? in
@@ -48,7 +54,10 @@ struct WhatsAppConversationListParser {
     }
 
     func conversationCandidates(from accessibilityObject: AccessibilityObject) -> [RawAXNode] {
-        accessibilityMap.chatList(in: accessibilityObject.root)?.children.filter(isConversationRow(_:)) ?? []
+        guard let chatList = accessibilityMap.chatList(in: accessibilityObject.root) else {
+            return []
+        }
+        return chatList.flattened.filter(isConversationRow(_:))
     }
 
     private func isConversationRow(_ node: RawAXNode) -> Bool {

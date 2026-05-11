@@ -49,13 +49,23 @@ final class AccessibilityService {
         }
 
         let root = AXUIElementCreateApplication(app.processIdentifier)
-        guard let element = element(at: path, from: root) else {
-            throw AccessibilityError.nodeNotFound
+        var currentPath = path
+        while true {
+            guard let element = element(at: currentPath, from: root) else {
+                throw AccessibilityError.nodeNotFound
+            }
+
+            if performPress(on: element) || clickElementCenter(element) {
+                return
+            }
+
+            guard !currentPath.isEmpty else {
+                break
+            }
+            currentPath.removeLast()
         }
 
-        guard performPress(on: element) else {
-            throw AccessibilityError.actionFailed(-1)
-        }
+        throw AccessibilityError.actionFailed(-1)
     }
 
     func setValue(_ newValue: String, at path: [Int]) throws {
@@ -167,6 +177,34 @@ final class AccessibilityService {
 
         let children: [AXUIElement] = value(element, attribute: kAXChildrenAttribute) ?? []
         return children.contains { performPress(on: $0) }
+    }
+
+    private func clickElementCenter(_ element: AXUIElement) -> Bool {
+        guard let frame = frame(for: element) else {
+            return false
+        }
+
+        let center = CGPoint(x: frame.midX, y: frame.midY)
+        let eventPoint: CGPoint
+        if let screenMaxY = NSScreen.screens.map({ $0.frame.maxY }).max() {
+            // AX uses a top-left origin in many apps; CGEvent expects bottom-left global coordinates.
+            eventPoint = CGPoint(x: center.x, y: screenMaxY - center.y)
+        } else {
+            eventPoint = center
+        }
+
+        guard let source = CGEventSource(stateID: .combinedSessionState),
+              let move = CGEvent(mouseEventSource: source, mouseType: .mouseMoved, mouseCursorPosition: eventPoint, mouseButton: .left),
+              let down = CGEvent(mouseEventSource: source, mouseType: .leftMouseDown, mouseCursorPosition: eventPoint, mouseButton: .left),
+              let up = CGEvent(mouseEventSource: source, mouseType: .leftMouseUp, mouseCursorPosition: eventPoint, mouseButton: .left)
+        else {
+            return false
+        }
+
+        move.post(tap: .cghidEventTap)
+        down.post(tap: .cghidEventTap)
+        up.post(tap: .cghidEventTap)
+        return true
     }
 
     private func value<T>(_ element: AXUIElement, attribute: String) -> T? {

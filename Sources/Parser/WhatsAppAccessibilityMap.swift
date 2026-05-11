@@ -6,19 +6,35 @@ struct WhatsAppAccessibilityMap {
     let composePath = "0.0.0.4.1.2"
 
     func chatList(in root: RawAXNode) -> RawAXNode? {
-        root.node(at: chatListPath) ?? root.firstDescendant { node in
+        if let anchored = root.node(at: chatListPath),
+           anchored.nodeDescription?.contains("List of chats") == true {
+            return anchored
+        }
+
+        return root.firstDescendant { node in
             node.nodeDescription?.contains("List of chats") == true
         }
     }
 
     func messageList(in root: RawAXNode) -> RawAXNode? {
-        root.node(at: messageListPath) ?? root.firstDescendant { node in
+        if let anchored = root.node(at: messageListPath),
+           anchored.nodeDescription?.contains("Messages in chat with") == true {
+            return anchored
+        }
+
+        return root.firstDescendant { node in
             node.nodeDescription?.contains("Messages in chat with") == true
         }
     }
 
     func composeField(in root: RawAXNode) -> RawAXNode? {
-        root.node(at: composePath) ?? root.firstDescendant { node in
+        if let anchored = root.node(at: composePath),
+           anchored.role == "AXTextArea",
+           anchored.nodeDescription?.contains("Compose message") == true {
+            return anchored
+        }
+
+        return root.firstDescendant { node in
             node.role == "AXTextArea" && node.nodeDescription?.contains("Compose message") == true
         }
     }

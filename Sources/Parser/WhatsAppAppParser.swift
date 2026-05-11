@@ -16,16 +16,15 @@ struct WhatsAppAppParser {
     func parse(snapshot: WhatsAppSnapshot, messageLimit: Int = 10) -> WhatsAppScreenState {
         let accessibilityObject = AccessibilityObject(root: snapshot.rootNode)
         let conversations = conversationListParser.parseConversations(from: accessibilityObject)
-        let selectedChatName = conversations.first(where: \.isSelected)?.name
         let currentConversation = currentConversationParser.parse(
             from: accessibilityObject,
-            selectedChatName: selectedChatName,
+            selectedChatName: conversations.first(where: \.isSelected)?.name,
             limit: messageLimit
         )
 
         return WhatsAppScreenState(
             conversations: conversations,
-            selectedChatName: selectedChatName,
+            selectedChatName: currentConversation.selectedChatName,
             messages: currentConversation.messages,
             composeFocused: currentConversation.composeFocused,
             canSendText: currentConversation.canSendText,

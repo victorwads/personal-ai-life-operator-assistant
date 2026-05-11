@@ -12,15 +12,28 @@ struct WhatsAppCurrentConversationParser {
     private let accessibilityMap = WhatsAppAccessibilityMap()
 
     func parse(from accessibilityObject: AccessibilityObject, selectedChatName: String?, limit: Int) -> WhatsAppCurrentConversationState {
-        let currentChatName = accessibilityMap.currentChatName(in: accessibilityObject.root) ?? selectedChatName
-
+        let inferredChatName = inferChatName(from: accessibilityObject.root) ?? selectedChatName
         return WhatsAppCurrentConversationState(
-            selectedChatName: currentChatName,
-            messages: parseMessages(from: accessibilityObject.root, selectedChatName: currentChatName, limit: limit),
+            selectedChatName: inferredChatName,
+            messages: parseMessages(from: accessibilityObject.root, selectedChatName: inferredChatName, limit: limit),
             composeFocused: accessibilityMap.composeField(in: accessibilityObject.root) != nil,
             canSendText: accessibilityObject.containsText(matching: ["send", "enviar"]),
             sendButtonPath: accessibilityMap.sendButton(in: accessibilityObject.root)?.accessibilityPath
         )
+    }
+
+    private func inferChatName(from root: RawAXNode) -> String? {
+        guard let description = accessibilityMap.messageList(in: root)?.nodeDescription?.normalizedAXText else {
+            return nil
+        }
+
+        // Example: "Messages in chat with Leonardo Eloy"
+        if let range = description.range(of: "Messages in chat with ") {
+            let name = description[range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
+            return name.isEmpty ? nil : name
+        }
+
+        return nil
     }
 
     private func parseMessages(from root: RawAXNode, selectedChatName: String?, limit: Int) -> [Message] {

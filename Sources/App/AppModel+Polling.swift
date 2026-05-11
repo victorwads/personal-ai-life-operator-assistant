@@ -104,11 +104,6 @@ extension AppModel {
             let baselineSnapshot = try accessibility.captureWhatsAppSnapshot(maxDepth: 14)
             let baselineState = parser.parse(snapshot: baselineSnapshot, messageLimit: 10)
 
-            if baselineState.conversations.isEmpty, try dismissModalSheetIfPresent(in: baselineSnapshot) {
-                try await Task.sleep(for: .milliseconds(300))
-                continue
-            }
-
             if baselineState.selectedChatName == targetConversation.name {
                 return baselineSnapshot
             }
@@ -117,7 +112,6 @@ extension AppModel {
                 $0.id == targetConversation.id || $0.name == targetConversation.name
             } ?? targetConversation
 
-            try accessibility.activateWhatsApp()
             try interactor.selectConversation(liveConversation, using: accessibility)
             try await Task.sleep(for: .milliseconds(500))
 
@@ -130,28 +124,6 @@ extension AppModel {
             appendLog("Conversation selection retry \(attempt) failed for \(targetConversation.name); current chat is \(updatedState.selectedChatName ?? "unknown").", level: .warning)
         }
 
-        throw AccessibilityError.unexpectedChatSelection(targetConversation.name)
-    }
-
-    private func dismissModalSheetIfPresent(in snapshot: WhatsAppSnapshot) throws -> Bool {
-        guard let doneButton = snapshot.rootNode.firstDescendant(where: { node in
-            guard node.role == "AXButton" else {
-                return false
-            }
-
-            let text = [node.title, node.nodeDescription, node.help]
-                .compactMap { $0?.normalizedAXText.lowercased() }
-                .joined(separator: " ")
-            return text.contains("done")
-        }) else {
-            return false
-        }
-
-        try accessibility.activateWhatsApp()
-        try? accessibility.pressNode(at: doneButton.accessibilityPath)
-        try? accessibility.focusNode(at: doneButton.accessibilityPath)
-        try accessibility.pressEnterKey()
-        appendLog("Dismissed a WhatsApp modal sheet before selecting a conversation.", level: .warning)
-        return true
+        throw AccessibilityError.actionFailed(-1)
     }
 }
