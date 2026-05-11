@@ -6,6 +6,11 @@ enum WhatsAppMemoryStoreEvent {
     case selectedConversationChanged(String?)
 }
 
+struct WaitForMessageResult {
+    let chat: ConversationSummary
+    let message: Message
+}
+
 @MainActor
 final class WhatsAppMemoryStore: ObservableObject {
     static let shared = WhatsAppMemoryStore()
@@ -77,6 +82,62 @@ final class WhatsAppMemoryStore: ObservableObject {
         chatStatesById[id]
     }
 
+    func conversation(for id: String) -> ConversationSummary? {
+        conversations.first(where: { $0.id == id })
+    }
+
+    func waitForNextMessage(chatId: String?, afterMessageId: String?, timeoutSeconds: Int) async -> WaitForMessageResult? {
+        if let immediateMatch = latestMessageResult(chatId: chatId, afterMessageId: afterMessageId) {
+            return immediateMatch
+        }
+
+        return await withCheckedContinuation { continuation in
+            var resolved = false
+            var listenerId: UUID?
+
+            func finish(_ result: WaitForMessageResult?) {
+                Task { @MainActor in
+                    guard !resolved else {
+                        return
+                    }
+
+                    resolved = true
+
+                    if let listenerId {
+                        removeEventListener(listenerId)
+                    }
+
+                    continuation.resume(returning: result)
+                }
+            }
+
+            listenerId = addEventListener { event in
+                guard case .chatStateUpdated(let chatState) = event else {
+                    return
+                }
+
+                guard chatId == nil || chatState.chat.id == chatId else {
+                    return
+                }
+
+                guard let latestMessage = chatState.messages.last else {
+                    return
+                }
+
+                if let afterMessageId, latestMessage.id == afterMessageId {
+                    return
+                }
+
+                finish(WaitForMessageResult(chat: chatState.chat, message: latestMessage))
+            }
+
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(timeoutSeconds))
+                finish(nil)
+            }
+        }
+    }
+
     @discardableResult
     func addEventListener(_ listener: @escaping (WhatsAppMemoryStoreEvent) -> Void) -> UUID {
         let id = UUID()
@@ -92,5 +153,42 @@ final class WhatsAppMemoryStore: ObservableObject {
         for listener in listeners.values {
             listener(event)
         }
+    }
+
+    private func latestMessageResult(chatId: String?, afterMessageId: String?) -> WaitForMessageResult? {
+        let candidates: [ChatState]
+        if let chatId, let chatState = chatStatesById[chatId] {
+            candidates = [chatState]
+        } else {
+            candidates = Array(chatStatesById.values)
+        }
+
+        let latestCandidate = candidates
+            .compactMap { chatState -> WaitForMessageResult? in
+                guard let latestMessage = chatState.messages.last else {
+                    return nil
+                }
+
+                if let afterMessageId, latestMessage.id == afterMessageId {
+                    return nil
+                }
+
+                return WaitForMessageResult(chat: chatState.chat, message: latestMessage)
+            }
+            .sorted { lhs, rhs in
+                switch (lhs.message.timestamp, rhs.message.timestamp) {
+                case let (left?, right?):
+                    return left > right
+                case (.some, .none):
+                    return true
+                case (.none, .some):
+                    return false
+                case (.none, .none):
+                    return lhs.message.id > rhs.message.id
+                }
+            }
+            .first
+
+        return latestCandidate
     }
 }

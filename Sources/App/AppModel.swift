@@ -19,11 +19,14 @@ final class AppModel: ObservableObject {
     @Published var pollingIntervalSeconds = 3
     @Published var mcpServerHost = "localhost"
     @Published var mcpServerPort = 8080
+    @Published private(set) var mcpServerRunning = false
+    @Published private(set) var mcpServerStatusDescription = "Stopped"
 
     private let accessibility = AccessibilityService()
     private let parser = WhatsAppAppParser()
     private let interactor = WhatsAppInteractor()
     private let memoryStore = WhatsAppMemoryStore.shared
+    private let mcpConnector: MCPBridgeConnecting = MCPBridgeConnector()
     private var pollingTask: Task<Void, Never>?
     private var permissionMonitorTask: Task<Void, Never>?
     private var listSignaturesById: [String: String] = [:]
@@ -32,7 +35,11 @@ final class AppModel: ObservableObject {
 
     init() {
         bindMemoryStore()
+        configureMCPConnector()
         refreshStatus()
+        Task {
+            await startMCPServer()
+        }
     }
 
     func refreshStatus() {
@@ -149,6 +156,33 @@ final class AppModel: ObservableObject {
         """
     }
 
+    func startMCPServer() async {
+        mcpConnector.configure(host: mcpServerHost, port: mcpServerPort)
+
+        do {
+            try await mcpConnector.start()
+            mcpServerRunning = mcpConnector.isRunning
+            mcpServerStatusDescription = mcpServerRunning ? "Listening on \(mcpServerAddress)" : "Starting"
+            appendLog("MCP HTTP server listening on \(mcpServerAddress).")
+        } catch {
+            mcpServerRunning = false
+            mcpServerStatusDescription = "Failed: \(error.localizedDescription)"
+            appendLog("Failed to start MCP server: \(error.localizedDescription)", level: .error)
+        }
+    }
+
+    func stopMCPServer() async {
+        await mcpConnector.stop()
+        mcpServerRunning = false
+        mcpServerStatusDescription = "Stopped"
+        appendLog("Stopped MCP HTTP server.")
+    }
+
+    func restartMCPServer() async {
+        await stopMCPServer()
+        await startMCPServer()
+    }
+
     func sendMessageToSelectedChat() async {
         let trimmedMessage = messageDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedMessage.isEmpty else {
@@ -169,24 +203,41 @@ final class AppModel: ObservableObject {
         defer { isSendingMessage = false }
 
         do {
-            try interactor.selectConversation(selectedChatState.chat, using: accessibility)
-            try await Task.sleep(for: .milliseconds(650))
-
-            let snapshot = try accessibility.captureWhatsAppSnapshot(maxDepth: 14)
-            try interactor.sendMessage(trimmedMessage, in: snapshot, using: accessibility)
+            try await sendMessage(trimmedMessage, to: selectedChatState.chat.id)
             messageDraft = ""
-            appendLog("Sent message to \(selectedChatState.chat.name).")
-
-            try await Task.sleep(for: .milliseconds(500))
-
-            let refreshedSnapshot = try accessibility.captureWhatsAppSnapshot(maxDepth: 14)
-            let refreshedState = parser.parse(snapshot: refreshedSnapshot, messageLimit: 10)
-            writeDebugArtifacts(snapshot: refreshedSnapshot, screenState: refreshedState, prefix: "send-\(selectedChatState.chat.id)")
-            memoryStore.replaceConversations(refreshedState.conversations)
-            updateSelectedChatState(from: refreshedState, preferredConversation: selectedChatState.chat)
         } catch {
             appendLog("Failed to send message: \(error.localizedDescription)", level: .error)
         }
+    }
+
+    func sendMessage(_ text: String, to conversationId: String) async throws {
+        let trimmedMessage = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedMessage.isEmpty else {
+            throw MCPBridgeError.invalidParameter("text")
+        }
+
+        guard let conversation = memoryStore.conversation(for: conversationId) else {
+            throw MCPBridgeError.invalidParameter("chatId")
+        }
+
+        guard prepareForWhatsAppInspection() else {
+            throw MCPBridgeError.invalidRequest
+        }
+
+        try interactor.selectConversation(conversation, using: accessibility)
+        try await Task.sleep(for: .milliseconds(650))
+
+        let snapshot = try accessibility.captureWhatsAppSnapshot(maxDepth: 14)
+        try interactor.sendMessage(trimmedMessage, in: snapshot, using: accessibility)
+        appendLog("Sent message to \(conversation.name).")
+
+        try await Task.sleep(for: .milliseconds(500))
+
+        let refreshedSnapshot = try accessibility.captureWhatsAppSnapshot(maxDepth: 14)
+        let refreshedState = parser.parse(snapshot: refreshedSnapshot, messageLimit: 10)
+        writeDebugArtifacts(snapshot: refreshedSnapshot, screenState: refreshedState, prefix: "send-\(conversation.id)")
+        memoryStore.replaceConversations(refreshedState.conversations)
+        updateSelectedChatState(from: refreshedState, preferredConversation: conversation)
     }
 
     private func startPermissionMonitor() {
@@ -322,6 +373,172 @@ final class AppModel: ObservableObject {
                 self?.selectedConversationId = $0
             }
             .store(in: &cancellables)
+    }
+
+    private func configureMCPConnector() {
+        mcpConnector.setRequestHandler { [weak self] request in
+            guard let self else {
+                return .failure(MCPBridgeError.invalidRequest)
+            }
+
+            return await self.handleMCPRequest(request)
+        }
+    }
+
+    private func handleMCPRequest(_ request: MCPHTTPRequest) async -> Result<JSONValue, Error> {
+        switch request.method {
+        case "tools/list":
+            return .success(.object(["tools": .array(toolDefinitions.map(\.jsonValue))]))
+        case "tools/call":
+            guard
+                let name = request.params["name"]?.stringValue,
+                case .object(let arguments)? = request.params["arguments"]
+            else {
+                return .failure(MCPBridgeError.invalidRequest)
+            }
+
+            return await callTool(MCPToolCall(name: name, arguments: arguments))
+        default:
+            return .failure(MCPBridgeError.unsupportedMethod(request.method))
+        }
+    }
+
+    private var toolDefinitions: [MCPToolDefinition] {
+        [
+            MCPToolDefinition(
+                name: "list_chats",
+                description: "Lists the chats currently mapped in memory from WhatsApp.",
+                inputSchema: [
+                    "type": .string("object"),
+                    "properties": .object([:])
+                ]
+            ),
+            MCPToolDefinition(
+                name: "get_recent_messages",
+                description: "Returns recent messages for a mapped chat.",
+                inputSchema: [
+                    "type": .string("object"),
+                    "properties": .object([
+                        "chatId": .object(["type": .string("string")]),
+                        "limit": .object(["type": .string("number")])
+                    ]),
+                    "required": .array([.string("chatId")])
+                ]
+            ),
+            MCPToolDefinition(
+                name: "send_message",
+                description: "Sends a message to a mapped chat through Accessibility.",
+                inputSchema: [
+                    "type": .string("object"),
+                    "properties": .object([
+                        "chatId": .object(["type": .string("string")]),
+                        "text": .object(["type": .string("string")])
+                    ]),
+                    "required": .array([.string("chatId"), .string("text")])
+                ]
+            ),
+            MCPToolDefinition(
+                name: "wait_for_message",
+                description: "Waits until a new message appears in memory and returns it.",
+                inputSchema: [
+                    "type": .string("object"),
+                    "properties": .object([
+                        "chatId": .object(["type": .string("string")]),
+                        "afterMessageId": .object(["type": .string("string")]),
+                        "timeoutSeconds": .object(["type": .string("number")])
+                    ])
+                ]
+            )
+        ]
+    }
+
+    private func callTool(_ call: MCPToolCall) async -> Result<JSONValue, Error> {
+        switch call.name {
+        case "list_chats":
+            let chats = memoryStore.conversations.map(conversationJSONValue)
+            return .success(.object(["chats": .array(chats)]))
+        case "get_recent_messages":
+            guard let chatId = call.arguments["chatId"]?.stringValue else {
+                return .failure(MCPBridgeError.missingParameter("chatId"))
+            }
+
+            let limit = max(1, call.arguments["limit"]?.intValue ?? 10)
+            guard let chatState = memoryStore.chatState(for: chatId) else {
+                return .success(.object(["chat": .null, "messages": .array([])]))
+            }
+
+            let messages = chatState.messages.suffix(limit).map(messageJSONValue)
+            return .success(.object([
+                "chat": conversationJSONValue(chatState.chat),
+                "messages": .array(messages)
+            ]))
+        case "send_message":
+            guard let chatId = call.arguments["chatId"]?.stringValue else {
+                return .failure(MCPBridgeError.missingParameter("chatId"))
+            }
+
+            guard let text = call.arguments["text"]?.stringValue else {
+                return .failure(MCPBridgeError.missingParameter("text"))
+            }
+
+            do {
+                try await sendMessage(text, to: chatId)
+                return .success(.object([
+                    "ok": .bool(true),
+                    "chatId": .string(chatId)
+                ]))
+            } catch {
+                return .failure(error)
+            }
+        case "wait_for_message":
+            let timeoutSeconds = max(1, call.arguments["timeoutSeconds"]?.intValue ?? 60)
+            let result = await memoryStore.waitForNextMessage(
+                chatId: call.arguments["chatId"]?.stringValue,
+                afterMessageId: call.arguments["afterMessageId"]?.stringValue,
+                timeoutSeconds: timeoutSeconds
+            )
+
+            if let result {
+                return .success(.object([
+                    "timedOut": .bool(false),
+                    "chat": conversationJSONValue(result.chat),
+                    "message": messageJSONValue(result.message)
+                ]))
+            }
+
+            return .success(.object(["timedOut": .bool(true)]))
+        default:
+            return .failure(MCPBridgeError.invalidParameter("name"))
+        }
+    }
+
+    private func conversationJSONValue(_ conversation: ConversationSummary) -> JSONValue {
+        .object([
+            "id": .string(conversation.id),
+            "name": .string(conversation.name),
+            "unreadCount": .number(Double(conversation.unreadCount)),
+            "isPinned": .bool(conversation.isPinned),
+            "isSelected": .bool(conversation.isSelected),
+            "lastMessagePreview": conversation.lastMessagePreview.map(JSONValue.string) ?? .null,
+            "lastMessageAtText": conversation.lastMessageAtText.map(JSONValue.string) ?? .null,
+            "lastMessageDirection": .string(conversation.lastMessageDirection.rawValue),
+            "lastMessageStatus": .string(conversation.lastMessageStatus.rawValue),
+            "isTyping": .bool(conversation.isTyping)
+        ])
+    }
+
+    private func messageJSONValue(_ message: Message) -> JSONValue {
+        .object([
+            "id": .string(message.id),
+            "chatId": .string(message.chatId),
+            "direction": .string(message.direction.rawValue),
+            "kind": .string(message.kind.rawValue),
+            "text": message.text.map(JSONValue.string) ?? .null,
+            "durationSeconds": message.durationSeconds.map(JSONValue.number) ?? .null,
+            "timestamp": .from(date: message.timestamp),
+            "status": .string(message.status.rawValue),
+            "rawAccessibilityText": .string(message.rawAccessibilityText)
+        ])
     }
 
     private func writeDebugArtifacts(snapshot: WhatsAppSnapshot, screenState: WhatsAppScreenState, prefix: String) {

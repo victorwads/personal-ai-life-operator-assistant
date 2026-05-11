@@ -203,6 +203,30 @@ private struct SettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
+                    Text(appModel.mcpServerStatusDescription)
+                        .font(.caption)
+                        .foregroundStyle(appModel.mcpServerRunning ? .green : .secondary)
+
+                    HStack(spacing: 10) {
+                        Button {
+                            Task {
+                                await appModel.restartMCPServer()
+                            }
+                        } label: {
+                            Label(appModel.mcpServerRunning ? "Restart Server" : "Start Server", systemImage: "bolt.horizontal.circle")
+                        }
+
+                        if appModel.mcpServerRunning {
+                            Button {
+                                Task {
+                                    await appModel.stopMCPServer()
+                                }
+                            } label: {
+                                Label("Stop Server", systemImage: "stop.circle")
+                            }
+                        }
+                    }
+
                     Text("Client snippet")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
