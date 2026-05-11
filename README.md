@@ -63,7 +63,24 @@ This repo currently contains a generated Xcode project for a minimal macOS Swift
 - `Sources/AccessibilityService.swift`: initial Accessibility permission and WhatsApp snapshot code
 - `Sources/LogView.swift`: live log panel
 
-Generate the Xcode project again after changing `project.yml`:
+## Default Development Flow
+
+Use the restart script as the default way to test local changes:
+
+```sh
+./scripts/restart.sh
+```
+
+This is the standard build-and-run path for the project. It:
+
+- closes running `AssistantMCPServer` instances
+- regenerates `AssistantMCPServer.xcodeproj` with `xcodegen`
+- builds the Debug app
+- opens the freshly built app
+
+Use this flow when validating changes locally instead of calling `xcodebuild` manually.
+
+Generate the Xcode project again after changing `project.yml` only if you want that step by itself:
 
 ```sh
 xcodegen generate
@@ -83,7 +100,7 @@ open AssistantMCPServer.xcodeproj
 
 ## Development Commands
 
-Build with a stable local `DerivedData` path:
+Manual build with a stable local `DerivedData` path:
 
 ```sh
 xcodebuild \
@@ -94,12 +111,9 @@ xcodebuild \
   build
 ```
 
-The restart script does the full local cycle:
+Prefer the restart script for day-to-day work. Use the manual build command only when you explicitly want to build without restarting the app.
 
-- closes all running `AssistantMCPServer` processes
-- regenerates the Xcode project with `xcodegen`
-- builds the Debug app into `build/DerivedData`
-- opens the freshly built app
+The restart script uses `build/DerivedData`, so the built app path stays stable across runs.
 
 ## Desired MCP Tools
 
