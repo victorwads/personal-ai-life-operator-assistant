@@ -32,8 +32,6 @@ final class AccessibilityService {
             throw AccessibilityError.whatsAppNotRunning
         }
 
-        app.activate(options: [.activateIgnoringOtherApps])
-
         let element = AXUIElementCreateApplication(app.processIdentifier)
         let rootNode = captureNode(from: element, path: [], depth: 0, maxDepth: maxDepth)
 
@@ -50,8 +48,6 @@ final class AccessibilityService {
             throw AccessibilityError.whatsAppNotRunning
         }
 
-        app.activate(options: [.activateIgnoringOtherApps])
-
         let root = AXUIElementCreateApplication(app.processIdentifier)
         guard let element = element(at: path, from: root) else {
             throw AccessibilityError.nodeNotFound
@@ -66,8 +62,6 @@ final class AccessibilityService {
         guard let app = findWhatsAppApplication() else {
             throw AccessibilityError.whatsAppNotRunning
         }
-
-        app.activate(options: [.activateIgnoringOtherApps])
 
         let root = AXUIElementCreateApplication(app.processIdentifier)
         guard let element = element(at: path, from: root) else {
