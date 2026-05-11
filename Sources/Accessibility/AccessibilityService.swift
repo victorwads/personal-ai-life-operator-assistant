@@ -74,6 +74,54 @@ final class AccessibilityService {
         }
     }
 
+    func focusNode(at path: [Int]) throws {
+        guard let app = findWhatsAppApplication() else {
+            throw AccessibilityError.whatsAppNotRunning
+        }
+
+        let root = AXUIElementCreateApplication(app.processIdentifier)
+        guard let element = element(at: path, from: root) else {
+            throw AccessibilityError.nodeNotFound
+        }
+
+        let result = AXUIElementSetAttributeValue(element, kAXFocusedAttribute as CFString, kCFBooleanTrue)
+        guard result == .success else {
+            throw AccessibilityError.actionFailed(result.rawValue)
+        }
+    }
+
+    func pressEnterKey() throws {
+        guard let source = CGEventSource(stateID: .combinedSessionState) else {
+            throw AccessibilityError.actionFailed(-1)
+        }
+
+        let enterKeyCode: CGKeyCode = 36
+        guard let keyDown = CGEvent(keyboardEventSource: source, virtualKey: enterKeyCode, keyDown: true),
+              let keyUp = CGEvent(keyboardEventSource: source, virtualKey: enterKeyCode, keyDown: false) else {
+            throw AccessibilityError.actionFailed(-1)
+        }
+
+        keyDown.post(tap: .cghidEventTap)
+        keyUp.post(tap: .cghidEventTap)
+    }
+
+    func sendText(_ text: String, to path: [Int]) throws {
+        try activateWhatsApp()
+        try focusNode(at: path)
+        try setValue(text, at: path)
+    }
+
+    private func activateWhatsApp() throws {
+        guard let app = findWhatsAppApplication() else {
+            throw AccessibilityError.whatsAppNotRunning
+        }
+
+        if !app.isActive {
+            app.activate(options: [.activateAllWindows])
+            Thread.sleep(forTimeInterval: 0.15)
+        }
+    }
+
     private func captureNode(from element: AXUIElement, path: [Int], depth: Int, maxDepth: Int) -> RawAXNode {
         let children: [RawAXNode]
         if depth < maxDepth {
