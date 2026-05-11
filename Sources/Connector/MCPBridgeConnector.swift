@@ -74,6 +74,26 @@ enum JSONValue: Codable, Equatable {
 
         return .string(ISO8601DateFormatter().string(from: date))
     }
+
+    static func from(any value: Any) -> JSONValue? {
+        switch value {
+        case let value as String:
+            return .string(value)
+        case let value as Bool:
+            return .bool(value)
+        case let value as NSNumber:
+            return .number(value.doubleValue)
+        case let value as [String: Any]:
+            let object = value.compactMapValues { JSONValue.from(any: $0) }
+            return .object(object)
+        case let value as [Any]:
+            return .array(value.compactMap(JSONValue.from(any:)))
+        case _ as NSNull:
+            return .null
+        default:
+            return nil
+        }
+    }
 }
 
 struct MCPToolDefinition {
@@ -250,52 +270,58 @@ final class MCPBridgeConnector: MCPBridgeConnecting {
     }
 
     private func decodeRequest(from body: Data) throws -> MCPHTTPRequest {
-        let rpcRequest = try decoder.decode(JSONRPCRequest.self, from: body)
+        guard
+            let payloadObject = try JSONSerialization.jsonObject(with: body) as? [String: Any],
+            let method = payloadObject["method"] as? String
+        else {
+            throw MCPBridgeError.invalidRequest
+        }
 
-        switch rpcRequest.method {
+        let id = payloadObject["id"].flatMap(JSONValue.from(any:))
+        let paramsObject = payloadObject["params"] as? [String: Any] ?? [:]
+
+        switch method {
         case "tools/list":
-            return MCPHTTPRequest(id: rpcRequest.id, method: rpcRequest.method, params: [:])
+            return MCPHTTPRequest(id: id, method: method, params: [:])
         case "tools/call":
             guard
-                let params = rpcRequest.params,
-                case .object(let object) = params,
-                let name = object["name"]?.stringValue
+                let name = paramsObject["name"] as? String
             else {
                 throw MCPBridgeError.invalidRequest
             }
 
             let arguments: [String: JSONValue]
-            if case .object(let value)? = object["arguments"] {
-                arguments = value
+            if let argumentsObject = paramsObject["arguments"] as? [String: Any] {
+                arguments = argumentsObject.compactMapValues { JSONValue.from(any: $0) }
             } else {
                 arguments = [:]
             }
 
             return MCPHTTPRequest(
-                id: rpcRequest.id,
-                method: rpcRequest.method,
+                id: id,
+                method: method,
                 params: [
                     "name": .string(name),
                     "arguments": .object(arguments)
                 ]
             )
         default:
-            throw MCPBridgeError.unsupportedMethod(rpcRequest.method)
+            throw MCPBridgeError.unsupportedMethod(method)
         }
     }
 
     private func completeHTTPRequestBody(from data: Data) -> Data? {
+        let separator = Data("\r\n\r\n".utf8)
         guard
-            let requestString = String(data: data, encoding: .utf8),
-            let headerRange = requestString.range(of: "\r\n\r\n")
+            let headerRange = data.range(of: separator),
+            let headers = String(data: data.subdata(in: data.startIndex..<headerRange.lowerBound), encoding: .utf8)
         else {
             return nil
         }
 
-        let headers = String(requestString[..<headerRange.lowerBound])
-        let bodyStart = requestString.distance(from: requestString.startIndex, to: headerRange.upperBound)
+        let bodyStart = headerRange.upperBound
         let contentLength = headers
-            .split(separator: "\r\n")
+            .components(separatedBy: "\r\n")
             .first(where: { $0.lowercased().hasPrefix("content-length:") })
             .flatMap { Int($0.split(separator: ":", maxSplits: 1).last?.trimmingCharacters(in: .whitespaces) ?? "") }
             ?? 0
@@ -352,11 +378,4 @@ final class MCPBridgeConnector: MCPBridgeConnecting {
 
         return Data(response.utf8) + body
     }
-}
-
-private struct JSONRPCRequest: Codable {
-    let jsonrpc: String?
-    let id: JSONValue?
-    let method: String
-    let params: JSONValue?
 }
