@@ -72,7 +72,7 @@ struct ChatDetailView: View {
             Button {
                 onToggleBlocked()
             } label: {
-                Label(isBlocked ? "Unblock" : "Block", systemImage: isBlocked ? "checkmark.shield" : "hand.raised")
+                Label(isBlocked ? "Unignore" : "Ignore", systemImage: isBlocked ? "checkmark.shield" : "hand.raised")
             }
             .buttonStyle(.bordered)
         }

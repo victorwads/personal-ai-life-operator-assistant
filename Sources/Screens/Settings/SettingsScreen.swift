@@ -133,31 +133,8 @@ struct SettingsScreen: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-
-                GroupBox("Blocked Conversations") {
-                    if appModel.blockedConversationNames.isEmpty {
-                        Text("No blocked conversation titles.")
-                            .foregroundStyle(.secondary)
-                    } else {
-                        VStack(alignment: .leading, spacing: 8) {
-                            ForEach(appModel.blockedConversationNames, id: \.self) { blockedName in
-                                HStack {
-                                    Text(blockedName)
-                                        .lineLimit(1)
-
-                                    Spacer()
-
-                                    Button("Remove") {
-                                        appModel.unblockConversation(named: blockedName)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
             }
             .padding(20)
         }
     }
 }
-

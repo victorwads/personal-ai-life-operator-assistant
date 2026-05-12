@@ -29,6 +29,11 @@ struct ConversationsScreen: View {
                         .buttonStyle(.bordered)
                         .controlSize(.small)
                     }
+
+                    Divider()
+                        .padding(.vertical, 4)
+
+                    ignoredConversationsSection
                 }
                 .padding(12)
             }
@@ -73,5 +78,30 @@ struct ConversationsScreen: View {
             Color.clear
         }
     }
-}
 
+    private var ignoredConversationsSection: some View {
+        GroupBox("Ignored Conversations") {
+            if appModel.blockedConversationNames.isEmpty {
+                Text("No ignored conversations.")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(appModel.blockedConversationNames, id: \.self) { ignoredName in
+                        HStack {
+                            Text(ignoredName)
+                                .lineLimit(1)
+
+                            Spacer()
+
+                            Button("Remove") {
+                                appModel.unblockConversation(named: ignoredName)
+                            }
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+}
