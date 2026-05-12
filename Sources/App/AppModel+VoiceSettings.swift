@@ -21,6 +21,11 @@ extension AppModel {
         return matches.isEmpty ? availableSpeechVoices : matches
     }
 
+    var availableSpeechLanguages: [String] {
+        let languages = Set(availableSpeechVoices.map(\.language))
+        return languages.sorted()
+    }
+
     func voiceForIdentifier(_ identifier: String?) -> AVSpeechSynthesisVoice? {
         guard let identifier, !identifier.isEmpty else { return nil }
         return AVSpeechSynthesisVoice(identifier: identifier)

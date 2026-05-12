@@ -155,9 +155,12 @@ struct SettingsScreen: View {
                         HStack {
                             Text("Speech language")
                             Spacer()
-                            TextField("pt-BR", text: $appModel.speechLanguage)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(width: 120)
+                            Picker("Speech language", selection: $appModel.speechLanguage) {
+                                ForEach(appModel.availableSpeechLanguages, id: \.self) { language in
+                                    Text(language).tag(language)
+                                }
+                            }
+                            .frame(width: 220, alignment: .trailing)
                         }
 
                         HStack {
@@ -185,6 +188,21 @@ struct SettingsScreen: View {
                                 .font(.caption.monospacedDigit())
                                 .foregroundStyle(.secondary)
                                 .frame(width: 44, alignment: .trailing)
+                        }
+
+                        Button {
+                            let text = appModel.assistantInstructions.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !text.isEmpty else { return }
+                            Task {
+                                await appModel.voiceAssistant.speak(
+                                    text,
+                                    language: appModel.speechLanguage,
+                                    voiceIdentifier: appModel.speechVoiceIdentifier,
+                                    rate: appModel.speechRate
+                                )
+                            }
+                        } label: {
+                            Label("Test (Read Instructions)", systemImage: "speaker.wave.2.fill")
                         }
 
                         Text("Instructions")
