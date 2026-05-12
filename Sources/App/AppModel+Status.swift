@@ -12,6 +12,25 @@ extension AppModel {
         appendLog(runtimeDescription)
     }
 
+    func updateLiveStatus() {
+        accessibilityTrusted = accessibility.isTrusted(prompt: false)
+        whatsappRunning = accessibility.findWhatsAppApplication() != nil
+    }
+
+    func startLiveStatusMonitoring() {
+        liveStatusTask?.cancel()
+        liveStatusTask = Task { [weak self] in
+            guard let self else { return }
+
+            while !Task.isCancelled {
+                await MainActor.run {
+                    self.updateLiveStatus()
+                }
+                try? await Task.sleep(for: .seconds(1))
+            }
+        }
+    }
+
     func requestAccessibilityPermission() {
         if accessibility.isTrusted(prompt: false) {
             accessibilityTrusted = true

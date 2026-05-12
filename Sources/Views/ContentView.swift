@@ -2,109 +2,90 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var appModel: AppModel
-    @State private var showingSettings = false
+    @State private var selectedScreen: SidebarScreen? = .conversations
+
+    enum SidebarScreen: String, CaseIterable, Identifiable {
+        case conversations
+        case settings
+        case logs
+        case debug
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .conversations: "Conversations"
+            case .settings: "Settings"
+            case .logs: "Logs"
+            case .debug: "Debug"
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .conversations: "bubble.left.and.bubble.right"
+            case .settings: "gearshape"
+            case .logs: "list.bullet.rectangle"
+            case .debug: "point.3.connected.trianglepath.dotted"
+            }
+        }
+    }
 
     var body: some View {
         NavigationSplitView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    sidebarHeader("Bridge")
-                    Label("WhatsApp", systemImage: appModel.whatsappRunning ? "checkmark.circle.fill" : "xmark.circle")
-                    Label("Accessibility", systemImage: appModel.accessibilityTrusted ? "checkmark.circle.fill" : "lock.trianglebadge.exclamationmark")
-
-                    sidebarHeader("Conversations")
-                    ForEach(appModel.conversations) { conversation in
-                        Button {
-                            open(conversation)
-                        } label: {
-                            ConversationRow(conversation: conversation)
-                                .contentShape(Rectangle())
-                                .padding(.horizontal, 4)
-                                .background(selectionBackground(for: conversation))
-                                .clipShape(RoundedRectangle(cornerRadius: 6))
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                    }
-
-                    sidebarHeader("Runtime")
-                    Text(appModel.runtimeDescription)
-                        .font(.caption)
-                        .textSelection(.enabled)
+            List(selection: $selectedScreen) {
+                ForEach(SidebarScreen.allCases) { screen in
+                    Label(screen.title, systemImage: screen.systemImage)
+                        .tag(screen)
                 }
-                .padding(12)
             }
             .navigationTitle("Assistant MCP")
         } detail: {
             VStack(spacing: 0) {
-                toolbar
+                headerBar
                 Divider()
-                ChatDetailView(
-                    chatState: appModel.selectedChatState,
-                    messageDraft: $appModel.messageDraft,
-                    isSendingMessage: appModel.isSendingMessage,
-                    isBlocked: appModel.selectedChatState.map { appModel.isBlocked($0.chat.name) } ?? false,
-                    onToggleBlocked: {
-                        guard let conversationName = appModel.selectedChatState?.chat.name else {
-                            return
-                        }
-
-                        appModel.toggleBlockedConversation(conversationName)
-                    },
-                    onSend: {
-                        Task {
-                            await appModel.sendMessageToSelectedChat()
-                        }
-                    }
-                )
-                .frame(maxHeight: .infinity)
-                Divider()
-                LogView(logs: appModel.logs)
-                    .frame(minHeight: 180, maxHeight: 260)
+                selectedDetailView
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
     }
 
-    private func open(_ conversation: ConversationSummary) {
-        guard appModel.selectedConversationId != conversation.id else {
-            return
+    private var selectedDetailView: some View {
+        Group {
+            switch selectedScreen ?? .conversations {
+            case .conversations:
+                ConversationsScreen()
+            case .settings:
+                SettingsScreen(appModel: appModel)
+                    .padding(12)
+            case .logs:
+                LogsScreen()
+            case .debug:
+                DebugTreeScreen()
+            }
         }
-
-        appModel.openConversation(conversation)
     }
 
-    @ViewBuilder
-    private func selectionBackground(for conversation: ConversationSummary) -> some View {
-        if appModel.selectedConversationId == conversation.id {
-            Color.accentColor.opacity(0.22)
-        } else {
-            Color.clear
-        }
-    }
-
-    private func sidebarHeader(_ title: String) -> some View {
-        Text(title)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.secondary)
-            .textCase(.uppercase)
-            .padding(.top, 4)
-    }
-
-    private var toolbar: some View {
+    private var headerBar: some View {
         HStack(spacing: 10) {
-            Button {
-                appModel.refreshStatus()
-            } label: {
-                Label("Refresh", systemImage: "arrow.clockwise")
-            }
-
-            Button {
-                showingSettings = true
-            } label: {
-                Label("Settings", systemImage: "gearshape")
-            }
+            Text((selectedScreen ?? .conversations).title)
+                .font(.title3.weight(.semibold))
 
             Spacer()
+
+            StatusBadge(
+                title: "WhatsApp \(appModel.whatsappRunning ? "Open" : "Closed")",
+                isOnline: appModel.whatsappRunning,
+                subtitle: nil,
+                help: "Shows whether WhatsApp is currently running."
+            )
+
+            StatusBadge(
+                title: "Accessibility \(appModel.accessibilityTrusted ? "OK" : "Missing")",
+                isOnline: appModel.accessibilityTrusted,
+                subtitle: nil,
+                help: "Shows whether this app has Accessibility permission."
+            )
 
             MCPServerStatusBadge(
                 isRunning: appModel.mcpServerRunning,
@@ -117,8 +98,5 @@ struct ContentView: View {
                 .foregroundStyle(.secondary)
         }
         .padding(12)
-        .sheet(isPresented: $showingSettings) {
-            SettingsView(appModel: appModel)
-        }
     }
 }

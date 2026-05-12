@@ -23,6 +23,21 @@ extension AppModel {
         }
     }
 
+    func captureDebugSnapshot() {
+        guard prepareForWhatsAppInspection() else {
+            return
+        }
+
+        do {
+            let snapshot = try accessibility.captureWhatsAppSnapshot(maxDepth: 14)
+            debugSnapshot = snapshot
+            debugNodePath = []
+            appendLog("Captured debug snapshot for tree view.")
+        } catch {
+            appendLog("Failed to capture debug snapshot: \(error.localizedDescription)", level: .error)
+        }
+    }
+
     func writeDebugArtifacts(snapshot: WhatsAppSnapshot, screenState: WhatsAppScreenState, prefix: String) {
         do {
             try FileManager.default.createDirectory(at: debugDirectory, withIntermediateDirectories: true)

@@ -23,6 +23,8 @@ final class AppModel: ObservableObject {
     @Published var mcpServerRunning = false
     @Published var mcpServerStatusDescription = "Stopped"
     @Published var blockedConversationNames: [String] = []
+    @Published var debugSnapshot: WhatsAppSnapshot?
+    @Published var debugNodePath: [Int] = []
 
     let accessibility = AccessibilityService()
     let accessibilityScheduler = AccessibilityActionScheduler()
@@ -37,12 +39,14 @@ final class AppModel: ObservableObject {
     var cancellables: Set<AnyCancellable> = []
     let blockedConversationDefaultsKey = "blockedConversationNames"
     var mcpRestartTask: Task<Void, Never>?
+    var liveStatusTask: Task<Void, Never>?
 
     init() {
         loadBlockedConversationNames()
         bindMemoryStore()
         configureMCPConnector()
         refreshStatus()
+        startLiveStatusMonitoring()
         Task {
             await startMCPServer()
             startPolling()
