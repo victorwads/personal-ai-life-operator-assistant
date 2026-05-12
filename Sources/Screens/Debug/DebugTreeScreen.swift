@@ -8,6 +8,7 @@ private extension RawAXNode {
 struct DebugTreeScreen: View {
     @EnvironmentObject private var appModel: AppModel
     @StateObject private var model = DebugTreeViewModel()
+    @StateObject private var previewModel = DebugTreePreviewModel()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -53,9 +54,13 @@ struct DebugTreeScreen: View {
                 }
                 .task(id: snapshot.capturedAt) {
                     model.resetForNewSnapshot(focusPath: appModel.debugNodePath)
+                    previewModel.reset()
                 }
                 .onChange(of: model.selectedNodePath) { _, _ in
+                    // Update cheap details immediately; preview updates independently.
                     model.handleSelectionChanged(snapshot: snapshot)
+                    previewModel.setLoadingImmediatelyIfNeeded(snapshot: snapshot, path: model.selectedNodePath)
+                    previewModel.update(snapshot: snapshot, path: model.selectedNodePath)
                 }
             } else {
                 ContentUnavailableView(
@@ -168,14 +173,14 @@ struct DebugTreeScreen: View {
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
 
-            if model.isLoadingSelectedNodePreview {
+            if previewModel.isLoading {
                 HStack(spacing: 10) {
                     ProgressView().controlSize(.small)
                     Text("Capturing preview…")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-            } else if let image = model.selectedNodePreviewImage {
+            } else if let image = previewModel.image {
                 GeometryReader { proxy in
                     Image(nsImage: image)
                         .resizable()
@@ -184,7 +189,7 @@ struct DebugTreeScreen: View {
                         .clipped()
                 }
                 .frame(height: 240)
-            } else if let error = model.selectedNodePreviewError {
+            } else if let error = previewModel.error {
                 Text(error)
                     .font(.caption)
                     .foregroundStyle(.secondary)
