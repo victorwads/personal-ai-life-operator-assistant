@@ -133,6 +133,23 @@ struct SettingsScreen: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
+
+                GroupBox("Assistant") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Instructions")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+
+                        TextEditor(text: $appModel.assistantInstructions)
+                            .font(.system(.caption, design: .monospaced))
+                            .frame(minHeight: 180)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.secondary.opacity(0.2))
+                            )
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
             .padding(20)
         }

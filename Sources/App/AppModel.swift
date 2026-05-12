@@ -25,6 +25,7 @@ final class AppModel: ObservableObject {
     @Published var blockedConversationNames: [String] = []
     @Published var debugSnapshot: WhatsAppSnapshot?
     @Published var debugNodePath: [Int] = []
+    @Published var assistantInstructions = ""
 
     let accessibility = AccessibilityService()
     let accessibilityScheduler = AccessibilityActionScheduler()
@@ -32,17 +33,20 @@ final class AppModel: ObservableObject {
     let interactor = WhatsAppInteractor()
     let memoryStore = WhatsAppMemoryStore.shared
     let mcpConnector: MCPServerTransporting = MCPHTTPServer()
+    let voiceAssistant = VoiceAssistant()
     var pollingTask: Task<Void, Never>?
     var permissionMonitorTask: Task<Void, Never>?
     var listSignaturesById: [String: String] = [:]
     let debugDirectory = URL(fileURLWithPath: "/tmp/AssistantMCPServer", isDirectory: true)
     var cancellables: Set<AnyCancellable> = []
     let blockedConversationDefaultsKey = "blockedConversationNames"
+    let assistantInstructionsDefaultsKey = "assistantInstructions"
     var mcpRestartTask: Task<Void, Never>?
     var liveStatusTask: Task<Void, Never>?
 
     init() {
         loadBlockedConversationNames()
+        loadAssistantInstructions()
         bindMemoryStore()
         configureMCPConnector()
         refreshStatus()

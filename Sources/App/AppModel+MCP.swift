@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 
 extension AppModel {
@@ -185,6 +186,40 @@ extension AppModel {
                         "timeoutSeconds": .object(["type": .string("number")])
                     ])
                 ]
+            ),
+            MCPToolDefinition(
+                name: "get_instructions",
+                description: "Returns the assistant instructions configured in the app.",
+                inputSchema: [
+                    "type": .string("object"),
+                    "properties": .object([:])
+                ]
+            ),
+            MCPToolDefinition(
+                name: "speak",
+                description: "Speaks a message out loud using text-to-speech.",
+                inputSchema: [
+                    "type": .string("object"),
+                    "properties": .object([
+                        "text": .object(["type": .string("string")]),
+                        "language": .object(["type": .string("string")]),
+                        "rate": .object(["type": .string("number")])
+                    ]),
+                    "required": .array([.string("text")])
+                ]
+            ),
+            MCPToolDefinition(
+                name: "ask_user",
+                description: "Asks the user out loud and waits for a spoken response.",
+                inputSchema: [
+                    "type": .string("object"),
+                    "properties": .object([
+                        "prompt": .object(["type": .string("string")]),
+                        "language": .object(["type": .string("string")]),
+                        "timeoutSeconds": .object(["type": .string("number")])
+                    ]),
+                    "required": .array([.string("prompt")])
+                ]
             )
         ]
     }
@@ -243,6 +278,49 @@ extension AppModel {
             }
 
             return .success(.object(["timedOut": .bool(true)]))
+        case "get_instructions":
+            return .success(.object(["instructions": .string(assistantInstructions)]))
+        case "speak":
+            guard let text = call.arguments["text"]?.stringValue else {
+                return .failure(MCPServerError.missingParameter("text"))
+            }
+
+            let language = call.arguments["language"]?.stringValue ?? "pt-BR"
+            let rate = call.arguments["rate"].flatMap { value -> Float? in
+                if case .number(let number) = value {
+                    return Float(number)
+                }
+                return nil
+            } ?? AVSpeechUtteranceDefaultSpeechRate
+            await voiceAssistant.speak(text, language: language, rate: rate)
+            return .success(.object(["ok": .bool(true)]))
+        case "ask_user":
+            guard let prompt = call.arguments["prompt"]?.stringValue else {
+                return .failure(MCPServerError.missingParameter("prompt"))
+            }
+
+            let language = call.arguments["language"]?.stringValue ?? "pt-BR"
+            let timeoutSeconds = max(3, call.arguments["timeoutSeconds"]?.intValue ?? 20)
+
+            do {
+                let transcript = try await voiceAssistant.askUser(prompt: prompt, language: language, timeoutSeconds: timeoutSeconds)
+                return .success(.object([
+                    "timedOut": .bool(false),
+                    "transcript": .string(transcript)
+                ]))
+            } catch let error as VoiceAssistantError {
+                switch error {
+                case .timedOut:
+                    return .success(.object([
+                        "timedOut": .bool(true),
+                        "transcript": .null
+                    ]))
+                default:
+                    return .failure(error)
+                }
+            } catch {
+                return .failure(error)
+            }
         default:
             return .failure(MCPServerError.invalidParameter("name"))
         }

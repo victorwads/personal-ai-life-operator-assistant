@@ -20,5 +20,9 @@
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2026 Victor Wads</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app uses the microphone to capture your spoken responses for the assistant.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>This app uses speech recognition so the assistant can understand your spoken responses.</string>
 </dict>
 </plist>
