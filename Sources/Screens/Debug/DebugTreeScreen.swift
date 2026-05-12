@@ -1,27 +1,13 @@
 import AppKit
-import Combine
 import SwiftUI
 
 private extension RawAXNode {
-    var outlineChildren: [RawAXNode]? {
-        children.isEmpty ? nil : children
-    }
+    var outlineChildren: [RawAXNode]? { children.isEmpty ? nil : children }
 }
 
 struct DebugTreeScreen: View {
     @EnvironmentObject private var appModel: AppModel
-    @State private var selectedNodePath: [Int]?
-    @State private var expandedNodeIds: Set<String> = [""] // root expanded by default
-    @State private var selectedNodePreviewImage: NSImage?
-    @State private var selectedNodePreviewError: String?
-    @State private var isLoadingSelectedNodePreview = false
-    @State private var previewTask: Task<Void, Never>?
-    @State private var previewCache: [String: NSImage] = [:]
-    @State private var lastPreviewCacheKey: String?
-    @State private var favoriteNameDraft = ""
-    @State private var selectedFavoriteName: String?
-    @AppStorage("debugTreeFavoritesV1") private var favoritesStorage = ""
-    @State private var favorites: [String: [Int]] = [:]
+    @StateObject private var model = DebugTreeViewModel()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -30,13 +16,11 @@ struct DebugTreeScreen: View {
 
             if let snapshot = appModel.debugSnapshot {
                 let focusedNode = snapshot.rootNode.node(at: appModel.debugNodePath) ?? snapshot.rootNode
-                let selectedNode = selectedNode(snapshot: snapshot) ?? focusedNode
+                let selectedNode = snapshot.rootNode.node(at: model.selectedNodePath ?? []) ?? focusedNode
 
                 HSplitView {
-                    List {
-                        treeNode(snapshot.rootNode)
-                    }
-                    .frame(minWidth: 520)
+                    List { treeNode(snapshot.rootNode) }
+                        .frame(minWidth: 520)
 
                     ScrollView {
                         VStack(alignment: .leading, spacing: 12) {
@@ -44,7 +28,7 @@ struct DebugTreeScreen: View {
                             Divider()
                             nodeSummary(selectedNode, title: "Selected Node")
                             Divider()
-                            nodePreviewSection
+                            previewSection
                             Divider()
                             favoritesSection
                         }
@@ -55,27 +39,13 @@ struct DebugTreeScreen: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .onChange(of: appModel.debugNodePath) { _, newValue in
-                    selectedNodePath = newValue
+                    model.syncFromFocusPath(newValue)
                 }
                 .task(id: snapshot.capturedAt) {
-                    selectedNodePath = appModel.debugNodePath
-                    expandedNodeIds = [""]
-                    selectedNodePreviewImage = nil
-                    selectedNodePreviewError = nil
-                    isLoadingSelectedNodePreview = false
-                    previewTask?.cancel()
-                    previewTask = nil
-                    previewCache = [:]
-                    lastPreviewCacheKey = nil
+                    model.resetForNewSnapshot(focusPath: appModel.debugNodePath)
                 }
-                .onChange(of: selectedNodePath) { _, _ in
-                    setPreviewLoadingImmediately(from: snapshot)
-                    updateSelectedNodePreview(from: snapshot)
-                    syncFavoriteDraftForSelection()
-                }
-                .onAppear {
-                    loadFavorites()
-                    syncFavoriteDraftForSelection()
+                .onChange(of: model.selectedNodePath) { _, _ in
+                    model.handleSelectionChanged(snapshot: snapshot)
                 }
             } else {
                 ContentUnavailableView(
@@ -100,30 +70,29 @@ struct DebugTreeScreen: View {
             Button {
                 guard !appModel.debugNodePath.isEmpty else { return }
                 appModel.debugNodePath.removeLast()
-                selectedNodePath = appModel.debugNodePath
+                model.selectedNodePath = appModel.debugNodePath
             } label: {
                 Label("Up", systemImage: "arrow.up")
             }
             .disabled(appModel.debugNodePath.isEmpty)
 
             Button {
-                copyToPasteboard(displayPath(appModel.debugNodePath))
+                copyToPasteboard(model.displayPath(appModel.debugNodePath))
             } label: {
                 Label("Copy Focus Path", systemImage: "doc.on.doc")
             }
             .disabled(appModel.debugSnapshot == nil)
 
             Button {
-                guard let selectedNodePath else { return }
-                copyToPasteboard(displayPath(selectedNodePath))
+                copyToPasteboard(model.displayPath(model.selectedNodePath ?? []))
             } label: {
                 Label("Copy Selected Path", systemImage: "doc.on.doc")
             }
-            .disabled(selectedNodePath == nil)
+            .disabled(model.selectedNodePath == nil)
 
             Spacer()
 
-            Text("focus: \(displayPath(appModel.debugNodePath))")
+            Text("focus: \(model.displayPath(appModel.debugNodePath))")
                 .font(.system(.caption, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
@@ -131,147 +100,13 @@ struct DebugTreeScreen: View {
         .padding(12)
     }
 
-    private var nodePreviewSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Preview")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-
-            if isLoadingSelectedNodePreview {
-                HStack(spacing: 10) {
-                    ProgressView()
-                        .controlSize(.small)
-                    Text("Capturing preview…")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            } else if let selectedNodePreviewImage {
-                GeometryReader { proxy in
-                    Image(nsImage: selectedNodePreviewImage)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxWidth: proxy.size.width, maxHeight: 240, alignment: .leading)
-                        .clipped()
-                }
-                .frame(height: 240)
-            } else if let selectedNodePreviewError {
-                Text(selectedNodePreviewError)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                Text("Select a node with a frame to preview what it represents.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Divider()
-
-            HStack(spacing: 8) {
-                TextField("Favorite name", text: $favoriteNameDraft)
-                    .textFieldStyle(.roundedBorder)
-
-                Button("Save") {
-                    saveFavoriteForSelection()
-                }
-                .disabled(selectedNodePath == nil || favoriteNameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-
-                Button("Unsave") {
-                    removeFavoriteForSelection()
-                }
-                .disabled(selectedFavoriteName == nil)
-            }
-
-            if let selectedFavoriteName {
-                Text("Saved as: \(selectedFavoriteName)")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var favoritesSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Favorites")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-
-            if favorites.isEmpty {
-                Text("No favorites yet.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(favorites.keys.sorted(), id: \.self) { name in
-                    let path = favorites[name] ?? []
-                    Button {
-                        navigateToFavorite(path)
-                    } label: {
-                        HStack {
-                            Text(name)
-                                .font(.system(.caption, design: .monospaced))
-                            Spacer()
-                            Text(displayPath(path))
-                                .font(.system(.caption2, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .contextMenu {
-                        Button("Remove") {
-                            favorites.removeValue(forKey: name)
-                            persistFavorites()
-                            syncFavoriteDraftForSelection()
-                        }
-                    }
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func nodeSummary(_ node: RawAXNode, title: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-
-            Text("path=\(displayPath(node.accessibilityPath))  role=\(node.role ?? "nil")  subrole=\(node.subrole ?? "nil")")
-                .font(.system(.caption, design: .monospaced))
-                .textSelection(.enabled)
-
-            let text = node.ownTextFragments
-                .map(debugDisplayText)
-                .filter { !$0.isEmpty }
-                .joined(separator: " | ")
-
-            if !text.isEmpty {
-                Text(text)
-                    .font(.caption)
-                    .textSelection(.enabled)
-            }
-
-            if let frame = node.frame {
-                Text("frame x:\(Int(frame.minX)) y:\(Int(frame.minY)) w:\(Int(frame.width)) h:\(Int(frame.height))")
-                    .font(.system(.caption2, design: .monospaced))
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
     private func treeNode(_ node: RawAXNode) -> AnyView {
-        let nodeId = nodeIdString(node.accessibilityPath)
+        let nodeId = model.nodeIdString(node.accessibilityPath)
         let isExpanded = Binding(
-            get: { expandedNodeIds.contains(nodeId) },
+            get: { model.expandedNodeIds.contains(nodeId) },
             set: { newValue in
-                if newValue {
-                    expandedNodeIds.insert(nodeId)
-                } else {
-                    expandedNodeIds.remove(nodeId)
-                }
+                if newValue { model.expandedNodeIds.insert(nodeId) }
+                else { model.expandedNodeIds.remove(nodeId) }
             }
         )
 
@@ -301,43 +136,143 @@ struct DebugTreeScreen: View {
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
-        .onTapGesture {
-            selectedNodePath = node.accessibilityPath
-        }
+        .onTapGesture { model.selectedNodePath = node.accessibilityPath }
         .onTapGesture(count: 2) {
-            guard !node.children.isEmpty else {
-                return
-            }
-            let nodeId = nodeIdString(node.accessibilityPath)
-            if expandedNodeIds.contains(nodeId) {
-                expandedNodeIds.remove(nodeId)
-            } else {
-                expandedNodeIds.insert(nodeId)
-            }
+            guard !node.children.isEmpty else { return }
+            let nodeId = model.nodeIdString(node.accessibilityPath)
+            if model.expandedNodeIds.contains(nodeId) { model.expandedNodeIds.remove(nodeId) }
+            else { model.expandedNodeIds.insert(nodeId) }
         }
         .contextMenu {
-            Button("Focus Here") {
-                appModel.debugNodePath = node.accessibilityPath
-            }
+            Button("Focus Here") { appModel.debugNodePath = node.accessibilityPath }
         }
     }
 
-    private func copyToPasteboard(_ text: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
+    private var previewSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Preview")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+
+            if model.isLoadingSelectedNodePreview {
+                HStack(spacing: 10) {
+                    ProgressView().controlSize(.small)
+                    Text("Capturing preview…")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } else if let image = model.selectedNodePreviewImage {
+                GeometryReader { proxy in
+                    Image(nsImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: proxy.size.width, maxHeight: 240, alignment: .leading)
+                        .clipped()
+                }
+                .frame(height: 240)
+            } else if let error = model.selectedNodePreviewError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("Select a node with a frame to preview what it represents.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Divider()
+
+            HStack(spacing: 8) {
+                TextField("Favorite name", text: $model.favoriteNameDraft)
+                    .textFieldStyle(.roundedBorder)
+
+                Button("Save") { model.saveFavoriteForSelection() }
+                    .disabled(model.selectedNodePath == nil || model.favoriteNameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                Button("Unsave") { model.removeFavoriteForSelection() }
+                    .disabled(model.selectedFavoriteName == nil)
+            }
+
+            if let name = model.selectedFavoriteName {
+                Text("Saved as: \(name)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func selectedNode(snapshot: WhatsAppSnapshot) -> RawAXNode? {
-        guard let selectedNodePath else { return nil }
-        return snapshot.rootNode.node(at: selectedNodePath)
+    private var favoritesSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Favorites")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+
+            if model.favorites.isEmpty {
+                Text("No favorites yet.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(model.favorites.keys.sorted(), id: \.self) { name in
+                    let path = model.favorites[name] ?? []
+                    Button {
+                        model.revealPathInTree(path)
+                        model.selectedNodePath = path
+                    } label: {
+                        HStack {
+                            Text(name)
+                                .font(.system(.caption, design: .monospaced))
+                            Spacer()
+                            Text(model.displayPath(path))
+                                .font(.system(.caption2, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        Button("Remove") {
+                            model.favorites.removeValue(forKey: name)
+                            DebugTreeFavoritesStore.save(model.favorites)
+                            model.syncFavoriteDraftForSelection()
+                        }
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func displayPath(_ path: [Int]) -> String {
-        path.isEmpty ? "<root>" : path.map(String.init).joined(separator: ".")
-    }
+    private func nodeSummary(_ node: RawAXNode, title: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
 
-    private func nodeIdString(_ path: [Int]) -> String {
-        path.map(String.init).joined(separator: ".")
+            Text("path=\(model.displayPath(node.accessibilityPath))  role=\(node.role ?? "nil")  subrole=\(node.subrole ?? "nil")")
+                .font(.system(.caption, design: .monospaced))
+                .textSelection(.enabled)
+
+            let text = node.ownTextFragments
+                .map(debugDisplayText)
+                .filter { !$0.isEmpty }
+                .joined(separator: " | ")
+
+            if !text.isEmpty {
+                Text(text)
+                    .font(.caption)
+                    .textSelection(.enabled)
+            }
+
+            if let frame = node.frame {
+                Text("frame x:\(Int(frame.minX)) y:\(Int(frame.minY)) w:\(Int(frame.width)) h:\(Int(frame.height))")
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func rowTitle(for node: RawAXNode) -> String {
@@ -361,137 +296,9 @@ struct DebugTreeScreen: View {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private func updateSelectedNodePreview(from snapshot: WhatsAppSnapshot) {
-        previewTask?.cancel()
-
-        selectedNodePreviewImage = nil
-        selectedNodePreviewError = nil
-        // keep any loading state set by `setPreviewLoadingImmediately`
-
-        guard let selectedNodePath else { return }
-        guard let node = snapshot.rootNode.node(at: selectedNodePath) else { return }
-        guard let frame = node.frame else {
-            selectedNodePreviewError = "No frame available for this node."
-            isLoadingSelectedNodePreview = false
-            return
-        }
-
-        let cacheKey = "\(snapshot.capturedAt.timeIntervalSinceReferenceDate)|\(nodeIdString(selectedNodePath))"
-        if lastPreviewCacheKey == cacheKey, selectedNodePreviewImage != nil || selectedNodePreviewError != nil {
-            isLoadingSelectedNodePreview = false
-            return
-        }
-        lastPreviewCacheKey = cacheKey
-
-        if let cached = previewCache[cacheKey] {
-            selectedNodePreviewImage = cached
-            isLoadingSelectedNodePreview = false
-            return
-        }
-
-        let padding: CGFloat = 8
-        let region = frame.insetBy(dx: -padding, dy: -padding)
-
-        previewTask = Task.detached(priority: .userInitiated) { [region] in
-            let cgImage = CGWindowListCreateImage(region, .optionOnScreenOnly, kCGNullWindowID, [.bestResolution])
-            await MainActor.run {
-                guard !Task.isCancelled else { return }
-                isLoadingSelectedNodePreview = false
-                guard let cgImage else {
-                    selectedNodePreviewError = "Could not capture screen preview for this node."
-                    return
-                }
-                let image = NSImage(
-                    cgImage: cgImage,
-                    size: NSSize(width: region.width, height: region.height)
-                )
-                selectedNodePreviewImage = image
-                previewCache[cacheKey] = image
-            }
-        }
-    }
-
-    private func setPreviewLoadingImmediately(from snapshot: WhatsAppSnapshot) {
-        guard let selectedNodePath else {
-            isLoadingSelectedNodePreview = false
-            return
-        }
-
-        let cacheKey = "\(snapshot.capturedAt.timeIntervalSinceReferenceDate)|\(nodeIdString(selectedNodePath))"
-        if previewCache[cacheKey] != nil {
-            isLoadingSelectedNodePreview = false
-            return
-        }
-
-        isLoadingSelectedNodePreview = true
-    }
-
-    private func loadFavorites() {
-        guard !favoritesStorage.isEmpty else {
-            favorites = [:]
-            return
-        }
-
-        do {
-            let data = Data(favoritesStorage.utf8)
-            favorites = try JSONDecoder().decode([String: [Int]].self, from: data)
-        } catch {
-            favorites = [:]
-        }
-    }
-
-    private func persistFavorites() {
-        do {
-            let data = try JSONEncoder().encode(favorites)
-            favoritesStorage = String(decoding: data, as: UTF8.self)
-        } catch {
-            // ignore
-        }
-    }
-
-    private func syncFavoriteDraftForSelection() {
-        guard let selectedNodePath else {
-            selectedFavoriteName = nil
-            return
-        }
-
-        if let existing = favorites.first(where: { $0.value == selectedNodePath })?.key {
-            selectedFavoriteName = existing
-            favoriteNameDraft = existing
-        } else {
-            selectedFavoriteName = nil
-            favoriteNameDraft = ""
-        }
-    }
-
-    private func saveFavoriteForSelection() {
-        guard let selectedNodePath else { return }
-        let name = favoriteNameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty else { return }
-
-        favorites[name] = selectedNodePath
-        persistFavorites()
-        selectedFavoriteName = name
-    }
-
-    private func removeFavoriteForSelection() {
-        guard let selectedFavoriteName else { return }
-        favorites.removeValue(forKey: selectedFavoriteName)
-        persistFavorites()
-        syncFavoriteDraftForSelection()
-    }
-
-    private func navigateToFavorite(_ path: [Int]) {
-        revealPathInTree(path)
-        selectedNodePath = path
-    }
-
-    private func revealPathInTree(_ path: [Int]) {
-        expandedNodeIds.insert("")
-        var prefix: [Int] = []
-        for index in path {
-            prefix.append(index)
-            expandedNodeIds.insert(nodeIdString(prefix))
-        }
+    private func copyToPasteboard(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
     }
 }
+
