@@ -1,9 +1,18 @@
 import AppKit
 import SwiftUI
 
+private extension RawAXNode {
+    var outlineChildren: [RawAXNode]? {
+        children.isEmpty ? nil : children
+    }
+}
+
 struct DebugTreeScreen: View {
     @EnvironmentObject private var appModel: AppModel
-    @State private var selectedChildIndex: Int?
+    @State private var selectedNodePath: [Int]?
+    @State private var expandedNodeIds: Set<String> = [""] // root expanded by default
+    @State private var selectedNodePreviewImage: NSImage?
+    @State private var selectedNodePreviewError: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -11,52 +20,39 @@ struct DebugTreeScreen: View {
             Divider()
 
             if let snapshot = appModel.debugSnapshot {
-                let currentNode = snapshot.rootNode.node(at: appModel.debugNodePath) ?? snapshot.rootNode
+                let focusedNode = snapshot.rootNode.node(at: appModel.debugNodePath) ?? snapshot.rootNode
+                let selectedNode = selectedNode(snapshot: snapshot) ?? focusedNode
 
-                VStack(alignment: .leading, spacing: 12) {
-                    nodeSummary(currentNode, title: "Current Node")
-                        .padding(.horizontal, 12)
-                        .padding(.top, 12)
+                HSplitView {
+                    List {
+                        treeNode(snapshot.rootNode)
+                    }
+                    .frame(minWidth: 520)
 
-                    Divider()
-
-                    HSplitView {
-                        List(selection: $selectedChildIndex) {
-                            ForEach(Array(currentNode.children.enumerated()), id: \.offset) { index, child in
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(rowTitle(for: child, index: index))
-                                        .font(.system(.caption, design: .monospaced))
-                                    Text(rowSubtitle(for: child))
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(2)
-                                }
-                                .padding(.vertical, 4)
-                                .tag(Optional(index))
-                                .onTapGesture(count: 2) {
-                                    appModel.debugNodePath.append(index)
-                                    selectedChildIndex = nil
-                                }
-                            }
-                        }
-                        .frame(minWidth: 420)
-
-                        VStack(alignment: .leading, spacing: 10) {
-                            if let selectedChildIndex,
-                               currentNode.children.indices.contains(selectedChildIndex) {
-                                nodeSummary(currentNode.children[selectedChildIndex], title: "Selected Child")
-                            } else {
-                                ContentUnavailableView(
-                                    "Select a node",
-                                    systemImage: "cursorarrow.click",
-                                    description: Text("Click an item to see its details, or double-click to navigate into it.")
-                                )
-                            }
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 12) {
+                            nodeSummary(focusedNode, title: "Focused Node")
+                            Divider()
+                            nodePreviewSection
+                            Divider()
+                            nodeSummary(selectedNode, title: "Selected Node")
                         }
                         .padding(12)
-                        .frame(minWidth: 360)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    .frame(minWidth: 420)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .onChange(of: appModel.debugNodePath) { _, newValue in
+                    selectedNodePath = newValue
+                }
+                .task(id: snapshot.capturedAt) {
+                    selectedNodePath = appModel.debugNodePath
+                    expandedNodeIds = [""]
+                    selectedNodePreviewImage = nil
+                    selectedNodePreviewError = nil
+                }
+                .onChange(of: selectedNodePath) { _, _ in updateSelectedNodePreview(from: snapshot) }
             } else {
                 ContentUnavailableView(
                     "No snapshot loaded",
@@ -66,15 +62,11 @@ struct DebugTreeScreen: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var header: some View {
         HStack(spacing: 10) {
-            Text("Debug Tree")
-                .font(.title3.weight(.semibold))
-
-            Spacer()
-
             Button {
                 appModel.captureDebugSnapshot()
             } label: {
@@ -84,20 +76,64 @@ struct DebugTreeScreen: View {
             Button {
                 guard !appModel.debugNodePath.isEmpty else { return }
                 appModel.debugNodePath.removeLast()
-                selectedChildIndex = nil
+                selectedNodePath = appModel.debugNodePath
             } label: {
                 Label("Up", systemImage: "arrow.up")
             }
             .disabled(appModel.debugNodePath.isEmpty)
 
             Button {
-                copyToPasteboard(appModel.debugNodePath.map(String.init).joined(separator: "."))
+                copyToPasteboard(displayPath(appModel.debugNodePath))
             } label: {
-                Label("Copy Path", systemImage: "doc.on.doc")
+                Label("Copy Focus Path", systemImage: "doc.on.doc")
             }
             .disabled(appModel.debugSnapshot == nil)
+
+            Button {
+                guard let selectedNodePath else { return }
+                copyToPasteboard(displayPath(selectedNodePath))
+            } label: {
+                Label("Copy Selected Path", systemImage: "doc.on.doc")
+            }
+            .disabled(selectedNodePath == nil)
+
+            Spacer()
+
+            Text("focus: \(displayPath(appModel.debugNodePath))")
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
         }
         .padding(12)
+    }
+
+    private var nodePreviewSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Preview")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+
+            if let selectedNodePreviewImage {
+                GeometryReader { proxy in
+                    Image(nsImage: selectedNodePreviewImage)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: proxy.size.width, maxHeight: 240, alignment: .leading)
+                        .clipped()
+                }
+                .frame(height: 240)
+            } else if let selectedNodePreviewError {
+                Text(selectedNodePreviewError)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("Select a node with a frame to preview what it represents.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func nodeSummary(_ node: RawAXNode, title: String) -> some View {
@@ -107,12 +143,12 @@ struct DebugTreeScreen: View {
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
 
-            Text("path=\(node.accessibilityPath.map(String.init).joined(separator: "."))  role=\(node.role ?? "nil")  subrole=\(node.subrole ?? "nil")")
+            Text("path=\(displayPath(node.accessibilityPath))  role=\(node.role ?? "nil")  subrole=\(node.subrole ?? "nil")")
                 .font(.system(.caption, design: .monospaced))
                 .textSelection(.enabled)
 
             let text = node.ownTextFragments
-                .map { $0.normalizedAXText }
+                .map(debugDisplayText)
                 .filter { !$0.isEmpty }
                 .joined(separator: " | ")
 
@@ -131,24 +167,124 @@ struct DebugTreeScreen: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func rowTitle(for node: RawAXNode, index: Int) -> String {
-        let role = node.role ?? "nil"
-        let pathSuffix = "\(index)"
-        return "\(pathSuffix)  \(role)"
+    private func treeNode(_ node: RawAXNode) -> AnyView {
+        let nodeId = nodeIdString(node.accessibilityPath)
+        let isExpanded = Binding(
+            get: { expandedNodeIds.contains(nodeId) },
+            set: { newValue in
+                if newValue {
+                    expandedNodeIds.insert(nodeId)
+                } else {
+                    expandedNodeIds.remove(nodeId)
+                }
+            }
+        )
+
+        if node.children.isEmpty {
+            return AnyView(row(node))
+        }
+
+        return AnyView(
+            DisclosureGroup(isExpanded: isExpanded) {
+                ForEach(node.children) { child in
+                    treeNode(child)
+                }
+            } label: {
+                row(node)
+            }
+        )
     }
 
-    private func rowSubtitle(for node: RawAXNode) -> String {
-        let text = node.ownTextFragments
-            .map { $0.normalizedAXText }
-            .filter { !$0.isEmpty }
-            .prefix(3)
-            .joined(separator: " | ")
-        return text.isEmpty ? "—" : text
+    private func row(_ node: RawAXNode) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(rowTitle(for: node))
+                .font(.system(.caption, design: .monospaced))
+            Text(rowSubtitle(for: node))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            selectedNodePath = node.accessibilityPath
+        }
+        .onTapGesture(count: 2) {
+            guard !node.children.isEmpty else {
+                return
+            }
+            let nodeId = nodeIdString(node.accessibilityPath)
+            if expandedNodeIds.contains(nodeId) {
+                expandedNodeIds.remove(nodeId)
+            } else {
+                expandedNodeIds.insert(nodeId)
+            }
+        }
+        .contextMenu {
+            Button("Focus Here") {
+                appModel.debugNodePath = node.accessibilityPath
+            }
+        }
     }
 
     private func copyToPasteboard(_ text: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
     }
-}
 
+    private func selectedNode(snapshot: WhatsAppSnapshot) -> RawAXNode? {
+        guard let selectedNodePath else { return nil }
+        return snapshot.rootNode.node(at: selectedNodePath)
+    }
+
+    private func displayPath(_ path: [Int]) -> String {
+        path.isEmpty ? "<root>" : path.map(String.init).joined(separator: ".")
+    }
+
+    private func nodeIdString(_ path: [Int]) -> String {
+        path.map(String.init).joined(separator: ".")
+    }
+
+    private func rowTitle(for node: RawAXNode) -> String {
+        let prefix = node.accessibilityPath.last.map(String.init) ?? "root"
+        return "\(prefix)  \(node.role ?? "nil")"
+    }
+
+    private func rowSubtitle(for node: RawAXNode) -> String {
+        let text = node.ownTextFragments
+            .map(debugDisplayText)
+            .filter { !$0.isEmpty }
+            .prefix(3)
+            .joined(separator: " | ")
+        return text.isEmpty ? "—" : text
+    }
+
+    private func debugDisplayText(_ text: String) -> String {
+        text.normalizedAXText
+            .replacingOccurrences(of: "\n", with: " ↵ ")
+            .replacingOccurrences(of: "\r", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func updateSelectedNodePreview(from snapshot: WhatsAppSnapshot) {
+        selectedNodePreviewImage = nil
+        selectedNodePreviewError = nil
+
+        guard let selectedNodePath else { return }
+        guard let node = snapshot.rootNode.node(at: selectedNodePath) else { return }
+        guard let frame = node.frame else {
+            selectedNodePreviewError = "No frame available for this node."
+            return
+        }
+
+        let padding: CGFloat = 8
+        let region = frame.insetBy(dx: -padding, dy: -padding)
+
+        guard let cgImage = CGWindowListCreateImage(region, .optionOnScreenOnly, kCGNullWindowID, [.bestResolution]) else {
+            selectedNodePreviewError = "Could not capture screen preview for this node."
+            return
+        }
+
+        selectedNodePreviewImage = NSImage(cgImage: cgImage, size: NSSize(width: region.width, height: region.height))
+    }
+}
