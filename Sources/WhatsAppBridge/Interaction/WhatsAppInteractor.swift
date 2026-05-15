@@ -80,6 +80,167 @@ struct WhatsAppInteractor {
         try triggerSend(in: liveSnapshot, using: accessibility, composePath: composePath)
     }
 
+    /// Best-effort cleanup: ensure the compose field is empty.
+    /// This is used to avoid cases where a retry path re-types into an already-sent compose.
+    func clearComposeIfNeeded(using accessibility: AccessibilityService) throws {
+        let liveSnapshot = try accessibility.captureWhatsAppSnapshot(maxDepth: 14)
+        guard let composePath = accessibilityMap.composeField(in: liveSnapshot.rootNode)?.accessibilityPath else {
+            throw AccessibilityError.nodeNotFound
+        }
+
+        let current = (try? accessibility.readValue(at: composePath)) ?? ""
+        if !current.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            try? accessibility.setValue("", at: composePath)
+        }
+    }
+
+    private func normalizeMessageTextForVerification(_ text: String) -> String {
+        text
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "\u{00A0}", with: " ")
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\t", with: " ")
+            .replacingOccurrences(of: "  ", with: " ")
+            .lowercased()
+    }
+
+    @MainActor
+    private func verifyRecentlySentMessage(
+        _ text: String,
+        expectedChatName: String,
+        using accessibility: AccessibilityService,
+        parser: WhatsAppAppParser,
+        timeoutSeconds: Int,
+        pollIntervalMs: Int,
+        messageWindow: Int
+    ) async throws -> (snapshot: WhatsAppSnapshot, state: WhatsAppScreenState) {
+        let normalizedTarget = normalizeMessageTextForVerification(text)
+        let deadline = Date().addingTimeInterval(TimeInterval(timeoutSeconds))
+
+        var attempts = 0
+        var lastState: WhatsAppScreenState?
+        var lastSnapshot: WhatsAppSnapshot?
+
+        while Date() < deadline {
+            attempts += 1
+            try await Task.sleep(for: .milliseconds(pollIntervalMs))
+
+            let snapshot = try accessibility.captureWhatsAppSnapshot(maxDepth: 14)
+            let state = parser.parse(snapshot: snapshot, messageLimit: max(10, messageWindow))
+
+            lastState = state
+            lastSnapshot = snapshot
+
+            // Best-effort: ensure we are still on the intended chat.
+            if let selected = state.selectedChatName, !selected.isEmpty, selected != expectedChatName {
+                continue
+            }
+
+            // Primary confirmation: conversation list preview updates even when the message list is scrolled.
+            if let convo = state.conversations.first(where: { $0.name == expectedChatName }) {
+                if convo.lastMessageDirection == .outgoing,
+                   let preview = convo.lastMessagePreview
+                {
+                    let normalizedPreview = normalizeMessageTextForVerification(preview)
+                    if normalizedPreview == normalizedTarget { return (snapshot, state) }
+                    if normalizedPreview.count >= 6 && normalizedTarget.contains(normalizedPreview) { return (snapshot, state) }
+                    if normalizedTarget.count >= 6 && normalizedPreview.contains(normalizedTarget) { return (snapshot, state) }
+                }
+            }
+
+            let recent = Array(state.messages.suffix(messageWindow))
+            if recent.contains(where: { message in
+                guard message.direction == .outgoing else { return false }
+                guard let raw = message.text else { return false }
+                let candidate = normalizeMessageTextForVerification(raw)
+                if candidate == normalizedTarget { return true }
+                if candidate.count >= 6 && normalizedTarget.contains(candidate) { return true }
+                if normalizedTarget.count >= 6 && candidate.contains(normalizedTarget) { return true }
+                return false
+            }) {
+                return (snapshot, state)
+            }
+        }
+
+        let selectedName = lastState?.selectedChatName ?? "nil"
+        let lastPreview = lastState?.conversations.first(where: { $0.name == expectedChatName })?.lastMessagePreview ?? "nil"
+        let recentDump = (lastState?.messages.suffix(messageWindow) ?? []).map { message in
+            let dir = message.direction.rawValue
+            let txt = message.text ?? "nil"
+            return "\(dir): \(txt)"
+        }.joined(separator: " | ")
+
+        throw MCPServerError.sendNotConfirmed(
+            "chat='\(expectedChatName)' selected='\(selectedName)' attempts=\(attempts) lastPreview='\(lastPreview)' recent=[\(recentDump)]"
+        )
+    }
+
+    /// Full orchestration: type -> validate compose -> Enter -> validate delivery -> (retry Enter) -> validate.
+    /// The caller is expected to have already selected the intended conversation.
+    @MainActor
+    func sendMessageConfirmed(
+        _ text: String,
+        expectedChatName: String,
+        using accessibility: AccessibilityService,
+        parser: WhatsAppAppParser
+    ) async throws -> (snapshot: WhatsAppSnapshot, state: WhatsAppScreenState) {
+        let initialSnapshot = try accessibility.captureWhatsAppSnapshot(maxDepth: 14)
+
+        // Attempt 1: type+send.
+        try sendMessage(text, in: initialSnapshot, using: accessibility)
+        do {
+            let verified = try await verifyRecentlySentMessage(
+                text,
+                expectedChatName: expectedChatName,
+                using: accessibility,
+                parser: parser,
+                timeoutSeconds: 28,
+                pollIntervalMs: 500,
+                messageWindow: 12
+            )
+            try? clearComposeIfNeeded(using: accessibility)
+            return verified
+        } catch let error as MCPServerError {
+            guard case .sendNotConfirmed = error else { throw error }
+        }
+
+        // Attempt 2: before retrying Enter, re-check quickly to avoid duplicates.
+        if let alreadyVisible = try? await verifyRecentlySentMessage(
+            text,
+            expectedChatName: expectedChatName,
+            using: accessibility,
+            parser: parser,
+            timeoutSeconds: 3,
+            pollIntervalMs: 250,
+            messageWindow: 12
+        ) {
+            try? clearComposeIfNeeded(using: accessibility)
+            return alreadyVisible
+        }
+
+        // Only retry Enter if compose still has text.
+        let liveSnapshot = try accessibility.captureWhatsAppSnapshot(maxDepth: 14)
+        if let composePath = accessibilityMap.composeField(in: liveSnapshot.rootNode)?.accessibilityPath {
+            let composeText = (try? accessibility.readValue(at: composePath)) ?? ""
+            if composeText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                throw MCPServerError.sendNotConfirmed("compose empty; skipping Enter retry to avoid duplicate send")
+            }
+        }
+
+        try triggerSend(in: liveSnapshot, using: accessibility)
+        let verified2 = try await verifyRecentlySentMessage(
+            text,
+            expectedChatName: expectedChatName,
+            using: accessibility,
+            parser: parser,
+            timeoutSeconds: 28,
+            pollIntervalMs: 500,
+            messageWindow: 12
+        )
+        try? clearComposeIfNeeded(using: accessibility)
+        return verified2
+    }
+
     /// Attempts to send the currently composed message.
     /// Keeps the "send" action separate so callers can retry Enter without retyping.
     func triggerSend(in snapshot: WhatsAppSnapshot, using accessibility: AccessibilityService) throws {
