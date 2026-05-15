@@ -1,6 +1,81 @@
 import AVFoundation
 import Speech
 
+private func appendAudioBuffer(_ buffer: AVAudioPCMBuffer, to request: SFSpeechAudioBufferRecognitionRequest) {
+    request.append(buffer)
+}
+
+private func startSpeechRecognitionAudioEngine(request: SFSpeechAudioBufferRecognitionRequest) throws -> AVAudioEngine {
+    let engine = AVAudioEngine()
+    let inputNode = engine.inputNode
+    let recordingFormat = inputNode.outputFormat(forBus: 0)
+
+    inputNode.removeTap(onBus: 0)
+    inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
+        appendAudioBuffer(buffer, to: request)
+    }
+
+    engine.prepare()
+    try engine.start()
+
+    return engine
+}
+
+private func startMicrophoneCaptureAudioEngine() throws -> AVAudioEngine {
+    let engine = AVAudioEngine()
+    let inputNode = engine.inputNode
+    let recordingFormat = inputNode.outputFormat(forBus: 0)
+
+    inputNode.removeTap(onBus: 0)
+    inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { _, _ in
+        // Intentionally discard audio; this is only to force the OS permission flow.
+    }
+
+    engine.prepare()
+    try engine.start()
+
+    return engine
+}
+
+private struct SpeechRecognitionCallbackEvent: Sendable {
+    let transcript: String?
+    let isFinal: Bool
+    let errorDescription: String?
+}
+
+private func startSpeechRecognitionTask(
+    recognizer: SFSpeechRecognizer,
+    request: SFSpeechAudioBufferRecognitionRequest,
+    handler: @escaping @MainActor (SpeechRecognitionCallbackEvent) -> Void
+) -> SFSpeechRecognitionTask {
+    recognizer.recognitionTask(with: request) { result, error in
+        let event = SpeechRecognitionCallbackEvent(
+            transcript: result?.bestTranscription.formattedString,
+            isFinal: result?.isFinal ?? false,
+            errorDescription: error?.localizedDescription
+        )
+        Task { @MainActor in
+            handler(event)
+        }
+    }
+}
+
+func requestSpeechRecognitionAuthorizationStatus() async -> SFSpeechRecognizerAuthorizationStatus {
+    await withCheckedContinuation { continuation in
+        SFSpeechRecognizer.requestAuthorization { status in
+            continuation.resume(returning: status)
+        }
+    }
+}
+
+func requestMicrophoneAccess() async -> Bool {
+    await withCheckedContinuation { continuation in
+        AVCaptureDevice.requestAccess(for: .audio) { granted in
+            continuation.resume(returning: granted)
+        }
+    }
+}
+
 @MainActor
 final class VoiceAssistant {
     private let synthesizer = AVSpeechSynthesizer()
@@ -46,6 +121,13 @@ final class VoiceAssistant {
             throw VoiceAssistantError.microphoneNotAuthorized
         }
 
+        @MainActor
+        final class ListenState {
+            var hasResolved = false
+        }
+
+        let state = ListenState()
+
         return try await withCheckedThrowingContinuation { continuation in
             do {
                 let locale = Locale(identifier: recognitionLocaleIdentifier)
@@ -53,32 +135,21 @@ final class VoiceAssistant {
                     throw VoiceAssistantError.speechRecognizerUnavailable
                 }
 
-                let engine = AVAudioEngine()
                 let request = SFSpeechAudioBufferRecognitionRequest()
                 request.shouldReportPartialResults = true
 
-                let inputNode = engine.inputNode
-                let recordingFormat = inputNode.outputFormat(forBus: 0)
-                inputNode.removeTap(onBus: 0)
-                inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
-                    request.append(buffer)
-                }
-
-                engine.prepare()
-                try engine.start()
-
+                let engine = try startSpeechRecognitionAudioEngine(request: request)
                 self.audioEngine = engine
-
-                var hasResolved = false
 
                 let timeoutTask: Task<Void, Never>?
                 if let normalizedTimeoutSeconds {
                     timeoutTask = Task { [weak self] in
                         try? await Task.sleep(for: .seconds(normalizedTimeoutSeconds))
                         guard !Task.isCancelled else { return }
-                        await self?.stopListening()
-                        if !hasResolved {
-                            hasResolved = true
+                        self?.stopListening()
+                        await MainActor.run {
+                            guard !state.hasResolved else { return }
+                            state.hasResolved = true
                             continuation.resume(throwing: VoiceAssistantError.timedOut)
                         }
                     }
@@ -86,27 +157,30 @@ final class VoiceAssistant {
                     timeoutTask = nil
                 }
 
-                self.recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
-                    if let error {
+                let handleRecognitionResult: @MainActor (SpeechRecognitionCallbackEvent) -> Void = { [weak self] event in
+                    if let errorDescription = event.errorDescription {
                         timeoutTask?.cancel()
-                        Task { await self?.stopListening() }
-                        guard !hasResolved else { return }
-                        hasResolved = true
-                        continuation.resume(throwing: error)
+                        self?.stopListening()
+                        guard !state.hasResolved else { return }
+                        state.hasResolved = true
+                        continuation.resume(throwing: VoiceAssistantError.recognitionFailed(errorDescription))
                         return
                     }
 
-                    guard let result else { return }
-
-                    if result.isFinal {
+                    if event.isFinal {
                         timeoutTask?.cancel()
-                        Task { await self?.stopListening() }
-                        guard !hasResolved else { return }
-                        hasResolved = true
-                        let transcript = result.bestTranscription.formattedString.trimmingCharacters(in: .whitespacesAndNewlines)
+                        self?.stopListening()
+                        guard !state.hasResolved else { return }
+                        state.hasResolved = true
+                        let transcript = (event.transcript ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
                         continuation.resume(returning: transcript)
                     }
                 }
+                self.recognitionTask = startSpeechRecognitionTask(
+                    recognizer: recognizer,
+                    request: request,
+                    handler: handleRecognitionResult
+                )
             } catch {
                 continuation.resume(throwing: error)
             }
@@ -131,11 +205,7 @@ final class VoiceAssistant {
         case .denied, .restricted:
             return false
         case .notDetermined:
-            return await withCheckedContinuation { continuation in
-                SFSpeechRecognizer.requestAuthorization { status in
-                    continuation.resume(returning: status == .authorized)
-                }
-            }
+            return await requestSpeechRecognitionAuthorizationStatus() == .authorized
         @unknown default:
             return false
         }
@@ -149,11 +219,7 @@ final class VoiceAssistant {
         case .denied, .restricted:
             return false
         case .notDetermined:
-            return await withCheckedContinuation { continuation in
-                AVCaptureDevice.requestAccess(for: .audio) { granted in
-                    continuation.resume(returning: granted)
-                }
-            }
+            return await requestMicrophoneAccess()
         @unknown default:
             return false
         }
@@ -189,20 +255,10 @@ final class VoiceAssistant {
                     throw VoiceAssistantError.speechRecognizerUnavailable
                 }
 
-                let engine = AVAudioEngine()
                 let request = SFSpeechAudioBufferRecognitionRequest()
                 request.shouldReportPartialResults = true
 
-                let inputNode = engine.inputNode
-                let recordingFormat = inputNode.outputFormat(forBus: 0)
-                inputNode.removeTap(onBus: 0)
-                inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
-                    request.append(buffer)
-                }
-
-                engine.prepare()
-                try engine.start()
-
+                let engine = try startSpeechRecognitionAudioEngine(request: request)
                 self.audioEngine = engine
 
                 @MainActor
@@ -219,32 +275,34 @@ final class VoiceAssistant {
                     }
                 }
 
-                self.recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
-                    Task { @MainActor in
-                        if let error {
-                            state.debounceTask?.cancel()
-                            self?.stopListening()
-                            guard !state.hasResolved else { return }
-                            state.hasResolved = true
-                            continuation.resume(throwing: error)
-                            return
-                        }
+                let handleRecognitionResult: @MainActor (SpeechRecognitionCallbackEvent) -> Void = { [weak self] event in
+                    if let errorDescription = event.errorDescription {
+                        state.debounceTask?.cancel()
+                        self?.stopListening()
+                        guard !state.hasResolved else { return }
+                        state.hasResolved = true
+                        continuation.resume(throwing: VoiceAssistantError.recognitionFailed(errorDescription))
+                        return
+                    }
 
-                        guard let result else { return }
-                        let partial = result.bestTranscription.formattedString
-                        state.lastPartial = partial
-                        onPartial(partial)
-                        scheduleDebounce()
+                    guard let partial = event.transcript else { return }
+                    state.lastPartial = partial
+                    onPartial(partial)
+                    scheduleDebounce()
 
-                        if result.isFinal {
-                            state.debounceTask?.cancel()
-                            self?.stopListening()
-                            guard !state.hasResolved else { return }
-                            state.hasResolved = true
-                            continuation.resume(returning: partial.trimmingCharacters(in: .whitespacesAndNewlines))
-                        }
+                    if event.isFinal {
+                        state.debounceTask?.cancel()
+                        self?.stopListening()
+                        guard !state.hasResolved else { return }
+                        state.hasResolved = true
+                        continuation.resume(returning: partial.trimmingCharacters(in: .whitespacesAndNewlines))
                     }
                 }
+                self.recognitionTask = startSpeechRecognitionTask(
+                    recognizer: recognizer,
+                    request: request,
+                    handler: handleRecognitionResult
+                )
             } catch {
                 continuation.resume(throwing: error)
             }
@@ -259,19 +317,7 @@ final class VoiceAssistant {
 
         let durationSeconds = max(0.2, min(durationSeconds, 5.0))
 
-        let engine = AVAudioEngine()
-        let inputNode = engine.inputNode
-        let recordingFormat = inputNode.outputFormat(forBus: 0)
-
-        inputNode.removeTap(onBus: 0)
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { _, _ in
-            // Intentionally discard audio; this is only to force the OS permission flow.
-        }
-
-        engine.prepare()
-        try engine.start()
-
-        audioEngine = engine
+        audioEngine = try startMicrophoneCaptureAudioEngine()
 
         try? await Task.sleep(for: .seconds(durationSeconds))
         stopListening()
@@ -283,6 +329,7 @@ enum VoiceAssistantError: LocalizedError {
     case microphoneNotAuthorized
     case speechRecognizerUnavailable
     case timedOut
+    case recognitionFailed(String)
 
     var errorDescription: String? {
         switch self {
@@ -294,6 +341,8 @@ enum VoiceAssistantError: LocalizedError {
             return "Speech recognizer is unavailable for the requested language."
         case .timedOut:
             return "Timed out waiting for speech."
+        case .recognitionFailed(let description):
+            return description
         }
     }
 }

@@ -3,7 +3,6 @@ import SwiftUI
 struct StatusBadge: View {
     let title: String
     let isOnline: Bool
-    let subtitle: String?
     let help: String?
 
     var body: some View {
@@ -12,16 +11,8 @@ struct StatusBadge: View {
                 .fill(isOnline ? Color.green : Color.red)
                 .frame(width: 8, height: 8)
 
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title)
-                    .font(.caption.weight(.semibold))
-
-                if let subtitle {
-                    Text(subtitle)
-                        .font(.caption2.monospaced())
-                        .foregroundStyle(.secondary)
-                }
-            }
+            Text(title)
+                .font(.caption.weight(.semibold))
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
@@ -32,12 +23,11 @@ struct StatusBadge: View {
 }
 
 #Preview("Online") {
-    StatusBadge(title: "OK", isOnline: true, subtitle: nil, help: "All good")
+    StatusBadge(title: "OK", isOnline: true, help: "All good")
         .padding()
 }
 
-#Preview("Offline + subtitle") {
-    StatusBadge(title: "Microphone", isOnline: false, subtitle: "Needs permission", help: "Click to open settings")
+#Preview("Offline") {
+    StatusBadge(title: "Microphone", isOnline: false, help: "Click to open settings")
         .padding()
 }
-

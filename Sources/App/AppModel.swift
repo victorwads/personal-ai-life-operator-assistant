@@ -3,9 +3,15 @@ import AppKit
 import Combine
 import Foundation
 import MCP
+import Speech
 
 @MainActor
 final class AppModel: ObservableObject {
+    enum StartupMode {
+        case live
+        case preview
+    }
+
     @Published var logs: [LogEntry] = []
     @Published var serverCalls: [MCPServerCallEntry] = []
     @Published var accessibilityTrusted = false
@@ -39,6 +45,7 @@ final class AppModel: ObservableObject {
     @Published var mcpSendMessagePrefix = ""
     @Published var pendingClientAskCount = 0
     @Published var microphoneAuthorized = true
+    @Published var speechRecognitionAuthorized = true
     @Published var handsFreeClientVoiceEnabled = true
 
     let accessibility = AccessibilityService()
@@ -64,28 +71,41 @@ final class AppModel: ObservableObject {
     let clientVoiceEventsRepository = ClientVoiceEventsRepository.shared
     private let handsFreeClientVoiceSettingsRepository = HandsFreeClientVoiceSettingsRepository.shared
 
-    init() {
-        loadConversationAccessSettings()
-        loadAssistantInstructions()
-        loadVoiceSettings()
-        loadHandsFreeClientVoiceSetting()
-        loadExperimentalInputLockSetting()
-        loadMCPSendMessagePrefixSetting()
-        loadChatListSignatures()
-        bindMemoryStore()
-        configureMCPConnector()
-        refreshMicrophoneAuthorization()
-        Task { [weak self] in
-            await self?.refreshPendingClientAskCount()
-        }
-        Task { [weak self] in
-            await self?.loadPersistedServerCalls()
-        }
-        refreshStatus()
-        startLiveStatusMonitoring()
-        Task {
-            await startMCPServer()
-            startPolling()
+    init(startupMode: StartupMode = .live) {
+        switch startupMode {
+        case .live:
+            loadConversationAccessSettings()
+            loadAssistantInstructions()
+            loadVoiceSettings()
+            loadHandsFreeClientVoiceSetting()
+            loadExperimentalInputLockSetting()
+            loadMCPSendMessagePrefixSetting()
+            loadChatListSignatures()
+            bindMemoryStore()
+            configureMCPConnector()
+            refreshMicrophoneAuthorization()
+            refreshSpeechRecognitionAuthorization()
+            Task { [weak self] in
+                await self?.refreshPendingClientAskCount()
+            }
+            Task { [weak self] in
+                await self?.loadPersistedServerCalls()
+            }
+            refreshStatus()
+            startLiveStatusMonitoring()
+            Task {
+                await startMCPServer()
+                startPolling()
+            }
+
+        case .preview:
+            // Keep previews deterministic and side-effect free.
+            assistantInstructions = Self.defaultAssistantInstructions
+            runtimeDescription = "Xcode Preview"
+            lastRefreshDescription = "Preview"
+            microphoneAuthorized = true
+            speechRecognitionAuthorized = true
+            handsFreeClientVoiceEnabled = false
         }
     }
 
@@ -123,13 +143,22 @@ final class AppModel: ObservableObject {
         microphoneAuthorized = AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
     }
 
+    func refreshSpeechRecognitionAuthorization() {
+        speechRecognitionAuthorized = SFSpeechRecognizer.authorizationStatus() == .authorized
+    }
+
+    func requestVoicePermissions() async {
+        await requestMicrophonePermission()
+        await requestSpeechRecognitionPermission()
+    }
+
     func requestMicrophonePermission() async {
         let status = AVCaptureDevice.authorizationStatus(for: .audio)
         switch status {
         case .authorized:
             microphoneAuthorized = true
         case .notDetermined:
-            let granted = await AVCaptureDevice.requestAccess(for: .audio)
+            let granted = await requestMicrophoneAccess()
             microphoneAuthorized = granted
         case .denied, .restricted:
             microphoneAuthorized = false
@@ -140,10 +169,41 @@ final class AppModel: ObservableObject {
         refreshMicrophoneAuthorization()
     }
 
+    func requestSpeechRecognitionPermission() async {
+        let status = SFSpeechRecognizer.authorizationStatus()
+        switch status {
+        case .authorized:
+            speechRecognitionAuthorized = true
+        case .notDetermined:
+            let newStatus = await requestSpeechRecognitionAuthorizationStatus()
+            speechRecognitionAuthorized = newStatus == .authorized
+        case .denied, .restricted:
+            speechRecognitionAuthorized = false
+            openSpeechRecognitionPrivacySettings()
+        @unknown default:
+            speechRecognitionAuthorized = false
+        }
+        refreshSpeechRecognitionAuthorization()
+    }
+
     private func openMicrophonePrivacySettings() {
         let candidates = [
             "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone",
             "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Microphone"
+        ]
+
+        for raw in candidates {
+            guard let url = URL(string: raw) else { continue }
+            if NSWorkspace.shared.open(url) {
+                return
+            }
+        }
+    }
+
+    private func openSpeechRecognitionPrivacySettings() {
+        let candidates = [
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_SpeechRecognition",
+            "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_SpeechRecognition"
         ]
 
         for raw in candidates {

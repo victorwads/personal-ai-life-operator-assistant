@@ -129,8 +129,9 @@ struct ContentView: View {
 
             MicrophonePermissionBadge(
                 isAuthorized: appModel.microphoneAuthorized,
+                speechRecognitionAuthorized: appModel.speechRecognitionAuthorized,
                 onRequestPermission: {
-                    Task { await appModel.requestMicrophonePermission() }
+                    Task { await appModel.requestVoicePermissions() }
                 }
             )
 
@@ -154,4 +155,10 @@ struct ContentView: View {
         }
         .padding(12)
     }
+}
+
+#Preview {
+    ContentView()
+        .environmentObject(AppModel.preview)
+        .frame(width: 980, height: 680)
 }
