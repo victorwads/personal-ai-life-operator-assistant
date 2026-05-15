@@ -9,6 +9,7 @@ struct ContentView: View {
         case nicknames
         case subjects
         case memories
+        case clientVoice
         case whatsAppChats
         case integrationLogs
         case integrationDebug
@@ -22,10 +23,11 @@ struct ContentView: View {
             case .nicknames: "Nicknames"
             case .subjects: "Subjects"
             case .memories: "Memories"
+            case .clientVoice: "Client Voice"
             case .whatsAppChats: "WhatsApp"
             case .integrationLogs: "Logs"
             case .integrationDebug: "Debug"
-            case .serverLogs: "Server Logs"
+            case .serverLogs: "Logs"
             case .settings: "Settings"
             }
         }
@@ -35,6 +37,7 @@ struct ContentView: View {
             case .nicknames: "tag"
             case .subjects: "checklist"
             case .memories: "brain"
+            case .clientVoice: "waveform"
             case .whatsAppChats: "bubble.left.and.bubble.right"
             case .integrationLogs: "list.bullet.rectangle"
             case .integrationDebug: "point.3.connected.trianglepath.dotted"
@@ -51,6 +54,7 @@ struct ContentView: View {
                     sidebarItem(.nicknames)
                     sidebarItem(.subjects)
                     sidebarItem(.memories)
+                    sidebarItem(.clientVoice)
                 }
 
                 Section("WhatsApp Integration") {
@@ -89,6 +93,8 @@ struct ContentView: View {
                 SubjectsScreen()
             case .memories:
                 MemoriesScreen()
+            case .clientVoice:
+                ClientVoiceScreen()
             case .whatsAppChats:
                 ConversationsScreen()
             case .settings:
@@ -115,6 +121,25 @@ struct ContentView: View {
                 .font(.title3.weight(.semibold))
 
             Spacer()
+
+            if appModel.pendingClientAskCount > 0 {
+                Button {
+                    selectedScreen = .clientVoice
+                } label: {
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(Color.yellow)
+                            .frame(width: 8, height: 8)
+                        Text("Client response pending (\(appModel.pendingClientAskCount))")
+                            .font(.caption.weight(.semibold))
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color.yellow.opacity(0.12), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .help("Open Client Voice")
+            }
 
             BridgeStatusBadge(
                 accessibilityTrusted: appModel.accessibilityTrusted,

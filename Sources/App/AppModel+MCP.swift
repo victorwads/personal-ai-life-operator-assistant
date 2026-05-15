@@ -585,6 +585,8 @@ extension AppModel {
                 }
                 return nil
             } ?? speechRate
+            _ = await clientVoiceEventsRepository.appendSpeak(text: text)
+            await refreshPendingClientAskCount()
             await voiceAssistant.speak(text, language: language, voiceIdentifier: voiceIdentifier, rate: rate)
             return .success(.object(["ok": .bool(true)]))
         case "ask_to_client":
@@ -596,6 +598,8 @@ extension AppModel {
             let voiceIdentifier = call.arguments["voiceIdentifier"]?.stringValue ?? speechVoiceIdentifier
             let recognitionLocaleIdentifier = call.arguments["recognitionLocale"]?.stringValue ?? recognitionLocaleIdentifier
             let timeoutSeconds = max(3, call.arguments["timeoutSeconds"]?.intValue ?? 20)
+            let askEvent = await clientVoiceEventsRepository.appendAsk(prompt: prompt)
+            await refreshPendingClientAskCount()
 
             do {
                 let transcript = try await voiceAssistant.askUser(
@@ -605,6 +609,8 @@ extension AppModel {
                     recognitionLocaleIdentifier: recognitionLocaleIdentifier,
                     timeoutSeconds: timeoutSeconds
                 )
+                _ = try? await clientVoiceEventsRepository.answerAsk(id: askEvent.id, transcript: transcript)
+                await refreshPendingClientAskCount()
                 return .success(.object([
                     "timedOut": .bool(false),
                     "transcript": .string(transcript)
@@ -612,6 +618,7 @@ extension AppModel {
             } catch let error as VoiceAssistantError {
                 switch error {
                 case .timedOut:
+                    await refreshPendingClientAskCount()
                     return .success(.object([
                         "timedOut": .bool(true),
                         "transcript": .null

@@ -37,6 +37,7 @@ final class AppModel: ObservableObject {
     @Published var recognitionLocaleIdentifier = "pt-BR"
     @Published var experimentalInputLockEnabled = false
     @Published var mcpSendMessagePrefix = ""
+    @Published var pendingClientAskCount = 0
 
     let accessibility = AccessibilityService()
     let accessibilityScheduler = AccessibilityActionScheduler()
@@ -58,6 +59,7 @@ final class AppModel: ObservableObject {
     let nicknamesRepository = NicknamesRepository.shared
     let memoriesRepository = MemoriesRepository.shared
     let subjectsRepository = SubjectsRepository.shared
+    let clientVoiceEventsRepository = ClientVoiceEventsRepository.shared
 
     init() {
         loadConversationAccessSettings()
@@ -69,6 +71,9 @@ final class AppModel: ObservableObject {
         bindMemoryStore()
         configureMCPConnector()
         Task { [weak self] in
+            await self?.refreshPendingClientAskCount()
+        }
+        Task { [weak self] in
             await self?.loadPersistedServerCalls()
         }
         refreshStatus()
@@ -77,5 +82,10 @@ final class AppModel: ObservableObject {
             await startMCPServer()
             startPolling()
         }
+    }
+
+    func refreshPendingClientAskCount() async {
+        let count = await clientVoiceEventsRepository.pendingAskCount()
+        pendingClientAskCount = count
     }
 }
