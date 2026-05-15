@@ -12,6 +12,13 @@ final class ClientVoiceHandsFreeWindowController: NSWindowController {
         askId: UUID,
         prompt: String
     ) {
+        if currentAskId == askId, let window {
+            NSApp.activate(ignoringOtherApps: true)
+            window.center()
+            window.makeKeyAndOrderFront(nil)
+            return
+        }
+
         currentAskId = askId
 
         let rootView = ClientVoiceHandsFreeWindow(
@@ -55,4 +62,3 @@ final class ClientVoiceHandsFreeWindowController: NSWindowController {
         super.close()
     }
 }
-

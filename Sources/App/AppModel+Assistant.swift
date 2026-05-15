@@ -24,7 +24,7 @@ extension AppModel {
     If you need to notify or interact with the client, use:
 
     - speak_to_client: Announce something out loud to inform the client about important events, updates, or responses.
-    - ask_to_client: Ask the client a question out loud and wait for their spoken response before continuing.
+    - ask_to_client: Ask the client a question out loud and wait for their response before continuing.
 
     Use get_instructions to fetch the latest instructions currently stored in the app UI.
 

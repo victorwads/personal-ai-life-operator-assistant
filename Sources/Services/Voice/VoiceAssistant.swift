@@ -187,11 +187,6 @@ final class VoiceAssistant {
         waiters.forEach { $0.resume() }
     }
 
-    func askUser(prompt: String, language: String = "pt-BR", voiceIdentifier: String? = nil, recognitionLocaleIdentifier: String = "pt-BR", timeoutSeconds: Int? = nil) async throws -> String {
-        await speak(prompt, language: language, voiceIdentifier: voiceIdentifier)
-        return try await listen(recognitionLocaleIdentifier: recognitionLocaleIdentifier, timeoutSeconds: timeoutSeconds)
-    }
-
     func listen(recognitionLocaleIdentifier: String = "pt-BR", timeoutSeconds: Int? = nil) async throws -> String {
         await waitForSpeechSynthesisToFinish()
 
@@ -276,6 +271,56 @@ final class VoiceAssistant {
         }
     }
 
+    func startListening(
+        recognitionLocaleIdentifier: String = "pt-BR",
+        onPartial: @escaping @MainActor (String) -> Void,
+        onFinal: @escaping @MainActor (String) -> Void,
+        onError: @escaping @MainActor (VoiceAssistantError) -> Void
+    ) async throws {
+        let speechAuthorized = try await ensureSpeechAuthorization()
+        guard speechAuthorized else {
+            throw VoiceAssistantError.speechNotAuthorized
+        }
+
+        let micAuthorized = await ensureMicrophoneAuthorization()
+        guard micAuthorized else {
+            throw VoiceAssistantError.microphoneNotAuthorized
+        }
+
+        let locale = Locale(identifier: recognitionLocaleIdentifier)
+        guard let recognizer = SFSpeechRecognizer(locale: locale) else {
+            throw VoiceAssistantError.speechRecognizerUnavailable
+        }
+
+        let request = SFSpeechAudioBufferRecognitionRequest()
+        request.shouldReportPartialResults = true
+
+        let engine = try startSpeechRecognitionAudioEngine(request: request)
+        self.audioEngine = engine
+
+        let handleRecognitionResult: @MainActor (SpeechRecognitionCallbackEvent) -> Void = { [weak self] event in
+            if let errorDescription = event.errorDescription {
+                self?.stopListening()
+                onError(.recognitionFailed(errorDescription))
+                return
+            }
+
+            guard let transcript = event.transcript else { return }
+            onPartial(transcript)
+
+            if event.isFinal {
+                self?.stopListening()
+                onFinal(transcript.trimmingCharacters(in: .whitespacesAndNewlines))
+            }
+        }
+
+        self.recognitionTask = startSpeechRecognitionTask(
+            recognizer: recognizer,
+            request: request,
+            handler: handleRecognitionResult
+        )
+    }
+
     func stopListening() {
         recognitionTask?.cancel()
         recognitionTask = nil
@@ -311,92 +356,6 @@ final class VoiceAssistant {
             return await requestMicrophoneAccess()
         @unknown default:
             return false
-        }
-    }
-
-    func listenWithAutoSubmit(
-        recognitionLocaleIdentifier: String = "pt-BR",
-        onPartial: @escaping @MainActor (String) -> Void
-    ) async throws -> String {
-        await waitForSpeechSynthesisToFinish()
-
-        let speechAuthorized = try await ensureSpeechAuthorization()
-        guard speechAuthorized else {
-            throw VoiceAssistantError.speechNotAuthorized
-        }
-
-        let micAuthorized = await ensureMicrophoneAuthorization()
-        guard micAuthorized else {
-            throw VoiceAssistantError.microphoneNotAuthorized
-        }
-
-        @MainActor
-        final class ListenState {
-            var hasResolved = false
-            var lastPartial = ""
-            var debounceTask: Task<Void, Never>?
-        }
-
-        let state = ListenState()
-
-        return try await withCheckedThrowingContinuation { continuation in
-            do {
-                let locale = Locale(identifier: recognitionLocaleIdentifier)
-                guard let recognizer = SFSpeechRecognizer(locale: locale) else {
-                    throw VoiceAssistantError.speechRecognizerUnavailable
-                }
-
-                let request = SFSpeechAudioBufferRecognitionRequest()
-                request.shouldReportPartialResults = true
-
-                let engine = try startSpeechRecognitionAudioEngine(request: request)
-                self.audioEngine = engine
-
-                @MainActor
-                func scheduleDebounce() {
-                    state.debounceTask?.cancel()
-                    state.debounceTask = Task { @MainActor [weak self] in
-                        try? await Task.sleep(for: .seconds(1.0))
-                        guard !Task.isCancelled else { return }
-                        self?.stopListening()
-                        guard !state.hasResolved else { return }
-                        state.hasResolved = true
-                        let value = state.lastPartial.trimmingCharacters(in: .whitespacesAndNewlines)
-                        continuation.resume(returning: value)
-                    }
-                }
-
-                let handleRecognitionResult: @MainActor (SpeechRecognitionCallbackEvent) -> Void = { [weak self] event in
-                    if let errorDescription = event.errorDescription {
-                        state.debounceTask?.cancel()
-                        self?.stopListening()
-                        guard !state.hasResolved else { return }
-                        state.hasResolved = true
-                        continuation.resume(throwing: VoiceAssistantError.recognitionFailed(errorDescription))
-                        return
-                    }
-
-                    guard let partial = event.transcript else { return }
-                    state.lastPartial = partial
-                    onPartial(partial)
-                    scheduleDebounce()
-
-                    if event.isFinal {
-                        state.debounceTask?.cancel()
-                        self?.stopListening()
-                        guard !state.hasResolved else { return }
-                        state.hasResolved = true
-                        continuation.resume(returning: partial.trimmingCharacters(in: .whitespacesAndNewlines))
-                    }
-                }
-                self.recognitionTask = startSpeechRecognitionTask(
-                    recognizer: recognizer,
-                    request: request,
-                    handler: handleRecognitionResult
-                )
-            } catch {
-                continuation.resume(throwing: error)
-            }
         }
     }
 

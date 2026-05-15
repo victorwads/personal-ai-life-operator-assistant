@@ -274,15 +274,13 @@ extension AppModel {
             ),
             MCPToolDefinition(
                 name: "ask_to_client",
-                description: "Asks the client out loud and waits for a spoken response.",
+                description: "Asks the client out loud and waits for a client response.",
                 inputSchema: [
                     "type": .string("object"),
                     "properties": .object([
                         "prompt": .object(["type": .string("string")]),
                         "language": .object(["type": .string("string")]),
-                        "voiceIdentifier": .object(["type": .string("string")]),
-                        "recognitionLocale": .object(["type": .string("string")]),
-                        "timeoutSeconds": .object(["type": .string("number")])
+                        "voiceIdentifier": .object(["type": .string("string")])
                     ]),
                     "required": .array([.string("prompt")])
                 ]
@@ -596,50 +594,24 @@ extension AppModel {
 
             let language = call.arguments["language"]?.stringValue ?? speechLanguage
             let voiceIdentifier = call.arguments["voiceIdentifier"]?.stringValue ?? speechVoiceIdentifier
-            let recognitionLocaleIdentifier = call.arguments["recognitionLocale"]?.stringValue ?? recognitionLocaleIdentifier
-            let timeoutSecondsRaw = call.arguments["timeoutSeconds"]?.intValue
-            let timeoutSeconds: Int? = {
-                guard let timeoutSecondsRaw else { return nil }
-                return timeoutSecondsRaw > 0 ? timeoutSecondsRaw : nil
-            }()
             let askEvent = await clientVoiceEventsRepository.appendAsk(prompt: prompt)
             await refreshPendingClientAskCount()
 
             do {
-                let transcript = try await voiceAssistant.askUser(
-                    prompt: prompt,
+                await voiceAssistant.speak(
+                    prompt,
                     language: language,
                     voiceIdentifier: voiceIdentifier,
-                    recognitionLocaleIdentifier: recognitionLocaleIdentifier,
-                    timeoutSeconds: timeoutSeconds
+                    rate: speechRate
                 )
-                _ = try? await clientVoiceEventsRepository.answerAsk(id: askEvent.id, response: transcript)
+
+                let transcript = try await clientVoiceEventsRepository.waitForAnswer(id: askEvent.id)
                 await refreshPendingClientAskCount()
                 return .success(.object([
                     "response": .string(transcript)
                 ]))
-            } catch let error as VoiceAssistantError {
-                switch error {
-                case .microphoneNotAuthorized, .speechNotAuthorized:
-                    do {
-                        let response = try await clientVoiceEventsRepository.waitForAnswer(id: askEvent.id)
-                        await refreshPendingClientAskCount()
-                        return .success(.object([
-                            "response": .string(response)
-                        ]))
-                    } catch {
-                        await refreshPendingClientAskCount()
-                        return .failure(error)
-                    }
-                case .timedOut:
-                    await refreshPendingClientAskCount()
-                    return .success(.object([
-                        "response": .null
-                    ]))
-                default:
-                    return .failure(error)
-                }
             } catch {
+                await refreshPendingClientAskCount()
                 return .failure(error)
             }
         case "create_memory":

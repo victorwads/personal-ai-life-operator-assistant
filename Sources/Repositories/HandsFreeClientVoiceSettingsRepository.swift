@@ -5,21 +5,37 @@ final class HandsFreeClientVoiceSettingsRepository {
     static let shared = HandsFreeClientVoiceSettingsRepository()
 
     private let defaults: UserDefaults
-    private let storageKey = "handsFreeClientVoiceEnabled"
+    private let enabledStorageKey = "handsFreeClientVoiceEnabled"
+    private let debounceSecondsStorageKey = "handsFreeClientVoiceDebounceSeconds"
 
     private init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
     }
 
     func load(defaultValue: Bool = true) -> Bool {
-        if defaults.object(forKey: storageKey) == nil {
+        if defaults.object(forKey: enabledStorageKey) == nil {
             return defaultValue
         }
-        return defaults.bool(forKey: storageKey)
+        return defaults.bool(forKey: enabledStorageKey)
     }
 
     func save(_ enabled: Bool) {
-        defaults.set(enabled, forKey: storageKey)
+        defaults.set(enabled, forKey: enabledStorageKey)
+    }
+
+    func loadDebounceSeconds(defaultValue: Double = 1.0) -> Double {
+        guard let number = defaults.object(forKey: debounceSecondsStorageKey) as? NSNumber else {
+            return defaultValue
+        }
+
+        return Self.clampDebounceSeconds(number.doubleValue)
+    }
+
+    func save(debounceSeconds: Double) {
+        defaults.set(NSNumber(value: Self.clampDebounceSeconds(debounceSeconds)), forKey: debounceSecondsStorageKey)
+    }
+
+    private static func clampDebounceSeconds(_ value: Double) -> Double {
+        max(0.5, min(value, 5.0))
     }
 }
-

@@ -9,7 +9,11 @@ struct ClientVoiceHandsFreeWindow: View {
     @State private var draftResponse = ""
     @State private var isListening = false
     @State private var statusText: String?
-    @State private var listenTask: Task<Void, Never>?
+    @State private var recognitionTask: Task<Void, Never>?
+    @State private var debounceTask: Task<Void, Never>?
+    @State private var sawSpeechStart = false
+    @State private var didStartListening = false
+    @State private var didResolve = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -36,10 +40,10 @@ struct ClientVoiceHandsFreeWindow: View {
                 TextField("Speak now… or type the response", text: $draftResponse)
                     .textFieldStyle(.roundedBorder)
                     .submitLabel(.send)
-                    .onSubmit { Task { await submit() } }
+                    .onSubmit { Task { await submitDraft() } }
 
                 Button {
-                    Task { await submit() }
+                    Task { await submitDraft() }
                 } label: {
                     Text("Submit")
                 }
@@ -67,47 +71,118 @@ struct ClientVoiceHandsFreeWindow: View {
             }
         }
         .padding(14)
-        .onAppear {
+        .task(id: appModel.speechSynthesizerSpeaking) {
             guard !PreviewSupport.isRunningForPreviews else { return }
-            startHandsFreeListening()
+            await handleSpeechStateChange()
         }
-        .onDisappear { listenTask?.cancel() }
+        .onDisappear { stopRecognition() }
+    }
+
+    private func handleSpeechStateChange() async {
+        if appModel.speechSynthesizerSpeaking {
+            sawSpeechStart = true
+            return
+        }
+
+        guard sawSpeechStart else { return }
+        guard !didStartListening else { return }
+        didStartListening = true
+        startHandsFreeListening()
     }
 
     private func startHandsFreeListening() {
-        listenTask?.cancel()
+        recognitionTask?.cancel()
+        debounceTask?.cancel()
         statusText = nil
         isListening = true
+        didResolve = false
 
-        listenTask = Task { @MainActor in
+        recognitionTask = Task { @MainActor in
             do {
-                let response = try await appModel.voiceAssistant.listenWithAutoSubmit(
+                try await appModel.voiceAssistant.startListening(
                     recognitionLocaleIdentifier: appModel.recognitionLocaleIdentifier,
                     onPartial: { partial in
+                        guard !didResolve else { return }
                         draftResponse = partial
+                        scheduleAutoSubmit(with: partial)
+                    },
+                    onFinal: { final in
+                        Task { @MainActor in
+                            await finalizeRecognizedText(final, closeWindow: true)
+                        }
+                    },
+                    onError: { error in
+                        Task { @MainActor in
+                            handleRecognitionError(error)
+                        }
                     }
                 )
-                draftResponse = response
-                isListening = false
-                await submit()
             } catch {
+                recognitionTask = nil
                 isListening = false
                 statusText = error.localizedDescription
             }
         }
     }
 
-    private func submit() async {
-        let text = draftResponse.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
+    private func scheduleAutoSubmit(with transcript: String) {
+        debounceTask?.cancel()
+        let debounceSeconds = max(0.5, appModel.handsFreeClientVoiceDebounceSeconds)
+
+        debounceTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(debounceSeconds))
+            guard !Task.isCancelled else { return }
+            await finalizeRecognizedText(transcript, closeWindow: true)
+        }
+    }
+
+    private func handleRecognitionError(_ error: VoiceAssistantError) {
+        debounceTask?.cancel()
+        recognitionTask = nil
+        isListening = false
+        statusText = error.localizedDescription
+    }
+
+    private func stopRecognition() {
+        recognitionTask?.cancel()
+        recognitionTask = nil
+        debounceTask?.cancel()
+        debounceTask = nil
+        Task { @MainActor in
+            await appModel.voiceAssistant.stopListening()
+        }
+    }
+
+    private func finalizeRecognizedText(_ text: String, closeWindow: Bool) async {
+        guard !didResolve else { return }
+
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        didResolve = true
+        debounceTask?.cancel()
+        debounceTask = nil
+        recognitionTask = nil
+
+        await appModel.voiceAssistant.stopListening()
 
         do {
-            _ = try await appModel.clientVoiceEventsRepository.answerAsk(id: askId, response: text)
+            _ = try await appModel.clientVoiceEventsRepository.answerAsk(id: askId, response: trimmed)
             await appModel.refreshPendingClientAskCount()
-            onDone()
+            isListening = false
+            statusText = nil
+            if closeWindow {
+                onDone()
+            }
         } catch {
+            didResolve = false
+            isListening = false
             statusText = error.localizedDescription
         }
+    }
+
+    private func submitDraft() async {
+        await finalizeRecognizedText(draftResponse, closeWindow: true)
     }
 }
 

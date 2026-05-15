@@ -296,6 +296,23 @@ struct SettingsScreen: View {
                             .toggleStyle(.switch)
                             .help("When enabled (default), opening a pending client ask will bring a floating window to the front and start voice recognition with auto-submit.")
 
+                        HStack {
+                            Text("Auto-submit delay")
+                            Spacer()
+                            Slider(
+                                value: $appModel.handsFreeClientVoiceDebounceSeconds,
+                                in: 0.5...5.0,
+                                step: 0.1
+                            )
+                            .frame(width: 220)
+                            Text(String(format: "%.1fs", appModel.handsFreeClientVoiceDebounceSeconds))
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                                .frame(width: 52, alignment: .trailing)
+                        }
+                        .disabled(!appModel.handsFreeClientVoiceEnabled)
+                        .help("How long the hands-free window waits after the last partial transcript before auto-submitting the response.")
+
                         HStack(spacing: 10) {
                             Button {
                                 Task {

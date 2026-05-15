@@ -47,6 +47,7 @@ final class AppModel: ObservableObject {
     @Published var microphoneAuthorized = true
     @Published var speechRecognitionAuthorized = true
     @Published var handsFreeClientVoiceEnabled = true
+    @Published var handsFreeClientVoiceDebounceSeconds = 1.0
     @Published var speechSynthesizerSpeaking = false
 
     let accessibility = AccessibilityService()
@@ -116,6 +117,7 @@ final class AppModel: ObservableObject {
             microphoneAuthorized = true
             speechRecognitionAuthorized = true
             handsFreeClientVoiceEnabled = false
+            handsFreeClientVoiceDebounceSeconds = 1.0
         }
     }
 
@@ -127,6 +129,7 @@ final class AppModel: ObservableObject {
 
     private func loadHandsFreeClientVoiceSetting() {
         handsFreeClientVoiceEnabled = handsFreeClientVoiceSettingsRepository.load(defaultValue: true)
+        handsFreeClientVoiceDebounceSeconds = handsFreeClientVoiceSettingsRepository.loadDebounceSeconds(defaultValue: 1.0)
 
         $handsFreeClientVoiceEnabled
             .dropFirst()
@@ -135,6 +138,13 @@ final class AppModel: ObservableObject {
                 Task { [weak self] in
                     await self?.maybeShowHandsFreeClientVoiceWindow()
                 }
+            }
+            .store(in: &cancellables)
+
+        $handsFreeClientVoiceDebounceSeconds
+            .dropFirst()
+            .sink { [weak self] value in
+                self?.handsFreeClientVoiceSettingsRepository.save(debounceSeconds: value)
             }
             .store(in: &cancellables)
     }
