@@ -19,59 +19,20 @@ struct ClientVoiceScreen: View {
                     .font(.callout)
             }
 
-            List(events) { event in
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text(event.kind == .ask ? "Ask" : "Speak")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
+            if !pendingAsks.isEmpty {
+                pendingPanel
+            }
 
-                        Spacer()
-
-                        Text(event.createdAt, style: .time)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    if event.kind == .speak {
-                        Text(event.text ?? "")
-                            .font(.body)
-
-                        HStack {
-                            Spacer()
-                            Button {
-                                Task { await replay(event) }
-                            } label: {
-                                Label("Play again", systemImage: "play.circle")
-                            }
-                            .disabled(isWorking || (event.text ?? "").isEmpty)
-                        }
-                    } else {
-                        Text(event.prompt ?? "")
-                            .font(.body)
-
-                        if event.askStatus == .pending {
-                            HStack(spacing: 10) {
-                                TextField("Type the client's response", text: Binding(
-                                    get: { pendingAnswerById[event.id, default: ""] },
-                                    set: { pendingAnswerById[event.id] = $0 }
-                                ))
-                                .textFieldStyle(.roundedBorder)
-
-                                Button("Submit") {
-                                    Task { await submitAnswer(event) }
-                                }
-                                .disabled(isWorking || pendingAnswerById[event.id, default: ""].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                                .keyboardShortcut(.defaultAction)
-                            }
-                        } else if let transcript = event.transcript, !transcript.isEmpty {
-                            Text("Answer: \(transcript)")
-                                .font(.callout)
-                                .foregroundStyle(.secondary)
+            List {
+                Section("History") {
+                    ForEach(historyEvents) { event in
+                        if event.kind == .ask {
+                            askRow(event, showAnswer: true)
+                        } else {
+                            speakRow(event)
                         }
                     }
                 }
-                .padding(.vertical, 4)
             }
         }
         .padding(12)
@@ -105,12 +66,141 @@ struct ClientVoiceScreen: View {
         }
     }
 
+    private var pendingAsks: [ClientVoiceEvent] {
+        events.filter { $0.kind == .ask && $0.askStatus == .pending }
+    }
+
+    private var historyEvents: [ClientVoiceEvent] {
+        events.filter { $0.kind != .ask || $0.askStatus != .pending }
+    }
+
+    private var pendingPanel: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.yellow)
+                    Text("Pending response")
+                        .font(.headline)
+                    Spacer()
+                }
+
+                ForEach(pendingAsks) { event in
+                    pendingAskCard(event)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    @ViewBuilder
+    private func pendingAskCard(_ event: ClientVoiceEvent) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Ask")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    Task { await replay(event) }
+                } label: {
+                    Image(systemName: "play.circle")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Play again")
+                .disabled(isWorking || (event.prompt ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+
+            Text(event.prompt ?? "")
+                .font(.body)
+
+            HStack(spacing: 10) {
+                TextField("Type the client's response", text: Binding(
+                    get: { pendingAnswerById[event.id, default: ""] },
+                    set: { pendingAnswerById[event.id] = $0 }
+                ))
+                .textFieldStyle(.roundedBorder)
+
+                Button {
+                    Task { await submitAnswer(event) }
+                } label: {
+                    Text("Submit")
+                }
+                .disabled(isWorking || pendingAnswerById[event.id, default: ""].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .padding(10)
+        .background(Color.yellow.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.yellow.opacity(0.35))
+        )
+    }
+
+    @ViewBuilder
+    private func speakRow(_ event: ClientVoiceEvent) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Speak")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    Task { await replay(event) }
+                } label: {
+                    Image(systemName: "play.circle")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Play again")
+                .disabled(isWorking || (event.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+
+            Text(event.text ?? "")
+                .font(.body)
+        }
+        .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private func askRow(_ event: ClientVoiceEvent, showAnswer: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Ask")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    Task { await replay(event) }
+                } label: {
+                    Image(systemName: "play.circle")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Play again")
+                .disabled(isWorking || (event.prompt ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+
+            Text(event.prompt ?? "")
+                .font(.body)
+
+            if showAnswer, let transcript = event.transcript, !transcript.isEmpty {
+                Text("Response: \(transcript)")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
     private func reload() async {
         events = await appModel.clientVoiceEventsRepository.list()
     }
 
     private func replay(_ event: ClientVoiceEvent) async {
-        let text = (event.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = (event.kind == .ask ? (event.prompt ?? "") : (event.text ?? ""))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         errorText = nil
         isWorking = true
@@ -127,7 +217,7 @@ struct ClientVoiceScreen: View {
         guard !text.isEmpty else { return }
 
         do {
-            _ = try await appModel.clientVoiceEventsRepository.answerAsk(id: event.id, transcript: text)
+            _ = try await appModel.clientVoiceEventsRepository.answerAsk(id: event.id, response: text)
             await appModel.refreshPendingClientAskCount()
             pendingAnswerById[event.id] = ""
             await reload()

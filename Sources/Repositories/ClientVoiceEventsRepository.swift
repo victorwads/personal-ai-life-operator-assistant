@@ -5,6 +5,7 @@ actor ClientVoiceEventsRepository {
 
     private let defaults: UserDefaults
     private let storageKey = "clientVoiceEvents.v1"
+    private var pendingWaitersById: [UUID: CheckedContinuation<String, Error>] = [:]
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -52,8 +53,8 @@ actor ClientVoiceEventsRepository {
         return event
     }
 
-    func answerAsk(id: UUID, transcript: String) throws -> ClientVoiceEvent {
-        let trimmed = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+    func answerAsk(id: UUID, response: String) throws -> ClientVoiceEvent {
+        let trimmed = response.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
             throw NSError(domain: "ClientVoiceEventsRepository", code: 1, userInfo: [NSLocalizedDescriptionKey: "Transcript cannot be empty"])
         }
@@ -73,7 +74,31 @@ actor ClientVoiceEventsRepository {
         event.answeredAt = Date()
         events[index] = event
         persistAll(events)
+
+        if let waiter = pendingWaitersById.removeValue(forKey: id) {
+            waiter.resume(returning: trimmed)
+        }
+
         return event
+    }
+
+    func waitForAnswer(id: UUID) async throws -> String {
+        let existing = loadAll().first(where: { $0.id == id })
+        if let existing, existing.kind == .ask, existing.askStatus == .answered, let transcript = existing.transcript, !transcript.isEmpty {
+            return transcript
+        }
+
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                pendingWaitersById[id] = continuation
+            }
+        } onCancel: {
+            Task { await cancelWaiter(id: id) }
+        }
+    }
+
+    func cancelWaiter(id: UUID) {
+        pendingWaitersById.removeValue(forKey: id)?.resume(throwing: CancellationError())
     }
 
     private func loadAll() -> [ClientVoiceEvent] {
@@ -90,4 +115,3 @@ actor ClientVoiceEventsRepository {
         defaults.set(data, forKey: storageKey)
     }
 }
-

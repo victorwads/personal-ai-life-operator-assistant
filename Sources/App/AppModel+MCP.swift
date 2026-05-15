@@ -613,19 +613,28 @@ extension AppModel {
                     recognitionLocaleIdentifier: recognitionLocaleIdentifier,
                     timeoutSeconds: timeoutSeconds
                 )
-                _ = try? await clientVoiceEventsRepository.answerAsk(id: askEvent.id, transcript: transcript)
+                _ = try? await clientVoiceEventsRepository.answerAsk(id: askEvent.id, response: transcript)
                 await refreshPendingClientAskCount()
                 return .success(.object([
-                    "timedOut": .bool(false),
-                    "transcript": .string(transcript)
+                    "response": .string(transcript)
                 ]))
             } catch let error as VoiceAssistantError {
                 switch error {
+                case .microphoneNotAuthorized, .speechNotAuthorized:
+                    do {
+                        let response = try await clientVoiceEventsRepository.waitForAnswer(id: askEvent.id)
+                        await refreshPendingClientAskCount()
+                        return .success(.object([
+                            "response": .string(response)
+                        ]))
+                    } catch {
+                        await refreshPendingClientAskCount()
+                        return .failure(error)
+                    }
                 case .timedOut:
                     await refreshPendingClientAskCount()
                     return .success(.object([
-                        "timedOut": .bool(true),
-                        "transcript": .null
+                        "response": .null
                     ]))
                 default:
                     return .failure(error)
