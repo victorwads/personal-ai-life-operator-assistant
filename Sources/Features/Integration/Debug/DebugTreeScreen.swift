@@ -417,3 +417,9 @@ struct DebugTreeScreen: View {
         }
     }
 }
+
+#Preview {
+    DebugTreeScreen()
+        .environmentObject(AppModel.preview)
+        .frame(width: 1100, height: 720)
+}

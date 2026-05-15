@@ -111,3 +111,9 @@ struct ConversationsScreen: View {
         }
     }
 }
+
+#Preview {
+    ConversationsScreen()
+        .environmentObject(AppModel.preview)
+        .frame(width: 980, height: 680)
+}

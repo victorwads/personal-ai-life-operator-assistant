@@ -67,7 +67,10 @@ struct ClientVoiceHandsFreeWindow: View {
             }
         }
         .padding(14)
-        .onAppear { startHandsFreeListening() }
+        .onAppear {
+            guard !PreviewSupport.isRunningForPreviews else { return }
+            startHandsFreeListening()
+        }
         .onDisappear { listenTask?.cancel() }
     }
 
@@ -108,3 +111,13 @@ struct ClientVoiceHandsFreeWindow: View {
     }
 }
 
+#Preview {
+    ClientVoiceHandsFreeWindow(
+        appModel: AppModel.preview,
+        askId: UUID(),
+        prompt: "Você pode confirmar o endereço de entrega?",
+        onDone: {}
+    )
+    .frame(width: 560)
+    .padding()
+}

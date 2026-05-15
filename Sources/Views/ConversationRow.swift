@@ -63,3 +63,23 @@ struct ConversationRow: View {
         conversation.lastMessageStatus == .read ? .blue : .secondary
     }
 }
+
+#Preview {
+    ConversationRow(
+        conversation: ConversationSummary(
+            id: "chat-preview",
+            accessibilityPath: [0, 1],
+            name: "Family",
+            unreadCount: 3,
+            isPinned: true,
+            isSelected: false,
+            lastMessagePreview: "Chego em 10 minutos.",
+            lastMessageAtText: "09:41",
+            lastMessageDirection: .outgoing,
+            lastMessageStatus: .read,
+            isTyping: false
+        )
+    )
+    .padding()
+    .frame(width: 420)
+}

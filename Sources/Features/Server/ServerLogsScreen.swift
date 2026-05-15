@@ -444,3 +444,9 @@ struct ServerLogsScreen: View {
         }
     }
 }
+
+#Preview {
+    ServerLogsScreen()
+        .environmentObject(AppModel.preview)
+        .frame(width: 1100, height: 720)
+}

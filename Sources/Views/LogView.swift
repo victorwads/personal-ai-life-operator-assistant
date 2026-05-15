@@ -36,3 +36,14 @@ struct LogView: View {
         }
     }
 }
+
+#Preview {
+    LogView(
+        logs: [
+            LogEntry(level: .info, message: "Started polling"),
+            LogEntry(level: .warning, message: "WhatsApp not running"),
+            LogEntry(level: .error, message: "Failed to parse UI tree")
+        ]
+    )
+    .frame(width: 720, height: 360)
+}

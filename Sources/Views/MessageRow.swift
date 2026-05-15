@@ -29,3 +29,21 @@ struct MessageRow: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
+
+#Preview {
+    MessageRow(
+        message: Message(
+            id: "m-preview",
+            chatId: "chat-preview",
+            direction: .incoming,
+            kind: .text,
+            text: "Olá! Isso é um preview.",
+            durationSeconds: nil,
+            timestamp: Date(),
+            status: .delivered,
+            rawAccessibilityText: "Olá! Isso é um preview."
+        )
+    )
+    .padding()
+    .frame(width: 420)
+}

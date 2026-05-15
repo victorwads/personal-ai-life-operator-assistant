@@ -66,6 +66,7 @@ struct MemoriesScreen: View {
         }
         .padding(12)
         .task {
+            guard !PreviewSupport.isRunningForPreviews else { return }
             await reload()
         }
     }
@@ -88,3 +89,8 @@ struct MemoriesScreen: View {
     }
 }
 
+#Preview {
+    MemoriesScreen()
+        .environmentObject(AppModel.preview)
+        .frame(width: 980, height: 680)
+}

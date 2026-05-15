@@ -28,3 +28,8 @@ struct LogsScreen: View {
     }
 }
 
+#Preview {
+    LogsScreen()
+        .environmentObject(AppModel.preview)
+        .frame(width: 980, height: 680)
+}

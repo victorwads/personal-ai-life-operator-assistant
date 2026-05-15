@@ -98,3 +98,29 @@ struct ChatDetailView: View {
         }
     }
 }
+
+#Preview("Loaded") {
+    ChatDetailView(
+        chatState: AppModel.preview.selectedChatState,
+        messageDraft: .constant(""),
+        isSendingMessage: false,
+        isBlocked: false,
+        accessMode: .allowAllExceptDeny,
+        onToggleBlocked: {},
+        onSend: {}
+    )
+    .frame(width: 700, height: 520)
+}
+
+#Preview("Empty") {
+    ChatDetailView(
+        chatState: nil,
+        messageDraft: .constant(""),
+        isSendingMessage: false,
+        isBlocked: false,
+        accessMode: .allowAllExceptDeny,
+        onToggleBlocked: {},
+        onSend: {}
+    )
+    .frame(width: 700, height: 520)
+}

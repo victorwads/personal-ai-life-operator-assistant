@@ -108,6 +108,7 @@ struct SubjectsScreen: View {
         }
         .padding(12)
         .task {
+            guard !PreviewSupport.isRunningForPreviews else { return }
             await reload()
         }
     }
@@ -141,3 +142,8 @@ struct SubjectsScreen: View {
     }
 }
 
+#Preview {
+    SubjectsScreen()
+        .environmentObject(AppModel.preview)
+        .frame(width: 980, height: 680)
+}

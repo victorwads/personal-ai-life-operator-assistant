@@ -36,7 +36,10 @@ struct ClientVoiceScreen: View {
             }
         }
         .padding(12)
-        .task { await reload() }
+        .task {
+            guard !PreviewSupport.isRunningForPreviews else { return }
+            await reload()
+        }
     }
 
     private var header: some View {
@@ -230,4 +233,10 @@ struct ClientVoiceScreen: View {
             errorText = error.localizedDescription
         }
     }
+}
+
+#Preview {
+    ClientVoiceScreen()
+        .environmentObject(AppModel.preview)
+        .frame(width: 980, height: 680)
 }

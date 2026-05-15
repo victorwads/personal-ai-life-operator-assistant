@@ -70,6 +70,7 @@ struct NicknamesScreen: View {
         }
         .padding(12)
         .task {
+            guard !PreviewSupport.isRunningForPreviews else { return }
             if selectedChatId.isEmpty {
                 selectedChatId = appModel.conversations.first?.id ?? ""
             }
@@ -149,3 +150,8 @@ struct NicknamesScreen: View {
     }
 }
 
+#Preview {
+    NicknamesScreen()
+        .environmentObject(AppModel.preview)
+        .frame(width: 980, height: 680)
+}
