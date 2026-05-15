@@ -27,14 +27,19 @@ struct ClientVoiceScreen: View {
             List {
                 Section("History") {
                     ForEach(historyEvents) { event in
-                        if event.kind == .ask {
-                            askRow(event, showAnswer: true)
-                        } else {
-                            speakRow(event)
+                        Group {
+                            if event.kind == .ask {
+                                askRow(event, showAnswer: true)
+                            } else {
+                                speakRow(event)
+                            }
                         }
+                        .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
+                        .listRowSeparator(.hidden)
                     }
                 }
             }
+            .padding(.top, 6)
         }
         .padding(12)
         .task {
@@ -46,9 +51,6 @@ struct ClientVoiceScreen: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Client Voice")
-                    .font(.headline)
-
                 let pending = events.filter { $0.kind == .ask && $0.askStatus == .pending }.count
                 if pending > 0 {
                     Text("\(pending) pending")
@@ -115,9 +117,7 @@ struct ClientVoiceScreen: View {
     private func pendingAskCard(_ event: ClientVoiceEvent) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Ask")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                iconLabel(title: "Ask", systemImage: "questionmark.circle.fill")
                 Spacer()
                 Button {
                     Task { await replay(event) }
@@ -153,7 +153,7 @@ struct ClientVoiceScreen: View {
                 .keyboardShortcut(.defaultAction)
             }
         }
-        .padding(10)
+        .padding(12)
         .background(Color.yellow.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
         .overlay(
             RoundedRectangle(cornerRadius: 10)
@@ -165,9 +165,7 @@ struct ClientVoiceScreen: View {
     private func speakRow(_ event: ClientVoiceEvent) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Speak")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                iconLabel(title: "Speak", systemImage: "speaker.wave.2.fill")
                 Spacer()
                 Button {
                     Task { await replay(event) }
@@ -183,7 +181,7 @@ struct ClientVoiceScreen: View {
             Text(event.text ?? "")
                 .font(.body)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 8)
     }
 
     @ViewBuilder
@@ -208,9 +206,7 @@ struct ClientVoiceScreen: View {
     private func askRowContent(_ event: ClientVoiceEvent, showAnswer: Bool, isLost: Bool) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Ask")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                iconLabel(title: "Ask", systemImage: "questionmark.circle.fill")
 
                 if isLost {
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -241,7 +237,17 @@ struct ClientVoiceScreen: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 8)
+    }
+
+    private func iconLabel(title: String, systemImage: String) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+            Text(title)
+                .font(.caption.weight(.semibold))
+        }
+        .foregroundStyle(.secondary)
     }
 
     private func reload() async {
