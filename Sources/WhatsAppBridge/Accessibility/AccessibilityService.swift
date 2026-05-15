@@ -141,6 +141,9 @@ final class AccessibilityService {
             throw AccessibilityError.actionFailed(-1)
         }
 
+        tagAsSyntheticForInputLock(keyDown)
+        tagAsSyntheticForInputLock(keyUp)
+
         keyDown.post(tap: .cghidEventTap)
         keyUp.post(tap: .cghidEventTap)
     }
@@ -217,6 +220,9 @@ final class AccessibilityService {
                 throw AccessibilityError.actionFailed(-1)
             }
 
+            tagAsSyntheticForInputLock(keyDown)
+            tagAsSyntheticForInputLock(keyUp)
+
             keyDown.keyboardSetUnicodeString(stringLength: chunk.utf16.count, unicodeString: Array(chunk.utf16))
             keyUp.keyboardSetUnicodeString(stringLength: chunk.utf16.count, unicodeString: Array(chunk.utf16))
 
@@ -237,10 +243,17 @@ final class AccessibilityService {
             throw AccessibilityError.actionFailed(-1)
         }
 
+        tagAsSyntheticForInputLock(keyDown)
+        tagAsSyntheticForInputLock(keyUp)
+
         keyDown.flags = flags
         keyUp.flags = flags
         keyDown.post(tap: .cghidEventTap)
         keyUp.post(tap: .cghidEventTap)
+    }
+
+    private func tagAsSyntheticForInputLock(_ event: CGEvent) {
+        event.setIntegerValueField(.eventSourceUserData, value: InputLockService.passthroughTag)
     }
 
     private func captureNode(from element: AXUIElement, path: [Int], depth: Int, maxDepth: Int) -> RawAXNode {

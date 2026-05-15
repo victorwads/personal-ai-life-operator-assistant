@@ -4,6 +4,8 @@ import Foundation
 /// Experimental global input lock using a CGEventTap.
 /// This is intentionally scoped and time-bounded; misuse can make the machine feel "stuck".
 final class InputLockService {
+    static let passthroughTag: Int64 = 0xA11CE55 // "A11CE SS" (roughly) - arbitrary non-zero tag
+
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var stopWorkItem: DispatchWorkItem?
@@ -48,8 +50,11 @@ final class InputLockService {
         )
 
         let callback: CGEventTapCallBack = { _, _, event, _ in
-            // Swallow the event.
-            Unmanaged.passUnretained(event)
+            // Allow events we generated (tagged), swallow everything else.
+            let tag = event.getIntegerValueField(.eventSourceUserData)
+            if tag == InputLockService.passthroughTag {
+                return Unmanaged.passUnretained(event)
+            }
             return nil
         }
 
@@ -88,4 +93,3 @@ final class InputLockService {
         runLoopSource = nil
     }
 }
-
