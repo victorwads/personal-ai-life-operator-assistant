@@ -332,7 +332,7 @@ If you explicitly want to build without restarting/opening the app, you can stil
 
 Run from Xcode first so macOS can prompt for Accessibility permission cleanly.
 
-For Accessibility testing, do not run the app unsigned or with `CODE_SIGNING_ALLOWED=NO`. macOS TCC keys the permission to the app identity, and ad-hoc/unsigned rebuilds can make System Settings treat the rebuilt app as a different client. The generated project is configured to use the local `Apple Development` signing identity with team `RP7J7JX9L2`; if this machine changes, update `DEVELOPMENT_TEAM` in `project.yml`, run `xcodegen generate`, then grant Accessibility once again.
+For Accessibility testing, do not run the app unsigned or with `CODE_SIGNING_ALLOWED=NO`. macOS TCC keys the permission to the app identity, and ad-hoc/unsigned rebuilds can make System Settings treat the rebuilt app as a different client. The generated project is configured for `CODE_SIGN_STYLE=Automatic` with team `RP7J7JX9L2` (Xcode will pick an appropriate `Apple Development` certificate automatically); if this machine/team changes, update `DEVELOPMENT_TEAM` in `project.yml`, run `xcodegen generate`, then grant Accessibility once again.
 
 ## Accessibility Permission While Running From Xcode
 
@@ -347,7 +347,7 @@ If the app keeps saying Accessibility is not trusted:
 5. Press `Refresh`.
 6. Press `Dump WhatsApp`.
 
-If the Accessibility toggle turns itself off after every rebuild, remove the old entry from System Settings, confirm the app is being signed with a stable `Apple Development` identity, rebuild, and grant the permission again.
+If the Accessibility toggle turns itself off after every rebuild, remove the old entry from System Settings, confirm the app is being signed (with “Automatically manage signing” enabled and the expected team), rebuild, and grant the permission again.
 
 The app logs its current bundle id, bundle path, and executable path so you can verify which exact binary macOS needs to trust.
 

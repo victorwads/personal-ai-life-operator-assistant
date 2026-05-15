@@ -33,8 +33,7 @@ targets:
     settings:
       base:
         INFOPLIST_FILE: Sources/Info.plist
-        CODE_SIGN_STYLE: Manual
-        CODE_SIGN_IDENTITY: 8484C7E493D0945D34C283EE731478158A12930A
+        CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: RP7J7JX9L2
         SWIFT_VERSION: 6.0
         ENABLE_HARDENED_RUNTIME: YES
