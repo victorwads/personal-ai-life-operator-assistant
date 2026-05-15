@@ -66,6 +66,14 @@ enum JSONValue: Codable, Equatable {
         return nil
     }
 
+    var arrayValue: [JSONValue]? {
+        if case .array(let value) = self {
+            return value
+        }
+
+        return nil
+    }
+
     static func from(date: Date?) -> JSONValue {
         guard let date else {
             return .null

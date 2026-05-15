@@ -10,15 +10,25 @@ extension AppModel {
     - get_recent_messages: Load the most recent messages from a specific chat.
     - send_message: Send a message to a specific WhatsApp chat.
     - wait_for_message: Wait for the next incoming message(s) and return any new messages received.
+    - list_nicknames / save_nickname / delete_nickname: Manage nicknames for chats (e.g. “mom”, “partner”, “Leo”).
 
-    If you need to notify or interact with the user, use:
+    Use Subjects to track multi-day operational threads:
 
-    - speak: Announce something out loud to inform the user about important events, updates, or responses.
-    - ask_user: Ask the user a question out loud and wait for their spoken response before continuing.
+    - create_subject / update_subject / finish_subject: Create and manage an operational subject until resolution.
+    - list_active_subjects / get_subject / delete_subject: List, fetch, and delete subjects.
+
+    Use Memories to store long-term useful context:
+
+    - create_memory / list_memories / delete_memory: Manage memories.
+
+    If you need to notify or interact with the client, use:
+
+    - speak_to_client: Announce something out loud to inform the client about important events, updates, or responses.
+    - ask_to_client: Ask the client a question out loud and wait for their spoken response before continuing.
 
     Use get_instructions to fetch the latest instructions currently stored in the app UI.
 
-    When using speak or ask_user, write the text with clear punctuation and spacing (short sentences, commas, and periods) so the speech synthesizer reads it naturally and accurately.
+    When using speak_to_client or ask_to_client, write the text with clear punctuation and spacing (short sentences, commas, and periods) so the speech synthesizer reads it naturally and accurately.
     """
 
     func loadAssistantInstructions() {

@@ -14,6 +14,11 @@ Este plugin conecta o Codex a um MCP Server local que controla o WhatsApp Deskto
 2. Abra o WhatsApp Desktop.
 3. No Codex, habilite o plugin **Codex WhatsApp Assistant** e use as ferramentas expostas pelo MCP server (ex.: `list_chats`, `get_recent_messages`, `send_message`).
 
+## Dicas
+
+- Apelidos (nicknames): para chamar contatos por “mãe”, “namorado”, “Léo”, use `save_nickname(...)` e depois resolva com `list_nicknames()`.
+- Skill abrangente: use a skill `assistant` quando o fluxo envolver também Gmail e Google Calendar (follow-ups, agendamentos, convites).
+
 ## Ajustes
 
 - Se o seu servidor estiver em outra porta (ex.: `8080`), edite `./.mcp.json` e atualize a `url`.

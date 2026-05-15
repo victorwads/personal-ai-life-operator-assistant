@@ -20,7 +20,7 @@
   "interface": {
     "displayName": "Codex WhatsApp Assistant",
     "shortDescription": "Assistente pessoal no WhatsApp Desktop",
-    "longDescription": "Conecta no seu MCP Server local para ler/enviar mensagens no WhatsApp Desktop e te ajudar como assistente pessoal (resumos, rascunhos e respostas). Requer o WhatsApp Desktop aberto e o Assistant MCP Server rodando (ex.: http://localhost:8080/mcp).",
+    "longDescription": "Conecta no seu MCP Server local para ler/enviar mensagens no WhatsApp Desktop e te ajudar como assistente pessoal (resumos, rascunhos e respostas). Suporta apelidos (nicknames) para você se referir a contatos por nomes como “mãe” e “namorado”. Requer o WhatsApp Desktop aberto e o Assistant MCP Server rodando (ex.: http://localhost:8080/mcp).",
     "developerName": "Victor Wads",
     "category": "Productivity",
     "capabilities": [
@@ -33,7 +33,8 @@
     "defaultPrompt": [
       "Envie uma mensagem para um contato específico.",
       "Resuma as mensagens não lidas do WhatsApp.",
-      "Busque a última mensagem de um chat."
+      "Busque a última mensagem de um chat.",
+      "Salve um apelido (nickname) para um contato."
     ],
     "brandColor": "#25D366",
     "composerIcon": "./assets/icon.png",

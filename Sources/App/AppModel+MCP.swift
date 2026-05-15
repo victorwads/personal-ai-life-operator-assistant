@@ -259,8 +259,8 @@ extension AppModel {
                 ]
             ),
             MCPToolDefinition(
-                name: "speak",
-                description: "Speaks a message out loud using text-to-speech.",
+                name: "speak_to_client",
+                description: "Speaks a message out loud to the client using text-to-speech.",
                 inputSchema: [
                     "type": .string("object"),
                     "properties": .object([
@@ -273,8 +273,8 @@ extension AppModel {
                 ]
             ),
             MCPToolDefinition(
-                name: "ask_user",
-                description: "Asks the user out loud and waits for a spoken response.",
+                name: "ask_to_client",
+                description: "Asks the client out loud and waits for a spoken response.",
                 inputSchema: [
                     "type": .string("object"),
                     "properties": .object([
@@ -285,6 +285,118 @@ extension AppModel {
                         "timeoutSeconds": .object(["type": .string("number")])
                     ]),
                     "required": .array([.string("prompt")])
+                ]
+            ),
+            MCPToolDefinition(
+                name: "create_memory",
+                description: "Creates a new long-term memory entry.",
+                inputSchema: [
+                    "type": .string("object"),
+                    "properties": .object([
+                        "title": .object(["type": .string("string")]),
+                        "content": .object(["type": .string("string")]),
+                        "tags": .object(["type": .string("array"), "items": .object(["type": .string("string")])])
+                    ]),
+                    "required": .array([.string("title"), .string("content")])
+                ]
+            ),
+            MCPToolDefinition(
+                name: "list_memories",
+                description: "Lists memory entries.",
+                inputSchema: [
+                    "type": .string("object"),
+                    "properties": .object([:])
+                ]
+            ),
+            MCPToolDefinition(
+                name: "delete_memory",
+                description: "Deletes a memory entry by id.",
+                inputSchema: [
+                    "type": .string("object"),
+                    "properties": .object([
+                        "id": .object(["type": .string("string")])
+                    ]),
+                    "required": .array([.string("id")])
+                ]
+            ),
+            MCPToolDefinition(
+                name: "create_subject",
+                description: "Creates a new operational subject to track until resolution.",
+                inputSchema: [
+                    "type": .string("object"),
+                    "properties": .object([
+                        "title": .object(["type": .string("string")]),
+                        "details": .object(["type": .string("string")]),
+                        "priority": .object(["type": .string("number")]),
+                        "participants": .object(["type": .string("array"), "items": .object(["type": .string("string")])]),
+                        "nextSteps": .object(["type": .string("array"), "items": .object(["type": .string("string")])]),
+                        "whatsappChatId": .object(["type": .string("string")]),
+                        "gmailThreadId": .object(["type": .string("string")]),
+                        "calendarEventId": .object(["type": .string("string")])
+                    ]),
+                    "required": .array([.string("title")])
+                ]
+            ),
+            MCPToolDefinition(
+                name: "update_subject",
+                description: "Updates an operational subject by id.",
+                inputSchema: [
+                    "type": .string("object"),
+                    "properties": .object([
+                        "id": .object(["type": .string("string")]),
+                        "title": .object(["type": .string("string")]),
+                        "details": .object(["type": .string("string")]),
+                        "status": .object(["type": .string("string")]),
+                        "priority": .object(["type": .string("number")]),
+                        "participants": .object(["type": .string("array"), "items": .object(["type": .string("string")])]),
+                        "nextSteps": .object(["type": .string("array"), "items": .object(["type": .string("string")])]),
+                        "whatsappChatId": .object(["type": .string("string")]),
+                        "whatsappAfterMessageId": .object(["type": .string("string")]),
+                        "gmailThreadId": .object(["type": .string("string")]),
+                        "calendarEventId": .object(["type": .string("string")])
+                    ]),
+                    "required": .array([.string("id")])
+                ]
+            ),
+            MCPToolDefinition(
+                name: "finish_subject",
+                description: "Marks a subject as finished by id.",
+                inputSchema: [
+                    "type": .string("object"),
+                    "properties": .object([
+                        "id": .object(["type": .string("string")])
+                    ]),
+                    "required": .array([.string("id")])
+                ]
+            ),
+            MCPToolDefinition(
+                name: "list_active_subjects",
+                description: "Lists active subjects.",
+                inputSchema: [
+                    "type": .string("object"),
+                    "properties": .object([:])
+                ]
+            ),
+            MCPToolDefinition(
+                name: "get_subject",
+                description: "Fetches a subject by id.",
+                inputSchema: [
+                    "type": .string("object"),
+                    "properties": .object([
+                        "id": .object(["type": .string("string")])
+                    ]),
+                    "required": .array([.string("id")])
+                ]
+            ),
+            MCPToolDefinition(
+                name: "delete_subject",
+                description: "Deletes a subject by id.",
+                inputSchema: [
+                    "type": .string("object"),
+                    "properties": .object([
+                        "id": .object(["type": .string("string")])
+                    ]),
+                    "required": .array([.string("id")])
                 ]
             ),
             MCPToolDefinition(
@@ -460,7 +572,7 @@ extension AppModel {
             } catch {
                 return .failure(error)
             }
-        case "speak":
+        case "speak_to_client":
             guard let text = call.arguments["text"]?.stringValue else {
                 return .failure(MCPServerError.missingParameter("text"))
             }
@@ -475,7 +587,7 @@ extension AppModel {
             } ?? speechRate
             await voiceAssistant.speak(text, language: language, voiceIdentifier: voiceIdentifier, rate: rate)
             return .success(.object(["ok": .bool(true)]))
-        case "ask_user":
+        case "ask_to_client":
             guard let prompt = call.arguments["prompt"]?.stringValue else {
                 return .failure(MCPServerError.missingParameter("prompt"))
             }
@@ -510,9 +622,163 @@ extension AppModel {
             } catch {
                 return .failure(error)
             }
+        case "create_memory":
+            do {
+                let entry = try await memoriesRepository.create(
+                    title: call.arguments["title"]?.stringValue,
+                    content: call.arguments["content"]?.stringValue,
+                    tags: call.arguments["tags"]?.arrayValue?.compactMap(\.stringValue)
+                )
+                return .success(.object([
+                    "ok": .bool(true),
+                    "entry": memoryEntryJSONValue(entry)
+                ]))
+            } catch {
+                return .failure(error)
+            }
+        case "list_memories":
+            let entries = await memoriesRepository.list()
+            return .success(.object([
+                "entries": .array(entries.map(memoryEntryJSONValue))
+            ]))
+        case "delete_memory":
+            let rawId = call.arguments["id"]?.stringValue
+            guard let rawId, let id = UUID(uuidString: rawId) else {
+                return .failure(MemoriesRepositoryError.invalidParameter("Invalid id"))
+            }
+            do {
+                let deleted = try await memoriesRepository.delete(id: id)
+                return .success(.object([
+                    "ok": .bool(true),
+                    "deleted": .bool(deleted)
+                ]))
+            } catch {
+                return .failure(error)
+            }
+        case "create_subject":
+            do {
+                let entry = try await subjectsRepository.create(
+                    title: call.arguments["title"]?.stringValue,
+                    details: call.arguments["details"]?.stringValue,
+                    priority: call.arguments["priority"]?.intValue,
+                    participants: call.arguments["participants"]?.arrayValue?.compactMap(\.stringValue),
+                    nextSteps: call.arguments["nextSteps"]?.arrayValue?.compactMap(\.stringValue),
+                    whatsappChatId: call.arguments["whatsappChatId"]?.stringValue,
+                    gmailThreadId: call.arguments["gmailThreadId"]?.stringValue,
+                    calendarEventId: call.arguments["calendarEventId"]?.stringValue
+                )
+                return .success(.object([
+                    "ok": .bool(true),
+                    "entry": subjectEntryJSONValue(entry)
+                ]))
+            } catch {
+                return .failure(error)
+            }
+        case "update_subject":
+            let rawId = call.arguments["id"]?.stringValue
+            guard let rawId, let id = UUID(uuidString: rawId) else {
+                return .failure(SubjectsRepositoryError.invalidParameter("Invalid id"))
+            }
+            let status = call.arguments["status"]?.stringValue.flatMap(SubjectStatus.init(rawValue:))
+            do {
+                let entry = try await subjectsRepository.update(
+                    id: id,
+                    title: call.arguments["title"]?.stringValue,
+                    details: call.arguments["details"]?.stringValue,
+                    status: status,
+                    priority: call.arguments["priority"]?.intValue,
+                    participants: call.arguments["participants"]?.arrayValue?.compactMap(\.stringValue),
+                    nextSteps: call.arguments["nextSteps"]?.arrayValue?.compactMap(\.stringValue),
+                    whatsappChatId: call.arguments["whatsappChatId"]?.stringValue,
+                    whatsappAfterMessageId: call.arguments["whatsappAfterMessageId"]?.stringValue,
+                    gmailThreadId: call.arguments["gmailThreadId"]?.stringValue,
+                    calendarEventId: call.arguments["calendarEventId"]?.stringValue
+                )
+                return .success(.object([
+                    "ok": .bool(true),
+                    "entry": subjectEntryJSONValue(entry)
+                ]))
+            } catch {
+                return .failure(error)
+            }
+        case "finish_subject":
+            let rawId = call.arguments["id"]?.stringValue
+            guard let rawId, let id = UUID(uuidString: rawId) else {
+                return .failure(SubjectsRepositoryError.invalidParameter("Invalid id"))
+            }
+            do {
+                let entry = try await subjectsRepository.finish(id: id)
+                return .success(.object([
+                    "ok": .bool(true),
+                    "entry": subjectEntryJSONValue(entry)
+                ]))
+            } catch {
+                return .failure(error)
+            }
+        case "list_active_subjects":
+            let entries = await subjectsRepository.listActive()
+            return .success(.object([
+                "entries": .array(entries.map(subjectEntryJSONValue))
+            ]))
+        case "get_subject":
+            let rawId = call.arguments["id"]?.stringValue
+            guard let rawId, let id = UUID(uuidString: rawId) else {
+                return .failure(SubjectsRepositoryError.invalidParameter("Invalid id"))
+            }
+            do {
+                let entry = try await subjectsRepository.get(id: id)
+                return .success(.object([
+                    "entry": subjectEntryJSONValue(entry)
+                ]))
+            } catch {
+                return .failure(error)
+            }
+        case "delete_subject":
+            let rawId = call.arguments["id"]?.stringValue
+            guard let rawId, let id = UUID(uuidString: rawId) else {
+                return .failure(SubjectsRepositoryError.invalidParameter("Invalid id"))
+            }
+            do {
+                let deleted = try await subjectsRepository.delete(id: id)
+                return .success(.object([
+                    "ok": .bool(true),
+                    "deleted": .bool(deleted)
+                ]))
+            } catch {
+                return .failure(error)
+            }
         default:
             return .failure(MCPServerError.invalidParameter("name"))
         }
+    }
+
+    private func memoryEntryJSONValue(_ entry: MemoryEntry) -> JSONValue {
+        .object([
+            "id": .string(entry.id.uuidString),
+            "title": .string(entry.title),
+            "content": .string(entry.content),
+            "tags": .array(entry.tags.map(JSONValue.string)),
+            "createdAt": .from(date: entry.createdAt),
+            "updatedAt": .from(date: entry.updatedAt)
+        ])
+    }
+
+    private func subjectEntryJSONValue(_ entry: SubjectEntry) -> JSONValue {
+        .object([
+            "id": .string(entry.id.uuidString),
+            "title": .string(entry.title),
+            "details": entry.details.map(JSONValue.string) ?? .null,
+            "status": .string(entry.status.rawValue),
+            "priority": .number(Double(entry.priority)),
+            "participants": .array(entry.participants.map(JSONValue.string)),
+            "nextSteps": .array(entry.nextSteps.map(JSONValue.string)),
+            "whatsappChatId": entry.whatsappChatId.map(JSONValue.string) ?? .null,
+            "whatsappAfterMessageId": entry.whatsappAfterMessageId.map(JSONValue.string) ?? .null,
+            "gmailThreadId": entry.gmailThreadId.map(JSONValue.string) ?? .null,
+            "calendarEventId": entry.calendarEventId.map(JSONValue.string) ?? .null,
+            "createdAt": .from(date: entry.createdAt),
+            "updatedAt": .from(date: entry.updatedAt)
+        ])
     }
 
     private func nicknameEntryJSONValue(_ entry: NicknameEntry) -> JSONValue {

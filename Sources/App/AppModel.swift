@@ -56,6 +56,8 @@ final class AppModel: ObservableObject {
     var liveStatusTask: Task<Void, Never>?
     let serverCallsRepository = ServerCallsRepository.shared
     let nicknamesRepository = NicknamesRepository.shared
+    let memoriesRepository = MemoriesRepository.shared
+    let subjectsRepository = SubjectsRepository.shared
 
     init() {
         loadConversationAccessSettings()
