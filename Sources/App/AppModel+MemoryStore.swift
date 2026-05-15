@@ -6,24 +6,6 @@ extension AppModel {
         memoryStore.selectConversation(id: conversation.id)
     }
 
-    func isBlocked(_ conversationName: String) -> Bool {
-        blockedConversationNames.contains(conversationName)
-    }
-
-    func toggleBlockedConversation(_ conversationName: String) {
-        if isBlocked(conversationName) {
-            unblockConversation(named: conversationName)
-        } else {
-            blockConversation(named: conversationName)
-        }
-    }
-
-    func unblockConversation(named conversationName: String) {
-        blockedConversationNames.removeAll { $0 == conversationName }
-        persistBlockedConversationNames()
-        appendLog("Removed \(conversationName) from blacklist.")
-    }
-
     func bindMemoryStore() {
         memoryStore.$conversations
             .sink { [weak self] in
@@ -45,37 +27,12 @@ extension AppModel {
     }
 
     func filteredConversations(_ conversations: [ConversationSummary]) -> [ConversationSummary] {
-        conversations.filter { !isBlocked($0.name) }
-    }
-
-    func loadBlockedConversationNames() {
-        blockedConversationNames = UserDefaults.standard.stringArray(forKey: blockedConversationDefaultsKey) ?? []
-        blockedConversationNames.sort()
-    }
-
-    func persistBlockedConversationNames() {
-        UserDefaults.standard.set(blockedConversationNames, forKey: blockedConversationDefaultsKey)
-    }
-
-    private func blockConversation(named conversationName: String) {
-        guard !isBlocked(conversationName) else {
-            return
+        switch conversationAccessMode {
+        case .allowAllExceptDeny:
+            return conversations.filter { !denyConversationNames.contains($0.name) }
+        case .denyAllExceptAllow:
+            // Keep all conversations visible so the user can allow them explicitly.
+            return conversations
         }
-
-        blockedConversationNames.append(conversationName)
-        blockedConversationNames.sort()
-        persistBlockedConversationNames()
-
-        let blockedIDs = conversations
-            .filter { $0.name == conversationName }
-            .map(\.id)
-
-        for blockedID in blockedIDs {
-            listSignaturesById.removeValue(forKey: blockedID)
-            memoryStore.removeConversation(id: blockedID)
-        }
-        persistChatListSignatures()
-
-        appendLog("Added \(conversationName) to blacklist.")
     }
 }

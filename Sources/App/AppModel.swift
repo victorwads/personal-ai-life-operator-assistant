@@ -25,7 +25,9 @@ final class AppModel: ObservableObject {
     @Published var mcpServerPortText = "8080"
     @Published var mcpServerRunning = false
     @Published var mcpServerStatusDescription = "Stopped"
-    @Published var blockedConversationNames: [String] = []
+    @Published var conversationAccessMode: ConversationAccessMode = .allowAllExceptDeny
+    @Published var denyConversationNames: [String] = []
+    @Published var allowConversationNames: [String] = []
     @Published var debugSnapshot: WhatsAppSnapshot?
     @Published var debugNodePath: [Int] = []
     @Published var assistantInstructions = ""
@@ -34,6 +36,7 @@ final class AppModel: ObservableObject {
     @Published var speechRate: Float = AVSpeechUtteranceDefaultSpeechRate
     @Published var recognitionLocaleIdentifier = "pt-BR"
     @Published var experimentalInputLockEnabled = false
+    @Published var mcpSendMessagePrefix = ""
 
     let accessibility = AccessibilityService()
     let accessibilityScheduler = AccessibilityActionScheduler()
@@ -49,23 +52,29 @@ final class AppModel: ObservableObject {
     var listSignaturesById: [String: String] = [:]
     let debugDirectory = URL(fileURLWithPath: "/tmp/AssistantMCPServer", isDirectory: true)
     var cancellables: Set<AnyCancellable> = []
+    // Legacy: used for migration to denyConversationNamesDefaultsKey.
     let blockedConversationDefaultsKey = "blockedConversationNames"
+    let conversationAccessModeDefaultsKey = "conversationAccessMode.v1"
+    let denyConversationNamesDefaultsKey = "denyConversationNames.v1"
+    let allowConversationNamesDefaultsKey = "allowConversationNames.v1"
     let assistantInstructionsDefaultsKey = "assistantInstructions"
     let speechVoiceIdentifierDefaultsKey = "speechVoiceIdentifier"
     let speechLanguageDefaultsKey = "speechLanguage"
     let speechRateDefaultsKey = "speechRate"
     let recognitionLocaleIdentifierDefaultsKey = "recognitionLocaleIdentifier"
     let experimentalInputLockEnabledDefaultsKey = "experimentalInputLockEnabled"
+    let mcpSendMessagePrefixDefaultsKey = "mcpSendMessagePrefix"
     let chatListSignaturesDefaultsKey = "chatListSignatures.v1"
     var mcpRestartTask: Task<Void, Never>?
     var liveStatusTask: Task<Void, Never>?
     let serverCallStore = ServerCallStore()
 
     init() {
-        loadBlockedConversationNames()
+        loadConversationAccessSettings()
         loadAssistantInstructions()
         loadVoiceSettings()
         loadExperimentalInputLockSetting()
+        loadMCPSendMessagePrefixSetting()
         loadChatListSignatures()
         bindMemoryStore()
         configureMCPConnector()

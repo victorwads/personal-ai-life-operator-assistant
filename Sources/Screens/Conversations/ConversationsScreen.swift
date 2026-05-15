@@ -46,12 +46,13 @@ struct ConversationsScreen: View {
                 messageDraft: $appModel.messageDraft,
                 isSendingMessage: appModel.isSendingMessage,
                 isBlocked: appModel.selectedChatState.map { appModel.isBlocked($0.chat.name) } ?? false,
+                accessMode: appModel.conversationAccessMode,
                 onToggleBlocked: {
                     guard let conversationName = appModel.selectedChatState?.chat.name else {
                         return
                     }
 
-                    appModel.toggleBlockedConversation(conversationName)
+                    appModel.toggleConversationAccess(conversationName)
                 },
                 onSend: {
                     Task {
@@ -80,14 +81,15 @@ struct ConversationsScreen: View {
     }
 
     private var ignoredConversationsSection: some View {
-        GroupBox("Ignored Conversations") {
-            if appModel.blockedConversationNames.isEmpty {
-                Text("No ignored conversations.")
+        GroupBox(appModel.conversationAccessMode == .allowAllExceptDeny ? "Deny list" : "Allow list") {
+            let names = appModel.conversationAccessMode == .allowAllExceptDeny ? appModel.denyConversationNames : appModel.allowConversationNames
+            if names.isEmpty {
+                Text(appModel.conversationAccessMode == .allowAllExceptDeny ? "No denied conversations." : "No allowed conversations.")
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 VStack(alignment: .leading, spacing: 8) {
-                    ForEach(appModel.blockedConversationNames, id: \.self) { ignoredName in
+                    ForEach(names, id: \.self) { ignoredName in
                         HStack {
                             Text(ignoredName)
                                 .lineLimit(1)
@@ -95,7 +97,11 @@ struct ConversationsScreen: View {
                             Spacer()
 
                             Button("Remove") {
-                                appModel.unblockConversation(named: ignoredName)
+                                if appModel.conversationAccessMode == .allowAllExceptDeny {
+                                    appModel.removeFromDenyList(ignoredName)
+                                } else {
+                                    appModel.removeFromAllowList(ignoredName)
+                                }
                             }
                         }
                     }

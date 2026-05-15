@@ -9,6 +9,14 @@ struct SettingsScreen: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Settings")
+                        .font(.title2.weight(.semibold))
+                    Text("Applies to local UI behavior and MCP tool handling.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 GroupBox("Polling") {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
@@ -72,6 +80,45 @@ struct SettingsScreen: View {
                             .buttonStyle(.plain)
                             .help("Experimental. This can temporarily block mouse and keyboard input during message send (up to 5 seconds).")
                         }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                GroupBox("Conversation Access") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Policy")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+
+                        Picker("Policy", selection: $appModel.conversationAccessMode) {
+                            ForEach(ConversationAccessMode.allCases) { mode in
+                                Text(mode.title).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.radioGroup)
+
+                        Text(appModel.conversationAccessMode.helpText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Divider()
+
+                        HStack {
+                            Text("Allow list: \(appModel.allowConversationNames.count)")
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                            Text("•")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text("Deny list: \(appModel.denyConversationNames.count)")
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                        }
+
+                        Text("Edit allow/deny lists from the Conversations screen.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -146,6 +193,24 @@ struct SettingsScreen: View {
                         } label: {
                             Label("Copy MCP Snippet", systemImage: "doc.on.doc")
                         }
+
+                        Divider()
+
+                        Text("Outgoing messages")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+
+                        HStack {
+                            Text("Prefix")
+                            Spacer()
+                            TextField("e.g. Robozinho: ", text: $appModel.mcpSendMessagePrefix)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 260)
+                        }
+
+                        Text("Applied only to MCP tool `send_message` (not to manual sends from the UI).")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
 
                         Divider()
 
@@ -254,6 +319,7 @@ struct SettingsScreen: View {
                 }
             }
             .padding(20)
+            .frame(maxWidth: 820, alignment: .topLeading)
         }
     }
 }

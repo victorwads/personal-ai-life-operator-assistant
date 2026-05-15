@@ -290,10 +290,13 @@ extension AppModel {
     private func callTool(_ call: MCPToolCall) async -> Result<JSONValue, Error> {
         switch call.name {
         case "list_chats":
-            let chats = memoryStore.conversations.map(conversationJSONValue)
+            let chats = memoryStore.conversations
+                .filter { !isBlocked($0.name) }
+                .map(conversationJSONValue)
             return .success(.object(["chats": .array(chats)]))
         case "list_unread_chats":
             let chats = memoryStore.conversations
+                .filter { !isBlocked($0.name) }
                 .filter { $0.unreadCount > 0 }
                 .map(conversationJSONValue)
             return .success(.object(["chats": .array(chats)]))
@@ -303,6 +306,9 @@ extension AppModel {
             }
 
             let limit = max(1, call.arguments["limit"]?.intValue ?? 10)
+            if let conversation = memoryStore.conversation(for: chatId), isBlocked(conversation.name) {
+                return .failure(MCPServerError.invalidRequest)
+            }
             if memoryStore.chatState(for: chatId) == nil {
                 await ensureChatLoaded(chatId: chatId, reason: "get_recent_messages")
             }
@@ -326,7 +332,8 @@ extension AppModel {
             }
 
             do {
-                try await sendMessageViaScheduler(text, to: chatId)
+                let prefixedText = applyMCPSendMessagePrefixIfNeeded(text)
+                try await sendMessageViaScheduler(prefixedText, to: chatId)
                 return .success(.object([
                     "ok": .bool(true),
                     "chatId": .string(chatId)

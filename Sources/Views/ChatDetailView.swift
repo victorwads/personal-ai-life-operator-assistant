@@ -5,6 +5,7 @@ struct ChatDetailView: View {
     @Binding var messageDraft: String
     let isSendingMessage: Bool
     let isBlocked: Bool
+    let accessMode: ConversationAccessMode
     let onToggleBlocked: () -> Void
     let onSend: () -> Void
 
@@ -72,10 +73,28 @@ struct ChatDetailView: View {
             Button {
                 onToggleBlocked()
             } label: {
-                Label(isBlocked ? "Unignore" : "Ignore", systemImage: isBlocked ? "checkmark.shield" : "hand.raised")
+                Label(accessActionTitle, systemImage: accessActionSystemImage)
             }
             .buttonStyle(.bordered)
         }
         .padding(14)
+    }
+
+    private var accessActionTitle: String {
+        switch accessMode {
+        case .allowAllExceptDeny:
+            return isBlocked ? "Remove deny" : "Deny"
+        case .denyAllExceptAllow:
+            return isBlocked ? "Allow" : "Remove allow"
+        }
+    }
+
+    private var accessActionSystemImage: String {
+        switch accessMode {
+        case .allowAllExceptDeny:
+            return isBlocked ? "checkmark.shield" : "hand.raised"
+        case .denyAllExceptAllow:
+            return isBlocked ? "checkmark.circle" : "minus.circle"
+        }
     }
 }

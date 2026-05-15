@@ -71,6 +71,9 @@ extension AppModel {
     private func refreshChangedChats(from conversations: [ConversationSummary]) async {
         var didUpdateSignatures = false
         for conversation in conversations {
+            guard !isBlocked(conversation.name) else {
+                continue
+            }
             let previousSignature = listSignaturesById[conversation.id]
             let signatureChanged = previousSignature != conversation.listSignature
             if previousSignature == nil || signatureChanged {
@@ -97,6 +100,10 @@ extension AppModel {
     }
 
     func loadMessages(for conversation: ConversationSummary, reason: String, updateSelectedChat: Bool) async {
+        guard !isBlocked(conversation.name) else {
+            appendLog("Skipped loading messages for blocked conversation \(conversation.name) (\(reason)).", level: .warning)
+            return
+        }
         do {
             let snapshot = try await openConversationAndCapture(conversation)
             let screenState = parser.parse(snapshot: snapshot, messageLimit: 10)
@@ -114,6 +121,10 @@ extension AppModel {
             return
         }
         guard let conversation = memoryStore.conversation(for: chatId) else {
+            return
+        }
+        guard !isBlocked(conversation.name) else {
+            appendLog("Skipped loading blocked conversation \(conversation.name) (\(reason)).", level: .warning)
             return
         }
         await loadMessages(for: conversation, reason: reason, updateSelectedChat: false)
