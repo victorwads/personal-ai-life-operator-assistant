@@ -15,6 +15,10 @@ final class AccessibilityService {
         inputLock.lockFor(seconds: seconds)
     }
 
+    func unlockUserInputAfterSend() {
+        inputLock.unlock()
+    }
+
     func isTrusted(prompt: Bool) -> Bool {
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: prompt] as CFDictionary
         return AXIsProcessTrustedWithOptions(options)
