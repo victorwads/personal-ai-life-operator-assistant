@@ -169,6 +169,21 @@ final class MCPHTTPServer: MCPHTTPServerHosting, @unchecked Sendable {
             )
         }
 
+        if request.method == "GET", request.path.hasPrefix("/.well-known/") {
+            statusCode = 404
+            headers = [:]
+            body = Data("Not Found.\n".utf8)
+            contentType = "text/plain; charset=utf-8"
+            return finalizeAndLog(
+                request: request,
+                startedAt: startedAt,
+                statusCode: statusCode,
+                headers: headers,
+                body: body,
+                contentType: contentType
+            )
+        }
+
         if request.method == "GET", request.path == "/health" {
             let payload = [
                 "ok": true,
@@ -188,6 +203,23 @@ final class MCPHTTPServer: MCPHTTPServerHosting, @unchecked Sendable {
                 body: body,
                 contentType: contentType
             )
+        }
+
+        if request.method == "POST", request.path == "/mcp" {
+            if let response = handleInitializeRequestIfNeeded(body: request.body) {
+                statusCode = 200
+                headers = ["content-type": "application/json; charset=utf-8"]
+                body = response
+                contentType = nil
+                return finalizeAndLog(
+                    request: request,
+                    startedAt: startedAt,
+                    statusCode: statusCode,
+                    headers: headers,
+                    body: body,
+                    contentType: contentType
+                )
+            }
         }
 
         if request.method == "GET", request.path == "/mcp" {
@@ -239,6 +271,43 @@ final class MCPHTTPServer: MCPHTTPServerHosting, @unchecked Sendable {
             body: body,
             contentType: contentType
         )
+    }
+
+    private func handleInitializeRequestIfNeeded(body: Data) -> Data? {
+        guard
+            let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+            let method = object["method"] as? String,
+            method == "initialize"
+        else {
+            return nil
+        }
+
+        let id = object["id"] ?? NSNull()
+        let params = object["params"] as? [String: Any]
+        let requestedProtocolVersion = params?["protocolVersion"] as? String
+
+        let negotiatedProtocolVersion = requestedProtocolVersion ?? "2024-11-05"
+
+        let result: [String: Any] = [
+            "protocolVersion": negotiatedProtocolVersion,
+            "capabilities": [
+                "tools": [
+                    "listChanged": true
+                ]
+            ],
+            "serverInfo": [
+                "name": "assistant-whatsapp",
+                "version": "0.1.0"
+            ]
+        ]
+
+        let payload: [String: Any] = [
+            "jsonrpc": "2.0",
+            "id": id,
+            "result": result
+        ]
+
+        return (try? JSONSerialization.data(withJSONObject: payload)) ?? Data()
     }
 
     private func finalizeAndLog(
