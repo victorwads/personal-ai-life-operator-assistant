@@ -6,22 +6,42 @@ struct ServerLogsScreen: View {
     @State private var query = ""
     @State private var isResending = false
     @FocusState private var listFocused: Bool
+    @State private var includeGet = true
+    @State private var includePost = true
+    @State private var includeSuccess = true
+    @State private var includeError = true
 
     var body: some View {
-        NavigationSplitView {
-            leftPane
-                .navigationSplitViewColumnWidth(min: 360, ideal: 440, max: 560)
-        } detail: {
-            rightPane
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        VStack(spacing: 0) {
+            header
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.bar)
+
+            Divider()
+
+            NavigationSplitView {
+                leftPane
+                    .navigationSplitViewColumnWidth(min: 360, ideal: 440, max: 560)
+            } detail: {
+                rightPane
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
     }
 
-    private var leftPane: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 8) {
-                TextField("Filter (path, method, status)", text: $query)
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                TextField("Search (path, method, status)", text: $query)
                     .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 520)
+
+                Spacer()
+
+                Text("\(filteredCalls.count)")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
 
                 Button {
                     appModel.clearServerCalls()
@@ -31,28 +51,39 @@ struct ServerLogsScreen: View {
                 }
                 .disabled(appModel.serverCalls.isEmpty)
             }
-            .padding(12)
 
-            List(selection: $selectedId) {
-                ForEach(filteredCalls) { entry in
-                    row(entry)
-                        .tag(entry.id)
-                        .onTapGesture {
-                            selectedId = entry.id
-                            listFocused = true
-                        }
-                }
+            HStack(spacing: 8) {
+                filterToggle("GET", isOn: $includeGet)
+                filterToggle("POST", isOn: $includePost)
+                Divider()
+                    .frame(height: 18)
+                filterToggle("Success", isOn: $includeSuccess)
+                filterToggle("Error", isOn: $includeError)
+                Spacer()
             }
-            .focused($listFocused)
-            .onChange(of: query) { _, _ in
-                if let selectedId, !filteredCalls.contains(where: { $0.id == selectedId }) {
-                    self.selectedId = nil
-                }
+        }
+    }
+
+    private var leftPane: some View {
+        List(selection: $selectedId) {
+            ForEach(filteredCalls) { entry in
+                row(entry)
+                    .tag(entry.id)
+                    .onTapGesture {
+                        selectedId = entry.id
+                        listFocused = true
+                    }
             }
-            .onChange(of: appModel.serverCalls.count) { _, _ in
-                if let selectedId, !appModel.serverCalls.contains(where: { $0.id == selectedId }) {
-                    self.selectedId = nil
-                }
+        }
+        .focused($listFocused)
+        .onChange(of: query) { _, _ in
+            if let selectedId, !filteredCalls.contains(where: { $0.id == selectedId }) {
+                self.selectedId = nil
+            }
+        }
+        .onChange(of: appModel.serverCalls.count) { _, _ in
+            if let selectedId, !appModel.serverCalls.contains(where: { $0.id == selectedId }) {
+                self.selectedId = nil
             }
         }
     }
@@ -73,13 +104,34 @@ struct ServerLogsScreen: View {
     }
 
     private var filteredCalls: [MCPServerCallEntry] {
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return appModel.serverCalls }
-        let needle = trimmed.lowercased()
-        return appModel.serverCalls.filter { entry in
-            entry.requestPath.lowercased().contains(needle)
-                || entry.requestMethod.lowercased().contains(needle)
-                || String(entry.responseStatusCode).contains(needle)
+        appModel.serverCalls.filter { entry in
+            let method = entry.requestMethod.uppercased()
+            let methodMatches =
+                (method == "GET" && includeGet)
+                    || (method == "POST" && includePost)
+                    || (method != "GET" && method != "POST")
+
+            let status = entry.responseStatusCode
+            let statusMatches: Bool = if status == 0 {
+                includeSuccess
+            } else {
+                ((200..<400).contains(status) && includeSuccess)
+                    || (status >= 400 && includeError)
+            }
+
+            let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+            let searchMatches: Bool
+            if trimmed.isEmpty {
+                searchMatches = true
+            } else {
+                let needle = trimmed.lowercased()
+                searchMatches =
+                    entry.requestPath.lowercased().contains(needle)
+                        || method.lowercased().contains(needle)
+                        || String(status).contains(needle)
+            }
+
+            return methodMatches && statusMatches && searchMatches
         }
     }
 
@@ -117,6 +169,16 @@ struct ServerLogsScreen: View {
                 .frame(width: 64, alignment: .trailing)
         }
         .contentShape(Rectangle())
+    }
+
+    private func filterToggle(_ label: String, isOn: Binding<Bool>) -> some View {
+        Toggle(isOn: isOn) {
+            Text(label)
+                .font(.caption.weight(.semibold))
+        }
+        .toggleStyle(.button)
+        .buttonStyle(.bordered)
+        .controlSize(.small)
     }
 
     private func details(_ entry: MCPServerCallEntry) -> some View {

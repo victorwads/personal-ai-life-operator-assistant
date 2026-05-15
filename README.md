@@ -96,20 +96,15 @@ open AssistantMCPServer.xcodeproj
 
 ## Development Commands
 
-Manual build with a stable local `DerivedData` path:
+Rebuild and run the app using the restart script (this is the canonical workflow for this repo):
 
 ```sh
-xcodebuild \
-  -project AssistantMCPServer.xcodeproj \
-  -scheme AssistantMCPServer \
-  -configuration Debug \
-  -derivedDataPath build/DerivedData \
-  build
+./scripts/restart.sh
 ```
 
-Prefer the restart script for day-to-day work. Use the manual build command only when you explicitly want to build without restarting the app.
-
-The restart script uses `build/DerivedData`, so the built app path stays stable across runs.
+Notes:
+- Always use `./scripts/restart.sh` even when you only want to verify the build is passing.
+- The script regenerates the Xcode project via `xcodegen`, builds using a stable `build/DerivedData` path, and launches the freshly built app.
 
 ## Desired MCP Tools
 
