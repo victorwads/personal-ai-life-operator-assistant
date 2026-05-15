@@ -8,6 +8,7 @@ enum ClientVoiceEventKind: String, Codable, CaseIterable {
 enum ClientVoiceAskStatus: String, Codable, CaseIterable {
     case pending
     case answered
+    case lost
 }
 
 struct ClientVoiceEvent: Codable, Identifiable, Equatable {
@@ -22,4 +23,3 @@ struct ClientVoiceEvent: Codable, Identifiable, Equatable {
     var askStatus: ClientVoiceAskStatus?
     var answeredAt: Date?
 }
-

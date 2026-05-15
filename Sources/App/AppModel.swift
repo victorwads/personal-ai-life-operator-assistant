@@ -47,7 +47,7 @@ final class AppModel: ObservableObject {
     @Published var microphoneAuthorized = true
     @Published var speechRecognitionAuthorized = true
     @Published var handsFreeClientVoiceEnabled = true
-    @Published var handsFreeClientVoiceDebounceSeconds = 1.0
+    @Published var handsFreeClientVoiceDebounceSeconds = HandsFreeClientVoiceSettingsRepository.defaultDebounceSeconds
     @Published var speechSynthesizerSpeaking = false
 
     let accessibility = AccessibilityService()
@@ -97,6 +97,7 @@ final class AppModel: ObservableObject {
             refreshMicrophoneAuthorization()
             refreshSpeechRecognitionAuthorization()
             Task { [weak self] in
+                await self?.markStaleClientVoiceAsLost()
                 await self?.refreshPendingClientAskCount()
             }
             Task { [weak self] in
@@ -117,7 +118,7 @@ final class AppModel: ObservableObject {
             microphoneAuthorized = true
             speechRecognitionAuthorized = true
             handsFreeClientVoiceEnabled = false
-            handsFreeClientVoiceDebounceSeconds = 1.0
+            handsFreeClientVoiceDebounceSeconds = HandsFreeClientVoiceSettingsRepository.defaultDebounceSeconds
         }
     }
 
@@ -127,9 +128,15 @@ final class AppModel: ObservableObject {
         await maybeShowHandsFreeClientVoiceWindow()
     }
 
+    private func markStaleClientVoiceAsLost() async {
+        let markedCount = await clientVoiceEventsRepository.markPendingAsLost()
+        guard markedCount > 0 else { return }
+        appendLog("Marked \(markedCount) stale client voice ask(s) as lost after launch.", level: .warning)
+    }
+
     private func loadHandsFreeClientVoiceSetting() {
         handsFreeClientVoiceEnabled = handsFreeClientVoiceSettingsRepository.load(defaultValue: true)
-        handsFreeClientVoiceDebounceSeconds = handsFreeClientVoiceSettingsRepository.loadDebounceSeconds(defaultValue: 1.0)
+        handsFreeClientVoiceDebounceSeconds = handsFreeClientVoiceSettingsRepository.loadDebounceSeconds()
 
         $handsFreeClientVoiceEnabled
             .dropFirst()

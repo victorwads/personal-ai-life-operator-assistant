@@ -3,6 +3,7 @@ import Foundation
 @MainActor
 final class HandsFreeClientVoiceSettingsRepository {
     static let shared = HandsFreeClientVoiceSettingsRepository()
+    static let defaultDebounceSeconds = 2.5
 
     private let defaults: UserDefaults
     private let enabledStorageKey = "handsFreeClientVoiceEnabled"
@@ -23,7 +24,7 @@ final class HandsFreeClientVoiceSettingsRepository {
         defaults.set(enabled, forKey: enabledStorageKey)
     }
 
-    func loadDebounceSeconds(defaultValue: Double = 1.0) -> Double {
+    func loadDebounceSeconds(defaultValue: Double = 2.5) -> Double {
         guard let number = defaults.object(forKey: debounceSecondsStorageKey) as? NSNumber else {
             return defaultValue
         }

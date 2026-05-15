@@ -19,6 +19,23 @@ actor ClientVoiceEventsRepository {
         loadAll().filter { $0.kind == .ask && $0.askStatus == .pending }.count
     }
 
+    func markPendingAsLost() -> Int {
+        var events = loadAll()
+        var changedCount = 0
+
+        for index in events.indices where events[index].kind == .ask && events[index].askStatus == .pending {
+            events[index].askStatus = .lost
+            changedCount += 1
+        }
+
+        guard changedCount > 0 else {
+            return 0
+        }
+
+        persistAll(events)
+        return changedCount
+    }
+
     func clearAll() {
         defaults.removeObject(forKey: storageKey)
         let waiters = pendingWaitersById

@@ -188,11 +188,38 @@ struct ClientVoiceScreen: View {
 
     @ViewBuilder
     private func askRow(_ event: ClientVoiceEvent, showAnswer: Bool) -> some View {
+        let isLost = event.askStatus == .lost
+        let content = askRowContent(event, showAnswer: showAnswer, isLost: isLost)
+
+        if isLost {
+            content
+                .padding(10)
+                .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.orange.opacity(0.30))
+                )
+        } else {
+            content
+        }
+    }
+
+    @ViewBuilder
+    private func askRowContent(_ event: ClientVoiceEvent, showAnswer: Bool, isLost: Bool) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Ask")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
+
+                if isLost {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.orange)
+                        .help("Essa chamada foi perdida")
+                        .accessibilityLabel("Essa chamada foi perdida")
+                }
+
                 Spacer()
                 Button {
                     Task { await replay(event) }
