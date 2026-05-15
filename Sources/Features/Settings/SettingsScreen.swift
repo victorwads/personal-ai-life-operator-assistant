@@ -321,6 +321,20 @@ struct SettingsScreen: View {
                                 Label("Test Mic Prompt", systemImage: "waveform")
                             }
                             .help("Starts a short 5s listen to force macOS to show Microphone/Speech permission prompts (if needed).")
+
+                            Button {
+                                Task {
+                                    do {
+                                        try await appModel.voiceAssistant.forceMicrophoneCapture(durationSeconds: 1.0)
+                                    } catch {
+                                        // Intentionally ignore: this is only to force the system prompt / validate access.
+                                    }
+                                    appModel.refreshMicrophoneAuthorization()
+                                }
+                            } label: {
+                                Label("Force Mic Capture (1s)", systemImage: "mic.and.signal.meter")
+                            }
+                            .help("Starts an AVAudioEngine input tap for ~1 second to force macOS to register/request Microphone access.")
                         }
 
                         Button {

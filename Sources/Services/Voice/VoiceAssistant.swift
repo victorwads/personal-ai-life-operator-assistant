@@ -250,6 +250,32 @@ final class VoiceAssistant {
             }
         }
     }
+
+    func forceMicrophoneCapture(durationSeconds: Double = 1.0) async throws {
+        let micAuthorized = await ensureMicrophoneAuthorization()
+        guard micAuthorized else {
+            throw VoiceAssistantError.microphoneNotAuthorized
+        }
+
+        let durationSeconds = max(0.2, min(durationSeconds, 5.0))
+
+        let engine = AVAudioEngine()
+        let inputNode = engine.inputNode
+        let recordingFormat = inputNode.outputFormat(forBus: 0)
+
+        inputNode.removeTap(onBus: 0)
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { _, _ in
+            // Intentionally discard audio; this is only to force the OS permission flow.
+        }
+
+        engine.prepare()
+        try engine.start()
+
+        audioEngine = engine
+
+        try? await Task.sleep(for: .seconds(durationSeconds))
+        stopListening()
+    }
 }
 
 enum VoiceAssistantError: LocalizedError {
