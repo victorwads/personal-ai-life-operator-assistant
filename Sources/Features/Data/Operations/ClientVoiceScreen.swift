@@ -121,6 +121,10 @@ struct ClientVoiceScreen: View {
                     set: { pendingAnswerById[event.id] = $0 }
                 ))
                 .textFieldStyle(.roundedBorder)
+                .submitLabel(.send)
+                .onSubmit {
+                    Task { await submitAnswer(event) }
+                }
 
                 Button {
                     Task { await submitAnswer(event) }
@@ -128,6 +132,7 @@ struct ClientVoiceScreen: View {
                     Text("Submit")
                 }
                 .disabled(isWorking || pendingAnswerById[event.id, default: ""].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .keyboardShortcut(.defaultAction)
             }
         }
         .padding(10)
