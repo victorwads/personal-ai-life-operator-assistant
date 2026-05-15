@@ -2,59 +2,42 @@ import SwiftUI
 
 struct ConversationsScreen: View {
     @EnvironmentObject private var appModel: AppModel
-    @State private var selectedId: ConversationSummary.ID?
-    @FocusState private var listFocused: Bool
 
     var body: some View {
         HStack(spacing: 0) {
-            List(selection: $selectedId) {
-                Section {
-                    ForEach(appModel.conversations) { conversation in
-                        ConversationRow(conversation: conversation)
-                            .tag(conversation.id)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                selectedId = conversation.id
-                                listFocused = true
-                                open(conversation)
-                            }
-                    }
-                } header: {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Text("Conversations")
+                            .font(.title3.weight(.semibold))
                         Spacer()
                         Text("\(appModel.conversations.count)")
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
-                }
 
-                if !appModel.blockedConversationNames.isEmpty {
-                    Section("Ignored") {
-                        ForEach(appModel.blockedConversationNames, id: \.self) { ignoredName in
-                            Text(ignoredName)
-                                .lineLimit(1)
+                    ForEach(appModel.conversations) { conversation in
+                        Button {
+                            open(conversation)
+                        } label: {
+                            ConversationRow(conversation: conversation)
+                                .contentShape(Rectangle())
+                                .padding(.horizontal, 4)
+                                .background(selectionBackground(for: conversation))
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
                         }
-                        .onDelete { offsets in
-                            for index in offsets {
-                                guard appModel.blockedConversationNames.indices.contains(index) else { continue }
-                                appModel.unblockConversation(named: appModel.blockedConversationNames[index])
-                            }
-                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
                     }
+
+                    Divider()
+                        .padding(.vertical, 4)
+
+                    ignoredConversationsSection
                 }
+                .padding(12)
             }
-            .listStyle(.sidebar)
-            .focused($listFocused)
             .frame(minWidth: 320, idealWidth: 360, maxWidth: 420)
-            .onAppear {
-                selectedId = appModel.selectedConversationId
-            }
-            .onChange(of: appModel.selectedConversationId) { _, newValue in
-                if selectedId != newValue {
-                    selectedId = newValue
-                }
-            }
 
             Divider()
 
@@ -87,5 +70,38 @@ struct ConversationsScreen: View {
         appModel.openConversation(conversation)
     }
 
-    // Ignored conversations are managed via the sidebar section (swipe-to-delete / delete key).
+    @ViewBuilder
+    private func selectionBackground(for conversation: ConversationSummary) -> some View {
+        if appModel.selectedConversationId == conversation.id {
+            Color.accentColor.opacity(0.22)
+        } else {
+            Color.clear
+        }
+    }
+
+    private var ignoredConversationsSection: some View {
+        GroupBox("Ignored Conversations") {
+            if appModel.blockedConversationNames.isEmpty {
+                Text("No ignored conversations.")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(appModel.blockedConversationNames, id: \.self) { ignoredName in
+                        HStack {
+                            Text(ignoredName)
+                                .lineLimit(1)
+
+                            Spacer()
+
+                            Button("Remove") {
+                                appModel.unblockConversation(named: ignoredName)
+                            }
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
 }

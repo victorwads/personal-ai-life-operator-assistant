@@ -20,12 +20,12 @@ struct ServerLogsScreen: View {
 
             Divider()
 
-            NavigationSplitView {
+            HSplitView {
                 leftPane
-                    .navigationSplitViewColumnWidth(min: 360, ideal: 440, max: 560)
-            } detail: {
+                    .frame(minWidth: 360, idealWidth: 520, maxWidth: 900)
+
                 rightPane
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
             }
         }
     }
@@ -133,6 +133,7 @@ struct ServerLogsScreen: View {
 
             return methodMatches && statusMatches && searchMatches
         }
+        .sorted { $0.timestamp > $1.timestamp }
     }
 
     private var selectedCall: MCPServerCallEntry? {
