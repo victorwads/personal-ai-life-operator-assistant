@@ -9,7 +9,7 @@ extension AppModel {
     - list_unread_chats: List only the conversations with unread messages from WhatsApp.
     - search_contact_chats(query, limit): Search WhatsApp conversations by contact name and return the best matches.
     - get_recent_messages: Load the most recent messages from a specific chat.
-    - send_message: Send a message to a specific WhatsApp chat.
+    - send_message(chatId, messages): Send one or more messages to a specific WhatsApp chat in order.
     - wait_for_chat_message(chatId): Wait for the next messages in a specific chat.
     - wait_for_event / wait_next_event: Wait for the next incoming event globally and return any new messages received.
     - list_nicknames / save_nickname / delete_nickname: Manage nicknames for chats (e.g. “mom”, “partner”, “Leo”).

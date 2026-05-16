@@ -209,6 +209,44 @@ final class ServerToolBrowserViewModel: ObservableObject {
         )
     }
 
+    func currentValue(for toolID: String, argumentName: String) -> JSONValue? {
+        inputDraftsByToolID[toolID, default: [:]][argumentName]
+    }
+
+    func stringArrayValue(for toolID: String, argumentName: String) -> [String] {
+        guard let values = inputDraftsByToolID[toolID, default: [:]][argumentName]?.arrayValue else {
+            return []
+        }
+        return values.map { value in
+            switch value {
+            case .string(let raw):
+                return raw
+            default:
+                return value.prettyPrintedJSONString()
+            }
+        }
+    }
+
+    func updateStringArrayValue(for toolID: String, argumentName: String, index: Int, value: String) {
+        var current = stringArrayValue(for: toolID, argumentName: argumentName)
+        guard current.indices.contains(index) else { return }
+        current[index] = value
+        setStringArrayValue(current, for: toolID, argumentName: argumentName)
+    }
+
+    func appendStringArrayValue(for toolID: String, argumentName: String) {
+        var current = stringArrayValue(for: toolID, argumentName: argumentName)
+        current.append("")
+        setStringArrayValue(current, for: toolID, argumentName: argumentName)
+    }
+
+    func removeStringArrayValue(for toolID: String, argumentName: String, index: Int) {
+        var current = stringArrayValue(for: toolID, argumentName: argumentName)
+        guard current.indices.contains(index) else { return }
+        current.remove(at: index)
+        setStringArrayValue(current, for: toolID, argumentName: argumentName)
+    }
+
     func selectTool(_ tool: ServerToolBrowserEntry) {
         selectedToolID = tool.id
         resultText = "Select a tool and run a test."
@@ -317,6 +355,12 @@ final class ServerToolBrowserViewModel: ObservableObject {
         }
 
         return .string(raw)
+    }
+
+    private func setStringArrayValue(_ values: [String], for toolID: String, argumentName: String) {
+        var toolDraft = inputDraftsByToolID[toolID, default: [:]]
+        toolDraft[argumentName] = .array(values.map(JSONValue.string))
+        inputDraftsByToolID[toolID] = toolDraft
     }
 }
 

@@ -8,17 +8,15 @@ struct SendMessageTool: MCPToolHandler {
             "type": .string("object"),
             "properties": .object([
                 "chatId": .object(["type": .string("string")]),
-                "text": .object(["type": .string("string")]),
                 "messages": .object([
                     "type": .string("array"),
                     "items": .object(["type": .string("string")])
                 ])
             ]),
-            "required": .array([.string("chatId")])
+            "required": .array([.string("chatId"), .string("messages")])
         ],
         exampleParameters: [
             .init(name: "chatId", value: .string("chat-1")),
-            .init(name: "text", value: .string("Testing send_message from the tools browser.")),
             .init(name: "messages", value: .array([.string("Testing send_message from the tools browser.")]))
         ],
         traits: [.writesState, .sideEffect]
@@ -30,13 +28,9 @@ struct SendMessageTool: MCPToolHandler {
             return .failure(MCPServerError.missingParameter("chatId"))
         }
 
-        let texts: [String]
-        if let messageArray = arguments.stringArray(for: "messages"), !messageArray.isEmpty {
-            texts = messageArray
-        } else if let singleText = arguments.string(for: "text") {
-            texts = [singleText]
-        } else {
-            return .failure(MCPServerError.missingParameter("text"))
+        let texts = parseMessages(from: arguments)
+        guard !texts.isEmpty else {
+            return .failure(MCPServerError.missingParameter("messages"))
         }
 
         do {
@@ -58,5 +52,20 @@ struct SendMessageTool: MCPToolHandler {
         } catch {
             return .failure(error)
         }
+    }
+
+    private static func parseMessages(from arguments: MCPToolArguments) -> [String] {
+        if let messageArray = arguments.stringArray(for: "messages") {
+            return messageArray.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        }
+
+        guard let raw = arguments.string(for: "messages") else {
+            return []
+        }
+
+        return raw
+            .split(separator: ",", omittingEmptySubsequences: true)
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
     }
 }
