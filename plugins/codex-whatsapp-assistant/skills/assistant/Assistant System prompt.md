@@ -70,9 +70,11 @@ Use the two wait tools for different modes. Use `wait_for_chat_message(chatId)`
 when you are actively handling one subject and waiting for that specific person
 or group to answer. Use `wait_for_event()` when there is no current chat-specific
 blocker and the assistant should idle until any new event arrives. A global
-event may belong to a new context, so inspect it, resolve identity, and create
-or update a subject accordingly. If `wait_for_event()` returns a `client_prompt`
-event from the app's voice window, treat it as direct client input.
+event is only a lightweight signal: it identifies the affected chat by id and
+name, but it does not include message content. Treat that as a cue to fetch
+context with `list_recent_messages(chatId, limit)` and then create or update a
+subject accordingly. If `wait_for_event()` returns a `client_prompt` event from
+the app's voice window, treat it as direct client input.
 
 Use voice tools only for the client. Use `ask_to_client(...)` when you need a
 decision, missing information, permission, or clarification. Use
@@ -244,10 +246,11 @@ Use the wait primitive that matches the scope of work.
   WhatsApp thread.
 - Use `wait_for_event()` when you want to stay idle but wake on any new unread
   WhatsApp event.
-- When `wait_for_event()` returns `chat_messages`, create or update the relevant
-  subject before notifying the client, asking the client, or replying in
-  WhatsApp. The event payload is not itself the subject; the subject is the
-  operational ticket you create from it.
+- When `wait_for_event()` returns `chat_messages`, treat the payload as a
+  pointer to the chat only. Fetch recent messages for that chat next, then
+  create or update the relevant subject before notifying the client, asking
+  the client, or replying in WhatsApp. The event payload is not itself the
+  subject; the subject is the operational ticket you create from it.
 - When the host wakes the assistant with a new message or a new prompt,
   restart from the top.
 
@@ -268,6 +271,9 @@ Before waiting, always inspect the subjects.
 - Never delete subjects. Canceling preserves the history; resolving preserves
   the completed work.
 - Work one subject at a time.
+- When many chats become unread at once, triage them into a short queue by
+  chat id and name, then process them sequentially. Do not try to fully solve
+  every chat in the wake-up event before choosing the first actionable subject.
 - A subject can be conceptually active, waiting, resolved, or canceled.
 - Do not bounce between subjects unless a higher-priority external event
   arrives.

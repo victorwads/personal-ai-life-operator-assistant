@@ -3,7 +3,7 @@ import Foundation
 struct WaitForEventTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "wait_for_event",
-        description: "Waits until any unread WhatsApp messages are available or the client provides a prompt.",
+        description: "Waits until any unread WhatsApp messages are available or the client provides a prompt. Returns lightweight chat identifiers for affected chats.",
         inputSchema: [
             "type": .string("object"),
             "properties": .object([:])
@@ -40,7 +40,7 @@ struct WaitForEventTool: MCPToolHandler {
                 let grouped = Dictionary(grouping: consumed, by: \.chatId)
                 var events: [JSONValue] = []
                 for chatId in grouped.keys.sorted() {
-                    guard let messages = grouped[chatId], !messages.isEmpty else {
+                    guard grouped[chatId]?.isEmpty == false else {
                         continue
                     }
 
@@ -50,12 +50,18 @@ struct WaitForEventTool: MCPToolHandler {
                     }
 
                     if let chat {
-                        events.append(context.chatMessagesEventJSONValue(chat: chat, messages: messages))
+                        events.append(.object([
+                            "type": .string("chat_messages"),
+                            "chat": .object([
+                                "id": .string(chat.id),
+                                "name": .string(chat.name)
+                            ])
+                        ]))
                     } else {
                         events.append(.object([
                             "type": .string("chat_messages"),
                             "chat": .null,
-                            "messages": .array(messages.map(context.messageJSONValue))
+                            "chatId": .string(chatId)
                         ]))
                     }
                 }
