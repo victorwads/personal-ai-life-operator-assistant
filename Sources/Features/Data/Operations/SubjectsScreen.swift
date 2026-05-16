@@ -7,6 +7,7 @@ struct SubjectsScreen: View {
         case active = "Active"
         case all = "All"
         case resolved = "Resolved"
+        case canceled = "Canceled"
 
         var id: String { rawValue }
     }
@@ -15,6 +16,8 @@ struct SubjectsScreen: View {
     @State private var entries: [SubjectEntry] = []
     @State private var errorText: String?
     @State private var isWorking = false
+    @State private var pendingCancelEntry: SubjectEntry?
+    @State private var cancelReason = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -91,9 +94,9 @@ struct SubjectsScreen: View {
                         }
 
                         HStack(spacing: 10) {
-                            Text(entry.status.rawValue)
+                            Text(entry.status.displayName)
                                 .font(.caption.monospaced())
-                                .foregroundStyle(entry.status == .active ? .green : .secondary)
+                                .foregroundStyle(statusColor(for: entry.status))
 
                             Text("P\(entry.priority)")
                                 .font(.caption.monospaced())
@@ -130,19 +133,59 @@ struct SubjectsScreen: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    Button {
-                        Task { await delete(entry) }
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
+                    if entry.status == .active {
+                        Button {
+                            pendingCancelEntry = entry
+                            cancelReason = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.red)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Cancel")
                     }
-                    .buttonStyle(.plain)
-                    .help("Delete")
                 }
                 .padding(.vertical, 2)
             }
         }
         .padding(12)
+        .sheet(item: $pendingCancelEntry) { entry in
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Cancel Subject")
+                    .font(.title3.weight(.semibold))
+
+                Text(entry.title)
+                    .font(.headline)
+
+                Text("Reason")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                TextEditor(text: $cancelReason)
+                    .frame(minHeight: 120)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(.quaternary, lineWidth: 1)
+                    )
+
+                HStack {
+                    Spacer()
+
+                    Button("Dismiss") {
+                        pendingCancelEntry = nil
+                        cancelReason = ""
+                    }
+
+                    Button("Cancel Subject") {
+                        Task { await cancel(entry, reason: cancelReason) }
+                    }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(isWorking || cancelReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .padding(20)
+            .frame(width: 420)
+        }
         .task {
             guard !PreviewSupport.isRunningForPreviews else { return }
             await reload()
@@ -155,6 +198,8 @@ struct SubjectsScreen: View {
             return entries.filter { $0.status == .active }
         case .resolved:
             return entries.filter { $0.status == .resolved }
+        case .canceled:
+            return entries.filter { $0.status == .canceled }
         case .all:
             return entries
         }
@@ -164,13 +209,26 @@ struct SubjectsScreen: View {
         entries = await appModel.subjectsRepository.listAll()
     }
 
-    private func delete(_ entry: SubjectEntry) async {
+    private func statusColor(for status: SubjectStatus) -> Color {
+        switch status {
+        case .active:
+            return .green
+        case .resolved:
+            return .blue
+        case .canceled:
+            return .orange
+        }
+    }
+
+    private func cancel(_ entry: SubjectEntry, reason: String) async {
         errorText = nil
         isWorking = true
         defer { isWorking = false }
 
         do {
-            _ = try await appModel.subjectsRepository.delete(id: entry.id)
+            _ = try await appModel.subjectsRepository.cancel(id: entry.id, reason: reason)
+            pendingCancelEntry = nil
+            cancelReason = ""
             await reload()
         } catch {
             errorText = error.localizedDescription

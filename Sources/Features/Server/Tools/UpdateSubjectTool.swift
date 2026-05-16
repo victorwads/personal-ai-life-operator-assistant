@@ -3,7 +3,7 @@ import Foundation
 struct UpdateSubjectTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "update_subject",
-        description: "Updates an operational subject by id. Use to append eventLog entries and to update summary/initialRequest/nextSteps as the work progresses.",
+        description: "Updates an operational subject by id. Use to append eventLog entries and to update summary/initialRequest/nextSteps as the work progresses. Provide reason when setting status to resolved or canceled.",
         inputSchema: [
             "type": .string("object"),
             "properties": .object([
@@ -13,6 +13,7 @@ struct UpdateSubjectTool: MCPToolHandler {
                 "initialRequest": .object(["type": .string("string")]),
                 "details": .object(["type": .string("string")]),
                 "status": .object(["type": .string("string")]),
+                "reason": .object(["type": .string("string")]),
                 "priority": .object(["type": .string("number")]),
                 "participants": .object(["type": .string("array"), "items": .object(["type": .string("string")])]),
                 "nextSteps": .object(["type": .string("array"), "items": .object(["type": .string("string")])]),
@@ -30,7 +31,8 @@ struct UpdateSubjectTool: MCPToolHandler {
             .init(name: "summary", value: .string("Updated from the preview browser.")),
             .init(name: "initialRequest", value: .string("Refresh the subject data.")),
             .init(name: "details", value: .string("Expanded with more context.")),
-            .init(name: "status", value: .string("active")),
+            .init(name: "status", value: .string("resolved")),
+            .init(name: "reason", value: .string("Completed after confirming the final details.")),
             .init(name: "priority", value: .number(2)),
             .init(name: "participants", value: .array([.string("Codex"), .string("Client")])),
             .init(name: "nextSteps", value: .array([.string("Review")])),
@@ -50,6 +52,12 @@ struct UpdateSubjectTool: MCPToolHandler {
         }
 
         let status = arguments.string(for: "status").flatMap(SubjectStatus.init(rawValue:))
+        let reason = arguments.string(for: "reason")
+        if let status, (status == .resolved || status == .canceled) {
+            guard let reason, !reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                return .failure(SubjectsRepositoryError.missingParameter("reason"))
+            }
+        }
         do {
             let entry = try await context.subjectsRepository.update(
                 id: id,
@@ -58,6 +66,7 @@ struct UpdateSubjectTool: MCPToolHandler {
                 initialRequest: arguments.string(for: "initialRequest"),
                 details: arguments.string(for: "details"),
                 status: status,
+                reason: reason,
                 priority: arguments.int(for: "priority"),
                 participants: arguments.stringArray(for: "participants"),
                 nextSteps: arguments.stringArray(for: "nextSteps"),

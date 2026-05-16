@@ -21,7 +21,7 @@ enum MCPServerToolRegistry {
         ResolveSubjectTool.self,
         ListActiveSubjectsTool.self,
         GetSubjectTool.self,
-        DeleteSubjectTool.self,
+        CancelSubjectTool.self,
         ListNicknamesTool.self,
         SaveNicknameTool.self,
         DeleteNicknameTool.self

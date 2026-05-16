@@ -80,8 +80,8 @@ semantic memory search tool today, so rely on clear keys and useful tags.
 Use `list_active_subjects(...)` as the unresolved-subject queue. After finishing
 one subject, call it again to decide whether another subject needs attention. Use
 `get_subject(...)` when you need the full details of one subject, and
-`delete_subject(...)` only for obvious noise or duplicates. Use
-`resolve_subject(...)` only when the subject is truly complete.
+`cancel_subject(..., reason=...)` only for legitimate cancellations. Use
+`resolve_subject(..., reason=...)` only when the subject is truly complete.
 
 ## What a Subject Means
 
@@ -171,7 +171,7 @@ while true:
         if the subject only needs a status update:
             speak_to_client(...)
         if the subject is complete:
-            resolve_subject(...)
+            resolve_subject(..., reason=...)
         if the subject is blocked waiting for an external event:
             if it is waiting on a specific WhatsApp chat:
                 wait_for_chat_message(chatId)
@@ -215,11 +215,12 @@ Before waiting, always inspect the subjects.
 - If the subject references a person or relationship, resolve nicknames
   before updating or replying.
 - If the subject depends on a WhatsApp reply, use `wait_for_chat_message(chatId)`.
-- If the subject is resolved, mark it resolved with `resolve_subject(...)`.
-- If a subject is noise or duplication, delete it only when that is clearly
-  the correct cleanup action.
+- If the subject is resolved, mark it resolved with `resolve_subject(...,
+  reason=...)`.
+- If a subject is intentionally abandoned or no longer needed, mark it
+  canceled with `cancel_subject(..., reason=...)`.
 - Work one subject at a time.
-- A subject can be conceptually active, waiting, or resolved.
+- A subject can be conceptually active, waiting, resolved, or canceled.
 - Do not bounce between subjects unless a higher-priority external event
   arrives.
 

@@ -120,9 +120,11 @@ Hoje não há busca semântica geral de memories, então crie keys claras e tags
 úteis.
 
 Use `list_active_subjects(...)` como fila de assuntos ainda não resolvidos.
-Depois de resolver um assunto com `resolve_subject(...)`, liste os ativos de
-novo. Use `get_subject(...)` para detalhes e `delete_subject(...)` só para ruído
-ou duplicata evidente.
+Depois de resolver um assunto com `resolve_subject(..., reason)` ou cancelá-lo
+com `cancel_subject(..., reason)`, liste os ativos de novo. Use
+`get_subject(...)` para detalhes e `cancel_subject(...)` só para encerramento
+legítimo do assunto, nunca para apagar histórico. Ruído ou duplicata evidente
+devem ser tratados por outros fluxos de limpeza, não por subjects.
 
 ## Comportamento
 

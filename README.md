@@ -119,7 +119,8 @@ list_chats_by_search(query, limit = 3)
 send_message(chatId, text)
 wait_for_message(chatId?, afterMessageId?, timeoutSeconds = 60)
 get_memories_by_tag(tag?)
-resolve_subject(id)
+resolve_subject(id, reason)
+cancel_subject(id, reason)
 ```
 
 ### Chat History Persistence

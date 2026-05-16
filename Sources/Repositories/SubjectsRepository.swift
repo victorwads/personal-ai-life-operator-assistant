@@ -103,6 +103,7 @@ actor SubjectsRepository {
         initialRequest: String?,
         details: String?,
         status: SubjectStatus?,
+        reason: String?,
         priority: Int?,
         participants: [String]?,
         nextSteps: [String]?,
@@ -145,7 +146,11 @@ actor SubjectsRepository {
             subject.details = trimmed.isEmpty ? nil : trimmed
         }
         if let status {
-            subject.status = status
+            if status == .resolved || status == .canceled {
+                try applyTerminalStatus(&subject, status: status, reason: reason)
+            } else {
+                subject.status = status
+            }
         }
         if let priority {
             subject.priority = max(0, priority)
@@ -182,38 +187,70 @@ actor SubjectsRepository {
         return subject
     }
 
-    func resolve(id: UUID?) throws -> SubjectEntry {
-        try update(
+    func resolve(id: UUID?, reason: String?) throws -> SubjectEntry {
+        try close(
             id: id,
-            title: nil,
-            summary: nil,
-            initialRequest: nil,
-            details: nil,
             status: .resolved,
-            priority: nil,
-            participants: nil,
-            nextSteps: nil,
-            eventLog: nil,
-            whatsappChatId: nil,
-            whatsappAfterMessageId: nil,
-            gmailThreadId: nil,
-            calendarEventId: nil
+            reason: reason
         )
     }
 
-    func delete(id: UUID?) throws -> Bool {
+    func cancel(id: UUID?, reason: String?) throws -> SubjectEntry {
+        try close(
+            id: id,
+            status: .canceled,
+            reason: reason
+        )
+    }
+
+    private func close(id: UUID?, status: SubjectStatus, reason: String?) throws -> SubjectEntry {
         guard let id else {
             throw SubjectsRepositoryError.missingParameter("id")
         }
 
-        var all = loadAll()
-        let originalCount = all.count
-        all.removeAll { $0.id == id }
-        guard all.count != originalCount else {
-            return false
+        let trimmedReason = (reason ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedReason.isEmpty {
+            throw SubjectsRepositoryError.missingParameter("reason")
         }
+
+        var all = loadAll()
+        guard let index = all.firstIndex(where: { $0.id == id }) else {
+            throw SubjectsRepositoryError.invalidParameter("Subject not found")
+        }
+
+        var subject = all[index]
+        try applyTerminalStatus(&subject, status: status, reason: trimmedReason)
+        all[index] = subject
         persistAll(all)
-        return true
+        return subject
+    }
+
+    private func applyTerminalStatus(_ subject: inout SubjectEntry, status: SubjectStatus, reason: String?) throws {
+        let trimmedReason = (reason ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedReason.isEmpty {
+            throw SubjectsRepositoryError.missingParameter("reason")
+        }
+
+        subject.status = status
+        let actionLabel: String = {
+            switch status {
+            case .resolved:
+                return "resolved"
+            case .canceled:
+                return "canceled"
+            case .active:
+                return "updated"
+            }
+        }()
+        subject.eventLog.append(
+            EventEntry(
+                timestamp: Date(),
+                description: "Subject \(actionLabel). Reason: \(trimmedReason)",
+                source: "manual"
+            )
+        )
+        subject.eventLog.sort { $0.timestamp < $1.timestamp }
+        subject.updatedAt = Date()
     }
 
     private func loadAll() -> [SubjectEntry] {
