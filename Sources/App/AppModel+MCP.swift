@@ -585,8 +585,12 @@ extension AppModel {
             } ?? speechRate
             _ = await clientVoiceEventsRepository.appendSpeak(text: text)
             await refreshPendingClientAskCount()
-            await voiceAssistant.speak(text, language: language, voiceIdentifier: voiceIdentifier, rate: rate)
-            return .success(.object(["ok": .bool(true)]))
+            do {
+                try await voiceAssistant.speak(text, language: language, voiceIdentifier: voiceIdentifier, rate: rate)
+                return .success(.object(["ok": .bool(true)]))
+            } catch {
+                return .failure(error)
+            }
         case "ask_to_client":
             guard let prompt = call.arguments["prompt"]?.stringValue else {
                 return .failure(MCPServerError.missingParameter("prompt"))
@@ -598,7 +602,7 @@ extension AppModel {
             await refreshPendingClientAskCount()
 
             do {
-                await voiceAssistant.speak(
+                try await voiceAssistant.speak(
                     prompt,
                     language: language,
                     voiceIdentifier: voiceIdentifier,

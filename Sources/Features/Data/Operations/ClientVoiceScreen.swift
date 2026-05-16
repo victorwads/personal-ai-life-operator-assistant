@@ -272,7 +272,11 @@ struct ClientVoiceScreen: View {
         errorText = nil
         isWorking = true
         defer { isWorking = false }
-        await appModel.voiceAssistant.speak(text, language: appModel.speechLanguage, voiceIdentifier: appModel.speechVoiceIdentifier, rate: appModel.speechRate)
+        do {
+            try await appModel.voiceAssistant.speak(text, language: appModel.speechLanguage, voiceIdentifier: appModel.speechVoiceIdentifier, rate: appModel.speechRate)
+        } catch {
+            errorText = error.localizedDescription
+        }
     }
 
     private func submitAnswer(_ event: ClientVoiceEvent) async {

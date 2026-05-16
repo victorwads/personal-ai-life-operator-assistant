@@ -41,6 +41,7 @@ final class AppModel: ObservableObject {
     @Published var speechLanguage = "pt-BR"
     @Published var speechRate: Float = AVSpeechUtteranceDefaultSpeechRate
     @Published var recognitionLocaleIdentifier = "pt-BR"
+    @Published var experimentalSpeakApiEnabled = true
     @Published var experimentalInputLockEnabled = false
     @Published var mcpSendMessagePrefix = ""
     @Published var pendingClientAskCount = 0
@@ -73,6 +74,7 @@ final class AppModel: ObservableObject {
     let clientVoiceEventsRepository = ClientVoiceEventsRepository.shared
     let chatHistoryRepository = ChatHistoryRepository.shared
     private let handsFreeClientVoiceSettingsRepository = HandsFreeClientVoiceSettingsRepository.shared
+    let experimentalSpeakSettingsRepository = ExperimentalSpeakSettingsRepository.shared
     var chatHistoryListenerId: UUID?
     var chatHistoryPersistTask: Task<Void, Never>?
 
@@ -86,6 +88,7 @@ final class AppModel: ObservableObject {
             loadConversationAccessSettings()
             loadAssistantInstructions()
             loadVoiceSettings()
+            loadExperimentalSpeakSetting()
             loadHandsFreeClientVoiceSetting()
             loadExperimentalInputLockSetting()
             loadMCPSendMessagePrefixSetting()

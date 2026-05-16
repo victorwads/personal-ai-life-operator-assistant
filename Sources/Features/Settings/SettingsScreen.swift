@@ -292,6 +292,10 @@ struct SettingsScreen: View {
                                 .frame(width: 44, alignment: .trailing)
                         }
 
+                        Toggle("Experimental Speak API (terminal say)", isOn: $appModel.experimentalSpeakApiEnabled)
+                            .toggleStyle(.switch)
+                            .help("Enabled by default. Uses the terminal say command and waits for it to finish; turn it off to fall back to AVSpeechSynthesizer.")
+
                         Toggle("Hands-free Client Voice window", isOn: $appModel.handsFreeClientVoiceEnabled)
                             .toggleStyle(.switch)
                             .help("When enabled (default), opening a pending client ask will bring a floating window to the front and start voice recognition with auto-submit.")
@@ -365,12 +369,19 @@ struct SettingsScreen: View {
                             } else {
                                 isReadingInstructions = true
                                 Task {
-                                    await appModel.voiceAssistant.speak(
-                                        text,
-                                        language: appModel.speechLanguage,
-                                        voiceIdentifier: appModel.speechVoiceIdentifier,
-                                        rate: appModel.speechRate
-                                    )
+                                    do {
+                                        try await appModel.voiceAssistant.speak(
+                                            text,
+                                            language: appModel.speechLanguage,
+                                            voiceIdentifier: appModel.speechVoiceIdentifier,
+                                            rate: appModel.speechRate
+                                        )
+                                    } catch {
+                                        // Intentionally ignore here; the button resets after the task completes.
+                                    }
+                                    await MainActor.run {
+                                        isReadingInstructions = false
+                                    }
                                 }
                             }
                         } label: {
