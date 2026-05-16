@@ -5,6 +5,7 @@ enum MCPServerToolRegistry {
     static let tools: [any MCPToolHandler.Type] = [
         ListChatsTool.self,
         ListUnreadChatsTool.self,
+        SearchContactChatsTool.self,
         GetRecentMessagesTool.self,
         SendMessageTool.self,
         WaitForMessageTool.self,

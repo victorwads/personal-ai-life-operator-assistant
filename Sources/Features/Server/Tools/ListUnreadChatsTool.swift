@@ -16,9 +16,7 @@ struct ListUnreadChatsTool: MCPToolHandler {
         let chats = await MainActor.run {
             context.memoryStore.conversations
                 .filter { !context.isBlocked($0.name) }
-                .filter { conversation in
-                    conversation.unreadCount > 0 || !context.memoryStore.unreadMessages(chatId: conversation.id).isEmpty
-                }
+                .filter { $0.unreadCount > 0 }
                 .map(context.conversationJSONValue)
         }
         return .success(.object(["chats": .array(chats)]))

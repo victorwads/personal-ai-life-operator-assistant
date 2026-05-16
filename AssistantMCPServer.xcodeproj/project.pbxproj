@@ -1,0 +1,1101 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		00989939512D5A69D032D1D5 /* AppModel+Status.swift in Sources */ = {isa = PBXBuildFile; fileRef = E714AAF796E84732DA40F97D /* AppModel+Status.swift */; };
+		089EB349ED553AB7E3F45351 /* ChatHistoryRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8392A76D18F59E29828E1AE /* ChatHistoryRepository.swift */; };
+		09DF4938D49327C9FA875AE5 /* MCPServerRuntimeProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A342AB53F4BDDF29AE143E7 /* MCPServerRuntimeProviding.swift */; };
+		09EB7C76B106D45532D58B96 /* DeleteSubjectTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = C56D0BE00FBBF67E54612883 /* DeleteSubjectTool.swift */; };
+		0A27065588E0D5CAAC46BC2E /* ListChatsTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C091C6035FEC64CD1B67364 /* ListChatsTool.swift */; };
+		0A77DC375248AF7A6C273C18 /* AccessibilityService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F2A658B8E6034F7CAEC0D56 /* AccessibilityService.swift */; };
+		0C0F43492FEEEE0C850321E4 /* MCPServerStatusBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F2AD515268EC2CBA858D44E /* MCPServerStatusBadge.swift */; };
+		0C13828C1696B4E3C77A9915 /* SaveNicknameTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13454298494E325D47DEEAA4 /* SaveNicknameTool.swift */; };
+		0C759AEA20867F424FBC79ED /* SettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20626007A6FFBA9ED9F026DE /* SettingsScreen.swift */; };
+		0C79CAB113FCEF2A106FECF2 /* MCPServerState.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9D4738AFDAC1F868B37E677 /* MCPServerState.swift */; };
+		0EE4E081DBE2EC5306217CD4 /* WhatsAppCurrentConversationReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 532C0E60B10BCB892B73F76A /* WhatsAppCurrentConversationReader.swift */; };
+		10419D08A5EE110556778528 /* LogEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5F71938B2CDE079183D3485 /* LogEntry.swift */; };
+		11582AC468EE386B01F28843 /* MCPToolArguments.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48B1723FB68DA0CBE512B5E4 /* MCPToolArguments.swift */; };
+		118445B9254BCA6146FAD94A /* SpeakToClientTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B3C5AB9FD11E1EEC2C6A303 /* SpeakToClientTool.swift */; };
+		11A1C5D94345B56431F30431 /* DeleteNicknameTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5559313273CE664D19DEA9EB /* DeleteNicknameTool.swift */; };
+		1493CEDABDF3B8FA4E2BF648 /* WhatsAppMessageSendHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09D8F921EB0B773327D175B2 /* WhatsAppMessageSendHandler.swift */; };
+		15C72385E1CE7376EA31512B /* PendingClientResponseBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6872936161AF0369A47444 /* PendingClientResponseBadge.swift */; };
+		17773365092ECD7EBDBE09D5 /* FinishSubjectTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7406556C46F147CBFE045C48 /* FinishSubjectTool.swift */; };
+		1C52326E5B84D92DBD89AC95 /* ClientVoiceHandsFreeWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96F75F4728380B0FE736A387 /* ClientVoiceHandsFreeWindow.swift */; };
+		2016CEEE742DDFFAFC5AAE3C /* WaitForMessageTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = A077140F302DA2C7EB7351E1 /* WaitForMessageTool.swift */; };
+		23B0E47A0730E63BA867B84D /* DeleteMemoryTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = C58088785FA8CD37641B6D7C /* DeleteMemoryTool.swift */; };
+		2488B405D0BF65351EA04233 /* ServerToolsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB9CA4F6520B061D40D4CF23 /* ServerToolsScreen.swift */; };
+		25B9EB01BF7546500FA87765 /* AppModel+ChatHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A579F8B3CCCF40DD6DE588E2 /* AppModel+ChatHistory.swift */; };
+		2631A628312687A761750243 /* VoiceAssistant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DA03B9B820BB5543A450A7D /* VoiceAssistant.swift */; };
+		270EE11FDE01E0220252CEF9 /* AccessibilityActionScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99731269A97A362495DFA849 /* AccessibilityActionScheduler.swift */; };
+		279EAECB157959545869CD5F /* ServerCallResender.swift in Sources */ = {isa = PBXBuildFile; fileRef = 388F4C72D78221AD8F39E013 /* ServerCallResender.swift */; };
+		28986752114508FC0B6265F6 /* ClientVoiceEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFC62E99DBB6F59DFEEA38E3 /* ClientVoiceEvent.swift */; };
+		28B472727F44AE5EE786F171 /* ClientVoiceScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A500CE788F2B8711436F9601 /* ClientVoiceScreen.swift */; };
+		299883C97C9671746C7559BE /* WhatsAppAppParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EE170F68A04667E7620A074 /* WhatsAppAppParser.swift */; };
+		2A1966AC903B59067D588FFF /* ExperimentalSpeakSettingsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 128C6729897A53AF9E3824F2 /* ExperimentalSpeakSettingsRepository.swift */; };
+		2E800FB85B8A369343CFEA19 /* AppModel+Messaging.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4469753C8D1F712E13B071A2 /* AppModel+Messaging.swift */; };
+		2F05022864D2A1F0F6F2EB35 /* ChatListSignaturesRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDB40402D4DCACB995AAC5B2 /* ChatListSignaturesRepository.swift */; };
+		3105AF32B42F2650DED52016 /* DebugTreeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38F0125ABCD50A24679C26A7 /* DebugTreeViewModel.swift */; };
+		333B9C513D2699328B892B0A /* UpdateSubjectTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = B395FC6E3AB5C210A784A50E /* UpdateSubjectTool.swift */; };
+		3371469FAF972C6CF2ED446F /* MicrophonePermissionBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52E43E730AD2B9EA9AE30907 /* MicrophonePermissionBadge.swift */; };
+		33ACB5661A11D674EC14CBE5 /* AppModel+Assistant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FFED593EE5CD4780C4DA855 /* AppModel+Assistant.swift */; };
+		396F3B52BC93164C8AA61F22 /* WhatsAppDebugArtifacts.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF5CB7693FEF2E6026F4A4C3 /* WhatsAppDebugArtifacts.swift */; };
+		3CCDB07CD39D57C03D89DCDB /* DebugTreePreviewCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7173444B485FB8EC6B0DB4E3 /* DebugTreePreviewCapture.swift */; };
+		3D1DAEB574B8D6C5091FBE63 /* WhatsAppCurrentConversationParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E03854EB7A6BF8644CAD674 /* WhatsAppCurrentConversationParser.swift */; };
+		43B3F4244DE7042168F99103 /* LogsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 862C0D3C70EDA7DDB77DC7A1 /* LogsScreen.swift */; };
+		444DBC2277344B00DF631D39 /* AskToClientTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB1E03CF4E7FA2D7E760BAED /* AskToClientTool.swift */; };
+		482D19E4EECF8C15C107C799 /* MCPServerToolRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E83D89F7D0CFA9173511DDA /* MCPServerToolRegistry.swift */; };
+		48CC8A52A8208E9E7C1E0E73 /* HandsFreeClientVoiceSettingsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B98CB163671CF8E0D351FD7 /* HandsFreeClientVoiceSettingsRepository.swift */; };
+		499486B567E8316E61C7D2A6 /* WhatsAppMemoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F7B5852B494B22F2B5DF65B /* WhatsAppMemoryStore.swift */; };
+		4E6C979AC002C8C30545609F /* ListUnreadChatsTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8587DC86E13CDC518BB167BF /* ListUnreadChatsTool.swift */; };
+		4F1C3E6A7B8D4E1F9A2B3C4D /* SearchContactChatsTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C6D5E4F3A2B1C0D9E8F7A6B /* SearchContactChatsTool.swift */; };
+		525091429C8BF15C8C88095B /* AppModel+ChatListSignatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5FB34CD0EB14D12794730E1 /* AppModel+ChatListSignatures.swift */; };
+		5463FA5C83235026D11D2845 /* ServerLogsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72A9C8E2C5C79242E6B20384 /* ServerLogsScreen.swift */; };
+		54A79926FBE98687E7199BF0 /* ClientVoiceHandsFreeWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 073F3299EE4170E955B4E48E /* ClientVoiceHandsFreeWindowController.swift */; };
+		55772AF15DD230BF15477655 /* WhatsAppAccessibilityMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBD600B9AA6B906D6D41027C /* WhatsAppAccessibilityMap.swift */; };
+		56E44F58A1C245E56CA37D92 /* ChatState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17B1CE58B16634C59E3408E3 /* ChatState.swift */; };
+		571030B4B5A940492F36EDCB /* DebugTreePreviewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C4CFFBB7CEA87C540D45E3B /* DebugTreePreviewModel.swift */; };
+		584F1F2285733630E371CCF5 /* WhatsAppConversationSelectionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30A4F2A7AA74D637AC802C51 /* WhatsAppConversationSelectionHandler.swift */; };
+		589AE31B1557958FB9D14AF3 /* JSONValue.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0AEBC08F2724D035EAA1D0C /* JSONValue.swift */; };
+		58B190C829FAC03580010274 /* MCPServerCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C4E09008FDF039571F71DC9 /* MCPServerCoordinator.swift */; };
+		59B650CA32FC156782ADC83F /* ConversationRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A286BCAF8C4D7793A33CB49 /* ConversationRow.swift */; };
+		5AE5E42375F4B7F6E999E86D /* ListMemoriesByTagTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B9C1328CDA34746F0091C0B /* ListMemoriesByTagTool.swift */; };
+		5B1555A8F78D7DD7A38E2743 /* InputLockSettingsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A3D85EA16758BDC9516202C /* InputLockSettingsModel.swift */; };
+		5C1010B174B6393A744AF4B8 /* ConversationAccessRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB84F6A885CD2DA24655E2B2 /* ConversationAccessRepository.swift */; };
+		5C6BD296C257986D23DC8CF0 /* MCPToolHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96273EA5302E7F11ECAE03DC /* MCPToolHandler.swift */; };
+		5D96B066A5B7CD67F72BAD51 /* DebugTreeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACF3B3D35020BAA396722F5C /* DebugTreeScreen.swift */; };
+		634A02E5EED921D843073746 /* MemoriesScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FB34A1C65F6E156D140ADF0 /* MemoriesScreen.swift */; };
+		68E744510CF4504F670C1035 /* GetInstructionsTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5079133EBCEC2D60D243890 /* GetInstructionsTool.swift */; };
+		693F09C94AE6D253FC53E798 /* AssistantInstructionsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78D758DEB63AFC555E91C9BA /* AssistantInstructionsRepository.swift */; };
+		6962BF9334233A4C5DBDE31E /* WhatsAppSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E03D02632604B4477CCB177 /* WhatsAppSnapshot.swift */; };
+		69923229380F56E7DFC91C87 /* GetMemoryTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = D80C04CAB7015954F28EE2F1 /* GetMemoryTool.swift */; };
+		6B8F22EBF559B2C286A7E0EC /* AccessibilityObject.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB3517FFA74CD8F4CCEB6DD4 /* AccessibilityObject.swift */; };
+		6CFD50CDE5A2333F29CB95A2 /* GetSubjectTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = D37E9A51A6C293B5B03C2D27 /* GetSubjectTool.swift */; };
+		6D512510D80D5DA694DAF49A /* PersistedChatHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0AA7923D872D1E3E5EC0FAD /* PersistedChatHistory.swift */; };
+		6D92E24D17BC6189B207CAC5 /* MCPToolCall.swift in Sources */ = {isa = PBXBuildFile; fileRef = 438A6E450AC149BA3DD88F5B /* MCPToolCall.swift */; };
+		6EF753F9E9F16405D1915F79 /* MemoryEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DD91B24F7A0EEB8DAC1BA34 /* MemoryEntry.swift */; };
+		707CE42D93AC152D35BA1DB6 /* AppModel+Preview.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB02C15B0613AB9501B4A849 /* AppModel+Preview.swift */; };
+		70F93C1B1EE8ABA6E054135D /* SubjectEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = B23CEF2B7F37167AD3B7149F /* SubjectEntry.swift */; };
+		72C8CC59D2FB6CF763D7A90A /* PersistedChatListSignatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EEA900D803E20488F7AA0AB /* PersistedChatListSignatures.swift */; };
+		72D155570FC8A9684D9922DA /* PreviewSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98AE98BE65DF128D6D797944 /* PreviewSupport.swift */; };
+		7310ABD0BF0CA4C193F194F6 /* ServerCallsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 791AD99870575FD33F4C47A9 /* ServerCallsRepository.swift */; };
+		73D20DCD47C81BB85796783F /* MCPServerCallEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F224F4EFC93F26E2E91D7B /* MCPServerCallEntry.swift */; };
+		748BD5E98CA302F46508D265 /* InputLockService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35A8D2D65935F5C10D4EF873 /* InputLockService.swift */; };
+		74A1519B20840C3E0BEC132B /* WaitForEventTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C10A6C39B88EF660B40CFDE /* WaitForEventTool.swift */; };
+		74DBB454A8D8EB79B3473DD1 /* WhatsAppInteractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DBBC596C6AC8E59B2220612 /* WhatsAppInteractor.swift */; };
+		75D59E95FD923EC8AF0451C3 /* ListActiveSubjectsTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08A045700F2704850EF2B413 /* ListActiveSubjectsTool.swift */; };
+		76D556D3A12CB1FB736B97BC /* ClientVoiceEventsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BCBA9A5B8B4D7D5B6030C43 /* ClientVoiceEventsRepository.swift */; };
+		78755B49DCF8101E41103851 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 571AC0B62C619CAB778DE290 /* ContentView.swift */; };
+		7A4C9100C717C53B960DB0F9 /* VoiceSettingsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = B42CE3A0CBFAEDA3CB18AB03 /* VoiceSettingsRepository.swift */; };
+		7BEECD574FB853083F7D0271 /* MCPHTTPServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D84252F25FDA85D3F26E816C /* MCPHTTPServer.swift */; };
+		7C3D9E692B33DCFC38D7BF3D /* CreateSubjectTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FDBB60DCC6EBCEE3CAAD751 /* CreateSubjectTool.swift */; };
+		80BF21D6B3EF1853F3D802ED /* NicknameEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 500B583EB3CBD575011AEDE1 /* NicknameEntry.swift */; };
+		844BCC51935BD6D3713C7B21 /* MCP in Frameworks */ = {isa = PBXBuildFile; productRef = 837565F1EC3DC16BFE545332 /* MCP */; };
+		8654F9A63FC963C365B43413 /* NicknamesScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42146D8F6D1CC45CC14B3711 /* NicknamesScreen.swift */; };
+		8949CF70945AF5D9E1133ADA /* MCPServerError.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9E88998AD241D624D031CD9 /* MCPServerError.swift */; };
+		8CBF31B8C003D505AB52163C /* StatusBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A64F59AE6C530781B2756AC /* StatusBadge.swift */; };
+		8E5197A52EEA148E116E3A92 /* WhatsAppConversationListReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8071C38235E79F1547EE5EFF /* WhatsAppConversationListReader.swift */; };
+		92FE2C27633BD3E48D6C73D2 /* MCPToolDefinition.swift in Sources */ = {isa = PBXBuildFile; fileRef = C94C9EAC94D44A9599AB5E5C /* MCPToolDefinition.swift */; };
+		93CDEBAD57981DC5CDD89B6F /* AppModel+MemoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 159D16DA0815AED8EFF3B3D3 /* AppModel+MemoryStore.swift */; };
+		940AEA5F8ABEFE84B6E414A2 /* AppModel+ServerCalls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E627CC5A274ABB5EB954069 /* AppModel+ServerCalls.swift */; };
+		98BABD36E119CBD81E74AB81 /* MCPHTTPServerHosting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AFC1B2EBABC7641C04EECD0 /* MCPHTTPServerHosting.swift */; };
+		9EAD7C7A911C548C02C90FD1 /* AppModel+MCPSendPrefixSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58D9C97469284E32BEDE35E5 /* AppModel+MCPSendPrefixSettings.swift */; };
+		9FC55A46198E3522B5DEC34C /* MCPSendPrefixRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E4CB52189AFDCEBC4FC2BB2 /* MCPSendPrefixRepository.swift */; };
+		A03E4BD027291C88768A0247 /* ConversationSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 676798AC7526941A54AF6367 /* ConversationSummary.swift */; };
+		A14D8A37A0865247FBEB25BB /* MCPServerContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88CA26F280C3D585B5B421D2 /* MCPServerContext.swift */; };
+		A256500286BE04FBEC57F9A1 /* InputLockSettingsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F4311C22FA38003EF72983 /* InputLockSettingsRepository.swift */; };
+		A322545C67C7278C12924F6C /* MessageRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6E11EF275E1449F9A62B7D3 /* MessageRow.swift */; };
+		A4241C0EA05BF807E0DFBE4F /* WaitForChatMessageTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14866B3EDC65001356E59F30 /* WaitForChatMessageTool.swift */; };
+		A54099CBC647FAA37B83FA27 /* Message.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55AABA7182BB49937A7E5CF6 /* Message.swift */; };
+		A5726B5B9E23AF285F613D7B /* WhatsAppParserSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = A46C6382697F003DBE2D602E /* WhatsAppParserSupport.swift */; };
+		A94ED30BE122587C0758DF4A /* GetRecentMessagesTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = A41A61E7855078AFD2E3BA3B /* GetRecentMessagesTool.swift */; };
+		AB422A91528CC7A333981283 /* MemoriesRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99EA6DFEF45661F429EE1A29 /* MemoriesRepository.swift */; };
+		AD013E0648E1593703B7C8CF /* AssistantMCPServerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B4D61B6655412532014B3F3 /* AssistantMCPServerApp.swift */; };
+		AD09BC7071BFD2EBF431F7D9 /* SendMessageTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65B58FC9E12E5442C96F757E /* SendMessageTool.swift */; };
+		AD7C349DA393BCFBBBCABE10 /* ServerToolBrowserModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A019EB08E1C5BA3401AF26EE /* ServerToolBrowserModels.swift */; };
+		B35D848909A9ED9D04AF4C5C /* NicknamesRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE57E91463CC8FFD8DCCE839 /* NicknamesRepository.swift */; };
+		B7BAA58D1B5458FDD42E6E82 /* MCPSendPrefixSettingsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B29FCB355C2AEFC00993CC5 /* MCPSendPrefixSettingsModel.swift */; };
+		B9FBC5B690E1136BA1F44D7D /* AppModel+ConversationAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C1561537E3C56BAA93E8124 /* AppModel+ConversationAccess.swift */; };
+		BA377CAC917CEE24E7AC771F /* HandsFreeClientVoiceSettingsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70355E9E3BB824FD41DBF560 /* HandsFreeClientVoiceSettingsModel.swift */; };
+		BCBCD8E7B618EBCE46FE7106 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F991203294EAD4A026E97297 /* AppModel.swift */; };
+		BD7FAAB5281FACA51F46B872 /* IncomingHTTPRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CADDD387F5E618BD2F0F1FA /* IncomingHTTPRequest.swift */; };
+		C056608D171536CE21A13A31 /* LogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CA8A822A90E65304EB4117A /* LogView.swift */; };
+		C345AFF087B554568393A34F /* DebugTreeFavoritesRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE5E04C7F6A1777A9847EFFD /* DebugTreeFavoritesRepository.swift */; };
+		C44FC59C3446382571BFCB24 /* RawAXNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = D29C94B5D1C273D765B165A2 /* RawAXNode.swift */; };
+		C615C11D65C24CC2F5557BF0 /* AppModel+Polling.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1859E6F89AB74E9D195C3B3A /* AppModel+Polling.swift */; };
+		C6650B0463432D64BDB6323E /* WhatsAppConversationListParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A830B64391284ADE3EF87EC9 /* WhatsAppConversationListParser.swift */; };
+		C857019F454DEB57A644798A /* WhatsAppDebugCaptureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5518B530F86092E57648DE48 /* WhatsAppDebugCaptureService.swift */; };
+		CAACE4660E3192B965D1546C /* SubjectsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB8617CE49AD8DC2908E4B3F /* SubjectsScreen.swift */; };
+		D39886B14F3342EE23F609EC /* ConversationAccessMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = C27AAC2DABD1FBEE5100F8AF /* ConversationAccessMode.swift */; };
+		DDE7BFD96A240E648A435E93 /* AppModel+MCPRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31BF4FAA17329E2F30706F45 /* AppModel+MCPRuntime.swift */; };
+		E1699984B2C51B05E94E7385 /* ConversationsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D14EB853121757F71FE192F /* ConversationsScreen.swift */; };
+		E3DDF5B06D67BEDFDB2100AC /* WaitNextEventTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AD07B415247A8568F35BA37 /* WaitNextEventTool.swift */; };
+		E59FAA447841A35A570CAA73 /* SubjectsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AAE952569115DFF742916A6 /* SubjectsRepository.swift */; };
+		EA924AE0572C3F43A6FDF4C9 /* ListNicknamesTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 636DE19F98A2611A80B8F50D /* ListNicknamesTool.swift */; };
+		F22FA6D8AF92439263A61D90 /* BridgeStatusBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 679D6876CEEB8673FD56DBEE /* BridgeStatusBadge.swift */; };
+		FA7DD670DA0BC46E09B3C95E /* ChatDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B35DC7921D76CA5DAB81BCE8 /* ChatDetailView.swift */; };
+		FEEDD7FCA7F9F037ED70DE7E /* AppModel+MCP.swift in Sources */ = {isa = PBXBuildFile; fileRef = 841DD886310E9E5F80C5E3BC /* AppModel+MCP.swift */; };
+		FFB56DBEE80F234287960746 /* VoiceSettingsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2F76A66C0BE5972A366F154 /* VoiceSettingsModel.swift */; };
+		FFCF1FDE15564D9549925926 /* CreateMemoryTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 874C26CAE9BC0344BF6D763D /* CreateMemoryTool.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		073F3299EE4170E955B4E48E /* ClientVoiceHandsFreeWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientVoiceHandsFreeWindowController.swift; sourceTree = "<group>"; };
+		08A045700F2704850EF2B413 /* ListActiveSubjectsTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListActiveSubjectsTool.swift; sourceTree = "<group>"; };
+		09D8F921EB0B773327D175B2 /* WhatsAppMessageSendHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsAppMessageSendHandler.swift; sourceTree = "<group>"; };
+		128C6729897A53AF9E3824F2 /* ExperimentalSpeakSettingsRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentalSpeakSettingsRepository.swift; sourceTree = "<group>"; };
+		13454298494E325D47DEEAA4 /* SaveNicknameTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveNicknameTool.swift; sourceTree = "<group>"; };
+		14866B3EDC65001356E59F30 /* WaitForChatMessageTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaitForChatMessageTool.swift; sourceTree = "<group>"; };
+		159D16DA0815AED8EFF3B3D3 /* AppModel+MemoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+MemoryStore.swift"; sourceTree = "<group>"; };
+		17B1CE58B16634C59E3408E3 /* ChatState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatState.swift; sourceTree = "<group>"; };
+		1859E6F89AB74E9D195C3B3A /* AppModel+Polling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Polling.swift"; sourceTree = "<group>"; };
+		1AAE952569115DFF742916A6 /* SubjectsRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubjectsRepository.swift; sourceTree = "<group>"; };
+		1C10A6C39B88EF660B40CFDE /* WaitForEventTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaitForEventTool.swift; sourceTree = "<group>"; };
+		20626007A6FFBA9ED9F026DE /* SettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreen.swift; sourceTree = "<group>"; };
+		2A286BCAF8C4D7793A33CB49 /* ConversationRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationRow.swift; sourceTree = "<group>"; };
+		2B98CB163671CF8E0D351FD7 /* HandsFreeClientVoiceSettingsRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandsFreeClientVoiceSettingsRepository.swift; sourceTree = "<group>"; };
+		2BCBA9A5B8B4D7D5B6030C43 /* ClientVoiceEventsRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientVoiceEventsRepository.swift; sourceTree = "<group>"; };
+		2DD91B24F7A0EEB8DAC1BA34 /* MemoryEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryEntry.swift; sourceTree = "<group>"; };
+		30A4F2A7AA74D637AC802C51 /* WhatsAppConversationSelectionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsAppConversationSelectionHandler.swift; sourceTree = "<group>"; };
+		31BF4FAA17329E2F30706F45 /* AppModel+MCPRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+MCPRuntime.swift"; sourceTree = "<group>"; };
+		35A8D2D65935F5C10D4EF873 /* InputLockService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputLockService.swift; sourceTree = "<group>"; };
+		388F4C72D78221AD8F39E013 /* ServerCallResender.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerCallResender.swift; sourceTree = "<group>"; };
+		38F0125ABCD50A24679C26A7 /* DebugTreeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugTreeViewModel.swift; sourceTree = "<group>"; };
+		3A64F59AE6C530781B2756AC /* StatusBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBadge.swift; sourceTree = "<group>"; };
+		3AD07B415247A8568F35BA37 /* WaitNextEventTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaitNextEventTool.swift; sourceTree = "<group>"; };
+		3C4CFFBB7CEA87C540D45E3B /* DebugTreePreviewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugTreePreviewModel.swift; sourceTree = "<group>"; };
+		3DA03B9B820BB5543A450A7D /* VoiceAssistant.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceAssistant.swift; sourceTree = "<group>"; };
+		3EE170F68A04667E7620A074 /* WhatsAppAppParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsAppAppParser.swift; sourceTree = "<group>"; };
+		42146D8F6D1CC45CC14B3711 /* NicknamesScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NicknamesScreen.swift; sourceTree = "<group>"; };
+		42F4311C22FA38003EF72983 /* InputLockSettingsRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputLockSettingsRepository.swift; sourceTree = "<group>"; };
+		438A6E450AC149BA3DD88F5B /* MCPToolCall.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPToolCall.swift; sourceTree = "<group>"; };
+		4469753C8D1F712E13B071A2 /* AppModel+Messaging.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Messaging.swift"; sourceTree = "<group>"; };
+		48B1723FB68DA0CBE512B5E4 /* MCPToolArguments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPToolArguments.swift; sourceTree = "<group>"; };
+		4B3C5AB9FD11E1EEC2C6A303 /* SpeakToClientTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakToClientTool.swift; sourceTree = "<group>"; };
+		4B4D61B6655412532014B3F3 /* AssistantMCPServerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantMCPServerApp.swift; sourceTree = "<group>"; };
+		4C091C6035FEC64CD1B67364 /* ListChatsTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListChatsTool.swift; sourceTree = "<group>"; };
+		500B583EB3CBD575011AEDE1 /* NicknameEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NicknameEntry.swift; sourceTree = "<group>"; };
+		52E43E730AD2B9EA9AE30907 /* MicrophonePermissionBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrophonePermissionBadge.swift; sourceTree = "<group>"; };
+		532C0E60B10BCB892B73F76A /* WhatsAppCurrentConversationReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsAppCurrentConversationReader.swift; sourceTree = "<group>"; };
+		5518B530F86092E57648DE48 /* WhatsAppDebugCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsAppDebugCaptureService.swift; sourceTree = "<group>"; };
+		5559313273CE664D19DEA9EB /* DeleteNicknameTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteNicknameTool.swift; sourceTree = "<group>"; };
+		55AABA7182BB49937A7E5CF6 /* Message.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Message.swift; sourceTree = "<group>"; };
+		571AC0B62C619CAB778DE290 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		58D9C97469284E32BEDE35E5 /* AppModel+MCPSendPrefixSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+MCPSendPrefixSettings.swift"; sourceTree = "<group>"; };
+		5AFC1B2EBABC7641C04EECD0 /* MCPHTTPServerHosting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPHTTPServerHosting.swift; sourceTree = "<group>"; };
+		5B29FCB355C2AEFC00993CC5 /* MCPSendPrefixSettingsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPSendPrefixSettingsModel.swift; sourceTree = "<group>"; };
+		5CA8A822A90E65304EB4117A /* LogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogView.swift; sourceTree = "<group>"; };
+		5CADDD387F5E618BD2F0F1FA /* IncomingHTTPRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomingHTTPRequest.swift; sourceTree = "<group>"; };
+		5F7B5852B494B22F2B5DF65B /* WhatsAppMemoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsAppMemoryStore.swift; sourceTree = "<group>"; };
+		5FB34A1C65F6E156D140ADF0 /* MemoriesScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoriesScreen.swift; sourceTree = "<group>"; };
+		5FDBB60DCC6EBCEE3CAAD751 /* CreateSubjectTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateSubjectTool.swift; sourceTree = "<group>"; };
+		636DE19F98A2611A80B8F50D /* ListNicknamesTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListNicknamesTool.swift; sourceTree = "<group>"; };
+		65B58FC9E12E5442C96F757E /* SendMessageTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SendMessageTool.swift; sourceTree = "<group>"; };
+		676798AC7526941A54AF6367 /* ConversationSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationSummary.swift; sourceTree = "<group>"; };
+		679D6876CEEB8673FD56DBEE /* BridgeStatusBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeStatusBadge.swift; sourceTree = "<group>"; };
+		6B9C1328CDA34746F0091C0B /* ListMemoriesByTagTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListMemoriesByTagTool.swift; sourceTree = "<group>"; };
+		6C1561537E3C56BAA93E8124 /* AppModel+ConversationAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+ConversationAccess.swift"; sourceTree = "<group>"; };
+		6C76517EDEEFFFE51A7DC92D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		70355E9E3BB824FD41DBF560 /* HandsFreeClientVoiceSettingsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandsFreeClientVoiceSettingsModel.swift; sourceTree = "<group>"; };
+		7173444B485FB8EC6B0DB4E3 /* DebugTreePreviewCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugTreePreviewCapture.swift; sourceTree = "<group>"; };
+		72A9C8E2C5C79242E6B20384 /* ServerLogsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerLogsScreen.swift; sourceTree = "<group>"; };
+		7406556C46F147CBFE045C48 /* FinishSubjectTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinishSubjectTool.swift; sourceTree = "<group>"; };
+		78D758DEB63AFC555E91C9BA /* AssistantInstructionsRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantInstructionsRepository.swift; sourceTree = "<group>"; };
+		791AD99870575FD33F4C47A9 /* ServerCallsRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerCallsRepository.swift; sourceTree = "<group>"; };
+		7A342AB53F4BDDF29AE143E7 /* MCPServerRuntimeProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPServerRuntimeProviding.swift; sourceTree = "<group>"; };
+		7A3D85EA16758BDC9516202C /* InputLockSettingsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputLockSettingsModel.swift; sourceTree = "<group>"; };
+		7B6872936161AF0369A47444 /* PendingClientResponseBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingClientResponseBadge.swift; sourceTree = "<group>"; };
+		7DBBC596C6AC8E59B2220612 /* WhatsAppInteractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsAppInteractor.swift; sourceTree = "<group>"; };
+		7E03854EB7A6BF8644CAD674 /* WhatsAppCurrentConversationParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsAppCurrentConversationParser.swift; sourceTree = "<group>"; };
+		7E627CC5A274ABB5EB954069 /* AppModel+ServerCalls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+ServerCalls.swift"; sourceTree = "<group>"; };
+		7F2A658B8E6034F7CAEC0D56 /* AccessibilityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityService.swift; sourceTree = "<group>"; };
+		7F2AD515268EC2CBA858D44E /* MCPServerStatusBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPServerStatusBadge.swift; sourceTree = "<group>"; };
+		7FFED593EE5CD4780C4DA855 /* AppModel+Assistant.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Assistant.swift"; sourceTree = "<group>"; };
+		8071C38235E79F1547EE5EFF /* WhatsAppConversationListReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsAppConversationListReader.swift; sourceTree = "<group>"; };
+		841DD886310E9E5F80C5E3BC /* AppModel+MCP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+MCP.swift"; sourceTree = "<group>"; };
+		8587DC86E13CDC518BB167BF /* ListUnreadChatsTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListUnreadChatsTool.swift; sourceTree = "<group>"; };
+		7C6D5E4F3A2B1C0D9E8F7A6B /* SearchContactChatsTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchContactChatsTool.swift; sourceTree = "<group>"; };
+		862C0D3C70EDA7DDB77DC7A1 /* LogsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogsScreen.swift; sourceTree = "<group>"; };
+		874C26CAE9BC0344BF6D763D /* CreateMemoryTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateMemoryTool.swift; sourceTree = "<group>"; };
+		88CA26F280C3D585B5B421D2 /* MCPServerContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPServerContext.swift; sourceTree = "<group>"; };
+		8D14EB853121757F71FE192F /* ConversationsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationsScreen.swift; sourceTree = "<group>"; };
+		8E83D89F7D0CFA9173511DDA /* MCPServerToolRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPServerToolRegistry.swift; sourceTree = "<group>"; };
+		92F9C607163B46BD282192A1 /* AssistantMCPServer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AssistantMCPServer.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		96273EA5302E7F11ECAE03DC /* MCPToolHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPToolHandler.swift; sourceTree = "<group>"; };
+		96F75F4728380B0FE736A387 /* ClientVoiceHandsFreeWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientVoiceHandsFreeWindow.swift; sourceTree = "<group>"; };
+		98AE98BE65DF128D6D797944 /* PreviewSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewSupport.swift; sourceTree = "<group>"; };
+		99731269A97A362495DFA849 /* AccessibilityActionScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityActionScheduler.swift; sourceTree = "<group>"; };
+		99EA6DFEF45661F429EE1A29 /* MemoriesRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoriesRepository.swift; sourceTree = "<group>"; };
+		9C4E09008FDF039571F71DC9 /* MCPServerCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPServerCoordinator.swift; sourceTree = "<group>"; };
+		9E03D02632604B4477CCB177 /* WhatsAppSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsAppSnapshot.swift; sourceTree = "<group>"; };
+		9E4CB52189AFDCEBC4FC2BB2 /* MCPSendPrefixRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPSendPrefixRepository.swift; sourceTree = "<group>"; };
+		9EEA900D803E20488F7AA0AB /* PersistedChatListSignatures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistedChatListSignatures.swift; sourceTree = "<group>"; };
+		A019EB08E1C5BA3401AF26EE /* ServerToolBrowserModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerToolBrowserModels.swift; sourceTree = "<group>"; };
+		A077140F302DA2C7EB7351E1 /* WaitForMessageTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaitForMessageTool.swift; sourceTree = "<group>"; };
+		A41A61E7855078AFD2E3BA3B /* GetRecentMessagesTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GetRecentMessagesTool.swift; sourceTree = "<group>"; };
+		A46C6382697F003DBE2D602E /* WhatsAppParserSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsAppParserSupport.swift; sourceTree = "<group>"; };
+		A500CE788F2B8711436F9601 /* ClientVoiceScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientVoiceScreen.swift; sourceTree = "<group>"; };
+		A579F8B3CCCF40DD6DE588E2 /* AppModel+ChatHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+ChatHistory.swift"; sourceTree = "<group>"; };
+		A830B64391284ADE3EF87EC9 /* WhatsAppConversationListParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsAppConversationListParser.swift; sourceTree = "<group>"; };
+		AB84F6A885CD2DA24655E2B2 /* ConversationAccessRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationAccessRepository.swift; sourceTree = "<group>"; };
+		ACF3B3D35020BAA396722F5C /* DebugTreeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugTreeScreen.swift; sourceTree = "<group>"; };
+		B23CEF2B7F37167AD3B7149F /* SubjectEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubjectEntry.swift; sourceTree = "<group>"; };
+		B35DC7921D76CA5DAB81BCE8 /* ChatDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatDetailView.swift; sourceTree = "<group>"; };
+		B395FC6E3AB5C210A784A50E /* UpdateSubjectTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateSubjectTool.swift; sourceTree = "<group>"; };
+		B42CE3A0CBFAEDA3CB18AB03 /* VoiceSettingsRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceSettingsRepository.swift; sourceTree = "<group>"; };
+		B5079133EBCEC2D60D243890 /* GetInstructionsTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GetInstructionsTool.swift; sourceTree = "<group>"; };
+		B5F71938B2CDE079183D3485 /* LogEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogEntry.swift; sourceTree = "<group>"; };
+		B9D4738AFDAC1F868B37E677 /* MCPServerState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPServerState.swift; sourceTree = "<group>"; };
+		BB1E03CF4E7FA2D7E760BAED /* AskToClientTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskToClientTool.swift; sourceTree = "<group>"; };
+		BB3517FFA74CD8F4CCEB6DD4 /* AccessibilityObject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityObject.swift; sourceTree = "<group>"; };
+		BF5CB7693FEF2E6026F4A4C3 /* WhatsAppDebugArtifacts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsAppDebugArtifacts.swift; sourceTree = "<group>"; };
+		C0AEBC08F2724D035EAA1D0C /* JSONValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONValue.swift; sourceTree = "<group>"; };
+		C27AAC2DABD1FBEE5100F8AF /* ConversationAccessMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationAccessMode.swift; sourceTree = "<group>"; };
+		C56D0BE00FBBF67E54612883 /* DeleteSubjectTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteSubjectTool.swift; sourceTree = "<group>"; };
+		C58088785FA8CD37641B6D7C /* DeleteMemoryTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteMemoryTool.swift; sourceTree = "<group>"; };
+		C6E11EF275E1449F9A62B7D3 /* MessageRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageRow.swift; sourceTree = "<group>"; };
+		C94C9EAC94D44A9599AB5E5C /* MCPToolDefinition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPToolDefinition.swift; sourceTree = "<group>"; };
+		CB02C15B0613AB9501B4A849 /* AppModel+Preview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Preview.swift"; sourceTree = "<group>"; };
+		CB8617CE49AD8DC2908E4B3F /* SubjectsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubjectsScreen.swift; sourceTree = "<group>"; };
+		CB9CA4F6520B061D40D4CF23 /* ServerToolsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerToolsScreen.swift; sourceTree = "<group>"; };
+		CDB40402D4DCACB995AAC5B2 /* ChatListSignaturesRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatListSignaturesRepository.swift; sourceTree = "<group>"; };
+		D29C94B5D1C273D765B165A2 /* RawAXNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RawAXNode.swift; sourceTree = "<group>"; };
+		D37E9A51A6C293B5B03C2D27 /* GetSubjectTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GetSubjectTool.swift; sourceTree = "<group>"; };
+		D5FB34CD0EB14D12794730E1 /* AppModel+ChatListSignatures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+ChatListSignatures.swift"; sourceTree = "<group>"; };
+		D80C04CAB7015954F28EE2F1 /* GetMemoryTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GetMemoryTool.swift; sourceTree = "<group>"; };
+		D84252F25FDA85D3F26E816C /* MCPHTTPServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPHTTPServer.swift; sourceTree = "<group>"; };
+		DBD600B9AA6B906D6D41027C /* WhatsAppAccessibilityMap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsAppAccessibilityMap.swift; sourceTree = "<group>"; };
+		E0AA7923D872D1E3E5EC0FAD /* PersistedChatHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistedChatHistory.swift; sourceTree = "<group>"; };
+		E2F76A66C0BE5972A366F154 /* VoiceSettingsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceSettingsModel.swift; sourceTree = "<group>"; };
+		E4F224F4EFC93F26E2E91D7B /* MCPServerCallEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPServerCallEntry.swift; sourceTree = "<group>"; };
+		E714AAF796E84732DA40F97D /* AppModel+Status.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Status.swift"; sourceTree = "<group>"; };
+		E8392A76D18F59E29828E1AE /* ChatHistoryRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatHistoryRepository.swift; sourceTree = "<group>"; };
+		EE5E04C7F6A1777A9847EFFD /* DebugTreeFavoritesRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugTreeFavoritesRepository.swift; sourceTree = "<group>"; };
+		F991203294EAD4A026E97297 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		F9E88998AD241D624D031CD9 /* MCPServerError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPServerError.swift; sourceTree = "<group>"; };
+		FE57E91463CC8FFD8DCCE839 /* NicknamesRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NicknamesRepository.swift; sourceTree = "<group>"; };
+		FFC62E99DBB6F59DFEEA38E3 /* ClientVoiceEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientVoiceEvent.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		1566DD2496C8EC51A4712457 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				844BCC51935BD6D3713C7B21 /* MCP in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		025C00539788DEB64AFEB709 /* Debug */ = {
+			isa = PBXGroup;
+			children = (
+				7173444B485FB8EC6B0DB4E3 /* DebugTreePreviewCapture.swift */,
+				3C4CFFBB7CEA87C540D45E3B /* DebugTreePreviewModel.swift */,
+				ACF3B3D35020BAA396722F5C /* DebugTreeScreen.swift */,
+				38F0125ABCD50A24679C26A7 /* DebugTreeViewModel.swift */,
+				BF5CB7693FEF2E6026F4A4C3 /* WhatsAppDebugArtifacts.swift */,
+				5518B530F86092E57648DE48 /* WhatsAppDebugCaptureService.swift */,
+			);
+			path = Debug;
+			sourceTree = "<group>";
+		};
+		0371438FBD91A36BB863698A /* Repositories */ = {
+			isa = PBXGroup;
+			children = (
+				78D758DEB63AFC555E91C9BA /* AssistantInstructionsRepository.swift */,
+				E8392A76D18F59E29828E1AE /* ChatHistoryRepository.swift */,
+				CDB40402D4DCACB995AAC5B2 /* ChatListSignaturesRepository.swift */,
+				2BCBA9A5B8B4D7D5B6030C43 /* ClientVoiceEventsRepository.swift */,
+				AB84F6A885CD2DA24655E2B2 /* ConversationAccessRepository.swift */,
+				EE5E04C7F6A1777A9847EFFD /* DebugTreeFavoritesRepository.swift */,
+				128C6729897A53AF9E3824F2 /* ExperimentalSpeakSettingsRepository.swift */,
+				2B98CB163671CF8E0D351FD7 /* HandsFreeClientVoiceSettingsRepository.swift */,
+				42F4311C22FA38003EF72983 /* InputLockSettingsRepository.swift */,
+				9E4CB52189AFDCEBC4FC2BB2 /* MCPSendPrefixRepository.swift */,
+				99EA6DFEF45661F429EE1A29 /* MemoriesRepository.swift */,
+				FE57E91463CC8FFD8DCCE839 /* NicknamesRepository.swift */,
+				791AD99870575FD33F4C47A9 /* ServerCallsRepository.swift */,
+				1AAE952569115DFF742916A6 /* SubjectsRepository.swift */,
+				B42CE3A0CBFAEDA3CB18AB03 /* VoiceSettingsRepository.swift */,
+			);
+			path = Repositories;
+			sourceTree = "<group>";
+		};
+		0D4F8FCE0CBBC1CB8B4C5ED0 /* Parsing */ = {
+			isa = PBXGroup;
+			children = (
+				BB3517FFA74CD8F4CCEB6DD4 /* AccessibilityObject.swift */,
+				DBD600B9AA6B906D6D41027C /* WhatsAppAccessibilityMap.swift */,
+				3EE170F68A04667E7620A074 /* WhatsAppAppParser.swift */,
+				A830B64391284ADE3EF87EC9 /* WhatsAppConversationListParser.swift */,
+				8071C38235E79F1547EE5EFF /* WhatsAppConversationListReader.swift */,
+				7E03854EB7A6BF8644CAD674 /* WhatsAppCurrentConversationParser.swift */,
+				532C0E60B10BCB892B73F76A /* WhatsAppCurrentConversationReader.swift */,
+				A46C6382697F003DBE2D602E /* WhatsAppParserSupport.swift */,
+			);
+			path = Parsing;
+			sourceTree = "<group>";
+		};
+		148B5640A7EBAD46921031B2 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				92F9C607163B46BD282192A1 /* AssistantMCPServer.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		15063EDF6D9533795E5EAE4F /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				17B1CE58B16634C59E3408E3 /* ChatState.swift */,
+				FFC62E99DBB6F59DFEEA38E3 /* ClientVoiceEvent.swift */,
+				C27AAC2DABD1FBEE5100F8AF /* ConversationAccessMode.swift */,
+				676798AC7526941A54AF6367 /* ConversationSummary.swift */,
+				B5F71938B2CDE079183D3485 /* LogEntry.swift */,
+				2DD91B24F7A0EEB8DAC1BA34 /* MemoryEntry.swift */,
+				55AABA7182BB49937A7E5CF6 /* Message.swift */,
+				500B583EB3CBD575011AEDE1 /* NicknameEntry.swift */,
+				D29C94B5D1C273D765B165A2 /* RawAXNode.swift */,
+				B23CEF2B7F37167AD3B7149F /* SubjectEntry.swift */,
+				9E03D02632604B4477CCB177 /* WhatsAppSnapshot.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		168045D2B9072AC69340F7A2 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				20626007A6FFBA9ED9F026DE /* SettingsScreen.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		17719CBA4913672359D06970 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				5CADDD387F5E618BD2F0F1FA /* IncomingHTTPRequest.swift */,
+				C0AEBC08F2724D035EAA1D0C /* JSONValue.swift */,
+				E4F224F4EFC93F26E2E91D7B /* MCPServerCallEntry.swift */,
+				F9E88998AD241D624D031CD9 /* MCPServerError.swift */,
+				B9D4738AFDAC1F868B37E677 /* MCPServerState.swift */,
+				438A6E450AC149BA3DD88F5B /* MCPToolCall.swift */,
+				C94C9EAC94D44A9599AB5E5C /* MCPToolDefinition.swift */,
+				41D3CF7ABDEDF37089C9EE50 /* Settings */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		2142B64E19BD432C63B84DE4 /* WhatsAppIntegration */ = {
+			isa = PBXGroup;
+			children = (
+				B0ED146D3CC9185E8D32FD2A /* Accessibility */,
+				025C00539788DEB64AFEB709 /* Debug */,
+				D759994B4E4A9677F12F12BB /* Interaction */,
+				DFBB376F220A34D6EF1411B9 /* Logs */,
+				0D4F8FCE0CBBC1CB8B4C5ED0 /* Parsing */,
+				E0CA52EF364F87ECB8C61E5F /* Settings */,
+			);
+			path = WhatsAppIntegration;
+			sourceTree = "<group>";
+		};
+		30D462A9EA25773273B23D25 /* Voice */ = {
+			isa = PBXGroup;
+			children = (
+				D705DE4647AA2281A4D906B7 /* Badges */,
+				71BC862A35F0FBAC8E66E0A2 /* Settings */,
+			);
+			path = Voice;
+			sourceTree = "<group>";
+		};
+		37756202E5D926632F8588BE /* Data */ = {
+			isa = PBXGroup;
+			children = (
+				6F45E6CD95EC3F72AE4CD221 /* Conversations */,
+				83A5974DC509F5C872436246 /* Operations */,
+			);
+			path = Data;
+			sourceTree = "<group>";
+		};
+		41D3CF7ABDEDF37089C9EE50 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				5B29FCB355C2AEFC00993CC5 /* MCPSendPrefixSettingsModel.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		4D013BDA7F5FAE616EA422CB /* Transport */ = {
+			isa = PBXGroup;
+			children = (
+				D84252F25FDA85D3F26E816C /* MCPHTTPServer.swift */,
+				5AFC1B2EBABC7641C04EECD0 /* MCPHTTPServerHosting.swift */,
+			);
+			path = Transport;
+			sourceTree = "<group>";
+		};
+		67978FDAE30AFDE8BDADDC32 /* ToolsBrowser */ = {
+			isa = PBXGroup;
+			children = (
+				A019EB08E1C5BA3401AF26EE /* ServerToolBrowserModels.swift */,
+				CB9CA4F6520B061D40D4CF23 /* ServerToolsScreen.swift */,
+			);
+			path = ToolsBrowser;
+			sourceTree = "<group>";
+		};
+		69FC027ABD45E0F3CD809C02 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				4B4D61B6655412532014B3F3 /* AssistantMCPServerApp.swift */,
+				6C76517EDEEFFFE51A7DC92D /* Info.plist */,
+				99E8C1697159CBA3DA3044B1 /* App */,
+				AEE2125438A230736170BD63 /* Domain */,
+				A259DFAE3B88CD31C33BB16F /* Features */,
+				0371438FBD91A36BB863698A /* Repositories */,
+				A76DE7F9550DCD73065481C6 /* Services */,
+				D6ACC55998FA7C1C18C9621E /* Views */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		6E98221D16378934124DED28 /* Voice */ = {
+			isa = PBXGroup;
+			children = (
+				3DA03B9B820BB5543A450A7D /* VoiceAssistant.swift */,
+			);
+			path = Voice;
+			sourceTree = "<group>";
+		};
+		6F45E6CD95EC3F72AE4CD221 /* Conversations */ = {
+			isa = PBXGroup;
+			children = (
+				8D14EB853121757F71FE192F /* ConversationsScreen.swift */,
+				42146D8F6D1CC45CC14B3711 /* NicknamesScreen.swift */,
+			);
+			path = Conversations;
+			sourceTree = "<group>";
+		};
+		71BC862A35F0FBAC8E66E0A2 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				70355E9E3BB824FD41DBF560 /* HandsFreeClientVoiceSettingsModel.swift */,
+				E2F76A66C0BE5972A366F154 /* VoiceSettingsModel.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		79C8286570A3367999535624 = {
+			isa = PBXGroup;
+			children = (
+				69FC027ABD45E0F3CD809C02 /* Sources */,
+				148B5640A7EBAD46921031B2 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		83A5974DC509F5C872436246 /* Operations */ = {
+			isa = PBXGroup;
+			children = (
+				A500CE788F2B8711436F9601 /* ClientVoiceScreen.swift */,
+				5FB34A1C65F6E156D140ADF0 /* MemoriesScreen.swift */,
+				CB8617CE49AD8DC2908E4B3F /* SubjectsScreen.swift */,
+			);
+			path = Operations;
+			sourceTree = "<group>";
+		};
+		99E8C1697159CBA3DA3044B1 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				F991203294EAD4A026E97297 /* AppModel.swift */,
+				7FFED593EE5CD4780C4DA855 /* AppModel+Assistant.swift */,
+				A579F8B3CCCF40DD6DE588E2 /* AppModel+ChatHistory.swift */,
+				D5FB34CD0EB14D12794730E1 /* AppModel+ChatListSignatures.swift */,
+				6C1561537E3C56BAA93E8124 /* AppModel+ConversationAccess.swift */,
+				841DD886310E9E5F80C5E3BC /* AppModel+MCP.swift */,
+				31BF4FAA17329E2F30706F45 /* AppModel+MCPRuntime.swift */,
+				58D9C97469284E32BEDE35E5 /* AppModel+MCPSendPrefixSettings.swift */,
+				159D16DA0815AED8EFF3B3D3 /* AppModel+MemoryStore.swift */,
+				4469753C8D1F712E13B071A2 /* AppModel+Messaging.swift */,
+				1859E6F89AB74E9D195C3B3A /* AppModel+Polling.swift */,
+				CB02C15B0613AB9501B4A849 /* AppModel+Preview.swift */,
+				7E627CC5A274ABB5EB954069 /* AppModel+ServerCalls.swift */,
+				E714AAF796E84732DA40F97D /* AppModel+Status.swift */,
+				E0AA7923D872D1E3E5EC0FAD /* PersistedChatHistory.swift */,
+				9EEA900D803E20488F7AA0AB /* PersistedChatListSignatures.swift */,
+				98AE98BE65DF128D6D797944 /* PreviewSupport.swift */,
+				5F7B5852B494B22F2B5DF65B /* WhatsAppMemoryStore.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		A259DFAE3B88CD31C33BB16F /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				37756202E5D926632F8588BE /* Data */,
+				D946D41781924021996A2137 /* Server */,
+				168045D2B9072AC69340F7A2 /* Settings */,
+				30D462A9EA25773273B23D25 /* Voice */,
+				2142B64E19BD432C63B84DE4 /* WhatsAppIntegration */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		A76DE7F9550DCD73065481C6 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				073F3299EE4170E955B4E48E /* ClientVoiceHandsFreeWindowController.swift */,
+				388F4C72D78221AD8F39E013 /* ServerCallResender.swift */,
+				6E98221D16378934124DED28 /* Voice */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		AEA2E285A3FCA851CA6898EF /* Tools */ = {
+			isa = PBXGroup;
+			children = (
+				BB1E03CF4E7FA2D7E760BAED /* AskToClientTool.swift */,
+				874C26CAE9BC0344BF6D763D /* CreateMemoryTool.swift */,
+				5FDBB60DCC6EBCEE3CAAD751 /* CreateSubjectTool.swift */,
+				C58088785FA8CD37641B6D7C /* DeleteMemoryTool.swift */,
+				5559313273CE664D19DEA9EB /* DeleteNicknameTool.swift */,
+				C56D0BE00FBBF67E54612883 /* DeleteSubjectTool.swift */,
+				7406556C46F147CBFE045C48 /* FinishSubjectTool.swift */,
+				B5079133EBCEC2D60D243890 /* GetInstructionsTool.swift */,
+				D80C04CAB7015954F28EE2F1 /* GetMemoryTool.swift */,
+				A41A61E7855078AFD2E3BA3B /* GetRecentMessagesTool.swift */,
+				D37E9A51A6C293B5B03C2D27 /* GetSubjectTool.swift */,
+				08A045700F2704850EF2B413 /* ListActiveSubjectsTool.swift */,
+				4C091C6035FEC64CD1B67364 /* ListChatsTool.swift */,
+				6B9C1328CDA34746F0091C0B /* ListMemoriesByTagTool.swift */,
+				636DE19F98A2611A80B8F50D /* ListNicknamesTool.swift */,
+				8587DC86E13CDC518BB167BF /* ListUnreadChatsTool.swift */,
+				7C6D5E4F3A2B1C0D9E8F7A6B /* SearchContactChatsTool.swift */,
+				13454298494E325D47DEEAA4 /* SaveNicknameTool.swift */,
+				65B58FC9E12E5442C96F757E /* SendMessageTool.swift */,
+				4B3C5AB9FD11E1EEC2C6A303 /* SpeakToClientTool.swift */,
+				B395FC6E3AB5C210A784A50E /* UpdateSubjectTool.swift */,
+				14866B3EDC65001356E59F30 /* WaitForChatMessageTool.swift */,
+				1C10A6C39B88EF660B40CFDE /* WaitForEventTool.swift */,
+				A077140F302DA2C7EB7351E1 /* WaitForMessageTool.swift */,
+				3AD07B415247A8568F35BA37 /* WaitNextEventTool.swift */,
+			);
+			path = Tools;
+			sourceTree = "<group>";
+		};
+		AEE2125438A230736170BD63 /* Domain */ = {
+			isa = PBXGroup;
+			children = (
+				15063EDF6D9533795E5EAE4F /* Models */,
+			);
+			path = Domain;
+			sourceTree = "<group>";
+		};
+		B0ED146D3CC9185E8D32FD2A /* Accessibility */ = {
+			isa = PBXGroup;
+			children = (
+				99731269A97A362495DFA849 /* AccessibilityActionScheduler.swift */,
+				7F2A658B8E6034F7CAEC0D56 /* AccessibilityService.swift */,
+				35A8D2D65935F5C10D4EF873 /* InputLockService.swift */,
+			);
+			path = Accessibility;
+			sourceTree = "<group>";
+		};
+		D6ACC55998FA7C1C18C9621E /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				B35DC7921D76CA5DAB81BCE8 /* ChatDetailView.swift */,
+				96F75F4728380B0FE736A387 /* ClientVoiceHandsFreeWindow.swift */,
+				571AC0B62C619CAB778DE290 /* ContentView.swift */,
+				2A286BCAF8C4D7793A33CB49 /* ConversationRow.swift */,
+				5CA8A822A90E65304EB4117A /* LogView.swift */,
+				C6E11EF275E1449F9A62B7D3 /* MessageRow.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		D705DE4647AA2281A4D906B7 /* Badges */ = {
+			isa = PBXGroup;
+			children = (
+				679D6876CEEB8673FD56DBEE /* BridgeStatusBadge.swift */,
+				7F2AD515268EC2CBA858D44E /* MCPServerStatusBadge.swift */,
+				52E43E730AD2B9EA9AE30907 /* MicrophonePermissionBadge.swift */,
+				7B6872936161AF0369A47444 /* PendingClientResponseBadge.swift */,
+				3A64F59AE6C530781B2756AC /* StatusBadge.swift */,
+			);
+			path = Badges;
+			sourceTree = "<group>";
+		};
+		D759994B4E4A9677F12F12BB /* Interaction */ = {
+			isa = PBXGroup;
+			children = (
+				30A4F2A7AA74D637AC802C51 /* WhatsAppConversationSelectionHandler.swift */,
+				7DBBC596C6AC8E59B2220612 /* WhatsAppInteractor.swift */,
+				09D8F921EB0B773327D175B2 /* WhatsAppMessageSendHandler.swift */,
+			);
+			path = Interaction;
+			sourceTree = "<group>";
+		};
+		D946D41781924021996A2137 /* Server */ = {
+			isa = PBXGroup;
+			children = (
+				88CA26F280C3D585B5B421D2 /* MCPServerContext.swift */,
+				9C4E09008FDF039571F71DC9 /* MCPServerCoordinator.swift */,
+				7A342AB53F4BDDF29AE143E7 /* MCPServerRuntimeProviding.swift */,
+				8E83D89F7D0CFA9173511DDA /* MCPServerToolRegistry.swift */,
+				48B1723FB68DA0CBE512B5E4 /* MCPToolArguments.swift */,
+				96273EA5302E7F11ECAE03DC /* MCPToolHandler.swift */,
+				72A9C8E2C5C79242E6B20384 /* ServerLogsScreen.swift */,
+				17719CBA4913672359D06970 /* Models */,
+				AEA2E285A3FCA851CA6898EF /* Tools */,
+				67978FDAE30AFDE8BDADDC32 /* ToolsBrowser */,
+				4D013BDA7F5FAE616EA422CB /* Transport */,
+			);
+			path = Server;
+			sourceTree = "<group>";
+		};
+		DFBB376F220A34D6EF1411B9 /* Logs */ = {
+			isa = PBXGroup;
+			children = (
+				862C0D3C70EDA7DDB77DC7A1 /* LogsScreen.swift */,
+			);
+			path = Logs;
+			sourceTree = "<group>";
+		};
+		E0CA52EF364F87ECB8C61E5F /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				7A3D85EA16758BDC9516202C /* InputLockSettingsModel.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		"TEMP_9C23A5F0-4BC5-4533-939F-71A7C14C2FAE" /* Messaging */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Messaging;
+			sourceTree = "<group>";
+		};
+		"TEMP_A16E2BE8-A8B2-4344-B433-8866B8CE07C8" /* Integration */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Integration;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		13370C5A956536185EB60968 /* AssistantMCPServer */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 94B291469AF234F0729BB584 /* Build configuration list for PBXNativeTarget "AssistantMCPServer" */;
+			buildPhases = (
+				53FF2C80BCDDA42BBD983C02 /* Sources */,
+				1566DD2496C8EC51A4712457 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AssistantMCPServer;
+			packageProductDependencies = (
+				837565F1EC3DC16BFE545332 /* MCP */,
+			);
+			productName = AssistantMCPServer;
+			productReference = 92F9C607163B46BD282192A1 /* AssistantMCPServer.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A8EFFB9B254D70179A5AB8E2 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					13370C5A956536185EB60968 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = D7FD56E028ED0852AF25F079 /* Build configuration list for PBXProject "AssistantMCPServer" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 79C8286570A3367999535624;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				6161F559B804F6B3E943582E /* XCRemoteSwiftPackageReference "swift-sdk" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 148B5640A7EBAD46921031B2 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				13370C5A956536185EB60968 /* AssistantMCPServer */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		53FF2C80BCDDA42BBD983C02 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				270EE11FDE01E0220252CEF9 /* AccessibilityActionScheduler.swift in Sources */,
+				6B8F22EBF559B2C286A7E0EC /* AccessibilityObject.swift in Sources */,
+				0A77DC375248AF7A6C273C18 /* AccessibilityService.swift in Sources */,
+				33ACB5661A11D674EC14CBE5 /* AppModel+Assistant.swift in Sources */,
+				25B9EB01BF7546500FA87765 /* AppModel+ChatHistory.swift in Sources */,
+				525091429C8BF15C8C88095B /* AppModel+ChatListSignatures.swift in Sources */,
+				B9FBC5B690E1136BA1F44D7D /* AppModel+ConversationAccess.swift in Sources */,
+				FEEDD7FCA7F9F037ED70DE7E /* AppModel+MCP.swift in Sources */,
+				DDE7BFD96A240E648A435E93 /* AppModel+MCPRuntime.swift in Sources */,
+				9EAD7C7A911C548C02C90FD1 /* AppModel+MCPSendPrefixSettings.swift in Sources */,
+				93CDEBAD57981DC5CDD89B6F /* AppModel+MemoryStore.swift in Sources */,
+				2E800FB85B8A369343CFEA19 /* AppModel+Messaging.swift in Sources */,
+				C615C11D65C24CC2F5557BF0 /* AppModel+Polling.swift in Sources */,
+				707CE42D93AC152D35BA1DB6 /* AppModel+Preview.swift in Sources */,
+				940AEA5F8ABEFE84B6E414A2 /* AppModel+ServerCalls.swift in Sources */,
+				00989939512D5A69D032D1D5 /* AppModel+Status.swift in Sources */,
+				BCBCD8E7B618EBCE46FE7106 /* AppModel.swift in Sources */,
+				444DBC2277344B00DF631D39 /* AskToClientTool.swift in Sources */,
+				693F09C94AE6D253FC53E798 /* AssistantInstructionsRepository.swift in Sources */,
+				AD013E0648E1593703B7C8CF /* AssistantMCPServerApp.swift in Sources */,
+				F22FA6D8AF92439263A61D90 /* BridgeStatusBadge.swift in Sources */,
+				FA7DD670DA0BC46E09B3C95E /* ChatDetailView.swift in Sources */,
+				089EB349ED553AB7E3F45351 /* ChatHistoryRepository.swift in Sources */,
+				2F05022864D2A1F0F6F2EB35 /* ChatListSignaturesRepository.swift in Sources */,
+				56E44F58A1C245E56CA37D92 /* ChatState.swift in Sources */,
+				28986752114508FC0B6265F6 /* ClientVoiceEvent.swift in Sources */,
+				76D556D3A12CB1FB736B97BC /* ClientVoiceEventsRepository.swift in Sources */,
+				1C52326E5B84D92DBD89AC95 /* ClientVoiceHandsFreeWindow.swift in Sources */,
+				54A79926FBE98687E7199BF0 /* ClientVoiceHandsFreeWindowController.swift in Sources */,
+				28B472727F44AE5EE786F171 /* ClientVoiceScreen.swift in Sources */,
+				78755B49DCF8101E41103851 /* ContentView.swift in Sources */,
+				D39886B14F3342EE23F609EC /* ConversationAccessMode.swift in Sources */,
+				5C1010B174B6393A744AF4B8 /* ConversationAccessRepository.swift in Sources */,
+				59B650CA32FC156782ADC83F /* ConversationRow.swift in Sources */,
+				A03E4BD027291C88768A0247 /* ConversationSummary.swift in Sources */,
+				E1699984B2C51B05E94E7385 /* ConversationsScreen.swift in Sources */,
+				FFCF1FDE15564D9549925926 /* CreateMemoryTool.swift in Sources */,
+				7C3D9E692B33DCFC38D7BF3D /* CreateSubjectTool.swift in Sources */,
+				C345AFF087B554568393A34F /* DebugTreeFavoritesRepository.swift in Sources */,
+				3CCDB07CD39D57C03D89DCDB /* DebugTreePreviewCapture.swift in Sources */,
+				571030B4B5A940492F36EDCB /* DebugTreePreviewModel.swift in Sources */,
+				5D96B066A5B7CD67F72BAD51 /* DebugTreeScreen.swift in Sources */,
+				3105AF32B42F2650DED52016 /* DebugTreeViewModel.swift in Sources */,
+				23B0E47A0730E63BA867B84D /* DeleteMemoryTool.swift in Sources */,
+				11A1C5D94345B56431F30431 /* DeleteNicknameTool.swift in Sources */,
+				09EB7C76B106D45532D58B96 /* DeleteSubjectTool.swift in Sources */,
+				2A1966AC903B59067D588FFF /* ExperimentalSpeakSettingsRepository.swift in Sources */,
+				17773365092ECD7EBDBE09D5 /* FinishSubjectTool.swift in Sources */,
+				68E744510CF4504F670C1035 /* GetInstructionsTool.swift in Sources */,
+				69923229380F56E7DFC91C87 /* GetMemoryTool.swift in Sources */,
+				A94ED30BE122587C0758DF4A /* GetRecentMessagesTool.swift in Sources */,
+				6CFD50CDE5A2333F29CB95A2 /* GetSubjectTool.swift in Sources */,
+				BA377CAC917CEE24E7AC771F /* HandsFreeClientVoiceSettingsModel.swift in Sources */,
+				48CC8A52A8208E9E7C1E0E73 /* HandsFreeClientVoiceSettingsRepository.swift in Sources */,
+				BD7FAAB5281FACA51F46B872 /* IncomingHTTPRequest.swift in Sources */,
+				748BD5E98CA302F46508D265 /* InputLockService.swift in Sources */,
+				5B1555A8F78D7DD7A38E2743 /* InputLockSettingsModel.swift in Sources */,
+				A256500286BE04FBEC57F9A1 /* InputLockSettingsRepository.swift in Sources */,
+				589AE31B1557958FB9D14AF3 /* JSONValue.swift in Sources */,
+				75D59E95FD923EC8AF0451C3 /* ListActiveSubjectsTool.swift in Sources */,
+				0A27065588E0D5CAAC46BC2E /* ListChatsTool.swift in Sources */,
+				5AE5E42375F4B7F6E999E86D /* ListMemoriesByTagTool.swift in Sources */,
+				EA924AE0572C3F43A6FDF4C9 /* ListNicknamesTool.swift in Sources */,
+				4E6C979AC002C8C30545609F /* ListUnreadChatsTool.swift in Sources */,
+				4F1C3E6A7B8D4E1F9A2B3C4D /* SearchContactChatsTool.swift in Sources */,
+				10419D08A5EE110556778528 /* LogEntry.swift in Sources */,
+				C056608D171536CE21A13A31 /* LogView.swift in Sources */,
+				43B3F4244DE7042168F99103 /* LogsScreen.swift in Sources */,
+				7BEECD574FB853083F7D0271 /* MCPHTTPServer.swift in Sources */,
+				98BABD36E119CBD81E74AB81 /* MCPHTTPServerHosting.swift in Sources */,
+				9FC55A46198E3522B5DEC34C /* MCPSendPrefixRepository.swift in Sources */,
+				B7BAA58D1B5458FDD42E6E82 /* MCPSendPrefixSettingsModel.swift in Sources */,
+				73D20DCD47C81BB85796783F /* MCPServerCallEntry.swift in Sources */,
+				A14D8A37A0865247FBEB25BB /* MCPServerContext.swift in Sources */,
+				58B190C829FAC03580010274 /* MCPServerCoordinator.swift in Sources */,
+				8949CF70945AF5D9E1133ADA /* MCPServerError.swift in Sources */,
+				09DF4938D49327C9FA875AE5 /* MCPServerRuntimeProviding.swift in Sources */,
+				0C79CAB113FCEF2A106FECF2 /* MCPServerState.swift in Sources */,
+				0C0F43492FEEEE0C850321E4 /* MCPServerStatusBadge.swift in Sources */,
+				482D19E4EECF8C15C107C799 /* MCPServerToolRegistry.swift in Sources */,
+				11582AC468EE386B01F28843 /* MCPToolArguments.swift in Sources */,
+				6D92E24D17BC6189B207CAC5 /* MCPToolCall.swift in Sources */,
+				92FE2C27633BD3E48D6C73D2 /* MCPToolDefinition.swift in Sources */,
+				5C6BD296C257986D23DC8CF0 /* MCPToolHandler.swift in Sources */,
+				AB422A91528CC7A333981283 /* MemoriesRepository.swift in Sources */,
+				634A02E5EED921D843073746 /* MemoriesScreen.swift in Sources */,
+				6EF753F9E9F16405D1915F79 /* MemoryEntry.swift in Sources */,
+				A54099CBC647FAA37B83FA27 /* Message.swift in Sources */,
+				A322545C67C7278C12924F6C /* MessageRow.swift in Sources */,
+				3371469FAF972C6CF2ED446F /* MicrophonePermissionBadge.swift in Sources */,
+				80BF21D6B3EF1853F3D802ED /* NicknameEntry.swift in Sources */,
+				B35D848909A9ED9D04AF4C5C /* NicknamesRepository.swift in Sources */,
+				8654F9A63FC963C365B43413 /* NicknamesScreen.swift in Sources */,
+				15C72385E1CE7376EA31512B /* PendingClientResponseBadge.swift in Sources */,
+				6D512510D80D5DA694DAF49A /* PersistedChatHistory.swift in Sources */,
+				72C8CC59D2FB6CF763D7A90A /* PersistedChatListSignatures.swift in Sources */,
+				72D155570FC8A9684D9922DA /* PreviewSupport.swift in Sources */,
+				C44FC59C3446382571BFCB24 /* RawAXNode.swift in Sources */,
+				0C13828C1696B4E3C77A9915 /* SaveNicknameTool.swift in Sources */,
+				AD09BC7071BFD2EBF431F7D9 /* SendMessageTool.swift in Sources */,
+				279EAECB157959545869CD5F /* ServerCallResender.swift in Sources */,
+				7310ABD0BF0CA4C193F194F6 /* ServerCallsRepository.swift in Sources */,
+				5463FA5C83235026D11D2845 /* ServerLogsScreen.swift in Sources */,
+				AD7C349DA393BCFBBBCABE10 /* ServerToolBrowserModels.swift in Sources */,
+				2488B405D0BF65351EA04233 /* ServerToolsScreen.swift in Sources */,
+				0C759AEA20867F424FBC79ED /* SettingsScreen.swift in Sources */,
+				118445B9254BCA6146FAD94A /* SpeakToClientTool.swift in Sources */,
+				8CBF31B8C003D505AB52163C /* StatusBadge.swift in Sources */,
+				70F93C1B1EE8ABA6E054135D /* SubjectEntry.swift in Sources */,
+				E59FAA447841A35A570CAA73 /* SubjectsRepository.swift in Sources */,
+				CAACE4660E3192B965D1546C /* SubjectsScreen.swift in Sources */,
+				333B9C513D2699328B892B0A /* UpdateSubjectTool.swift in Sources */,
+				2631A628312687A761750243 /* VoiceAssistant.swift in Sources */,
+				FFB56DBEE80F234287960746 /* VoiceSettingsModel.swift in Sources */,
+				7A4C9100C717C53B960DB0F9 /* VoiceSettingsRepository.swift in Sources */,
+				A4241C0EA05BF807E0DFBE4F /* WaitForChatMessageTool.swift in Sources */,
+				74A1519B20840C3E0BEC132B /* WaitForEventTool.swift in Sources */,
+				2016CEEE742DDFFAFC5AAE3C /* WaitForMessageTool.swift in Sources */,
+				E3DDF5B06D67BEDFDB2100AC /* WaitNextEventTool.swift in Sources */,
+				55772AF15DD230BF15477655 /* WhatsAppAccessibilityMap.swift in Sources */,
+				299883C97C9671746C7559BE /* WhatsAppAppParser.swift in Sources */,
+				C6650B0463432D64BDB6323E /* WhatsAppConversationListParser.swift in Sources */,
+				8E5197A52EEA148E116E3A92 /* WhatsAppConversationListReader.swift in Sources */,
+				584F1F2285733630E371CCF5 /* WhatsAppConversationSelectionHandler.swift in Sources */,
+				3D1DAEB574B8D6C5091FBE63 /* WhatsAppCurrentConversationParser.swift in Sources */,
+				0EE4E081DBE2EC5306217CD4 /* WhatsAppCurrentConversationReader.swift in Sources */,
+				396F3B52BC93164C8AA61F22 /* WhatsAppDebugArtifacts.swift in Sources */,
+				C857019F454DEB57A644798A /* WhatsAppDebugCaptureService.swift in Sources */,
+				74DBB454A8D8EB79B3473DD1 /* WhatsAppInteractor.swift in Sources */,
+				499486B567E8316E61C7D2A6 /* WhatsAppMemoryStore.swift in Sources */,
+				1493CEDABDF3B8FA4E2BF648 /* WhatsAppMessageSendHandler.swift in Sources */,
+				A5726B5B9E23AF285F613D7B /* WhatsAppParserSupport.swift in Sources */,
+				6962BF9334233A4C5DBDE31E /* WhatsAppSnapshot.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		21667FDD4F13E573D76610E6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
+				INFOPLIST_FILE = Sources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		42FDDA30D8C96D488EAF3E82 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.wads.AssistantMCPServer;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A331F6C5407ADC37DBCD2A71 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.wads.AssistantMCPServer;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		CE22176EB31B57D58E6C0AD0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
+				INFOPLIST_FILE = Sources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		94B291469AF234F0729BB584 /* Build configuration list for PBXNativeTarget "AssistantMCPServer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				21667FDD4F13E573D76610E6 /* Debug */,
+				CE22176EB31B57D58E6C0AD0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		D7FD56E028ED0852AF25F079 /* Build configuration list for PBXProject "AssistantMCPServer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				42FDDA30D8C96D488EAF3E82 /* Debug */,
+				A331F6C5407ADC37DBCD2A71 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		6161F559B804F6B3E943582E /* XCRemoteSwiftPackageReference "swift-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/modelcontextprotocol/swift-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.12.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		837565F1EC3DC16BFE545332 /* MCP */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6161F559B804F6B3E943582E /* XCRemoteSwiftPackageReference "swift-sdk" */;
+			productName = MCP;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = A8EFFB9B254D70179A5AB8E2 /* Project object */;
+}
