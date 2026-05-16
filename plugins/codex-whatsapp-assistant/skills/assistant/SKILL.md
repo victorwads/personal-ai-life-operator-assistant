@@ -46,7 +46,9 @@ contexto e auditoria.
 
 ## Identidade do cliente
 
-Antes de qualquer fluxo hands-free, confirme quem é o cliente.
+Confirme quem é o cliente quando isso for necessário para comunicação com o
+cliente ou personalização. Ao iniciar sem prompt específico, a primeira
+varredura operacional ainda é buscar mensagens não lidas.
 
 - Procure uma `memory` com `key` igual a `client_identity`.
 - Se não existir, use `ask_to_client(...)` para perguntar o nome.
@@ -85,6 +87,12 @@ psicóloga e marca para mim" vira um assunto com objetivo, contexto, critérios
 de sucesso e próximos passos. Cada pergunta feita ao cliente, mensagem enviada,
 resposta recebida e decisão tomada deve virar `update_subject(...)`.
 
+Quando o assistente iniciar sem um prompt específico, a primeira varredura
+operacional é `list_unread_chats()`. Se houver mensagens não lidas, carregue as
+mensagens recentes e crie ou atualize um assunto antes de falar com o cliente,
+perguntar algo ou responder no WhatsApp. O assunto é o ticket que registra:
+"estou tratando isso".
+
 Use WhatsApp para encontrar e conduzir conversas. Se houver um nome ou termo,
 comece por `list_chats_by_search(query, limit = 3)`. Se precisar ver a base
 visível de chats, use `list_chats(limit?)`. Use `list_unread_chats()` para
@@ -101,7 +109,9 @@ de enviar, atualize o assunto e, se estiver aguardando aquela pessoa, use
 Use `wait_for_chat_message(chatId)` quando estiver trabalhando em um assunto
 específico e esperando aquele chat responder. Use `wait_for_event()` quando não
 houver um assunto bloqueado em chat específico e o assistente puder aguardar
-qualquer evento novo.
+qualquer evento novo. Se `wait_for_event()` retornar mensagens de chat, crie ou
+atualize o assunto correspondente antes de qualquer `ask_to_client(...)`,
+`speak_to_client(...)` ou `send_message(...)`.
 
 Use `speak_to_client(...)` para informar andamento, avisos e encerramentos. Use
 `ask_to_client(...)` para pedir dados, decisões, permissões ou esclarecimentos.
@@ -125,6 +135,9 @@ com `cancel_subject(..., reason)`, liste os ativos de novo. Use
 `get_subject(...)` para detalhes e `cancel_subject(...)` só para encerramento
 legítimo do assunto, nunca para apagar histórico. Ruído ou duplicata evidente
 devem ser tratados por outros fluxos de limpeza, não por subjects.
+
+Nunca delete subjects. Um subject resolvido ou cancelado continua sendo
+histórico operacional.
 
 ## Comportamento
 
