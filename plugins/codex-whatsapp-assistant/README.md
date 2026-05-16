@@ -22,8 +22,8 @@ Este plugin conecta o Codex ao **AssistantMCPServer local**, que expõe tools vi
 ## Dicas
 
 - Apelidos (nicknames): para chamar contatos por “mãe”, “namorado”, “Léo”, use `save_nickname(...)` e depois resolva com `list_nicknames()`.
-- Skill abrangente: use a skill `assistant` para orquestrar WhatsApp + Gmail + Calendar (follow-ups, agendamentos, convites).
-- Catálogo de tools locais: use a skill `assistantmcpserver` para referência rápida de tools (WhatsApp + voz + Subjects/Memories).
+- Skill principal: use a skill `assistant` como system prompt unificado para identidade, regras de comunicação e tools locais.
+- Catálogo local: as tools de WhatsApp, voz, Subjects e Memories agora ficam descritas na própria skill `assistant`.
 
 ## Ajustes
 
