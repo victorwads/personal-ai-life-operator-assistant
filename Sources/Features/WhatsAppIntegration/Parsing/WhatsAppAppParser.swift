@@ -10,13 +10,13 @@ struct WhatsAppScreenState: Equatable {
 }
 
 struct WhatsAppAppParser {
-    private let conversationListParser = WhatsAppConversationListParser()
-    private let currentConversationParser = WhatsAppCurrentConversationParser()
+    private let conversationListReader = WhatsAppConversationListReader()
+    private let currentConversationReader = WhatsAppCurrentConversationReader()
 
     func parse(snapshot: WhatsAppSnapshot, messageLimit: Int = 10) -> WhatsAppScreenState {
         let accessibilityObject = AccessibilityObject(root: snapshot.rootNode)
-        let conversations = conversationListParser.parseConversations(from: accessibilityObject)
-        let currentConversation = currentConversationParser.parse(
+        let conversations = conversationListReader.read(from: accessibilityObject)
+        let currentConversation = currentConversationReader.read(
             from: accessibilityObject,
             selectedChatName: conversations.first(where: \.isSelected)?.name,
             limit: messageLimit
@@ -40,7 +40,7 @@ struct WhatsAppAppParser {
         let nodesWithText = flattened.filter { !WhatsAppParserSupport.normalizedUniqueTexts($0.textFragments).isEmpty }
         let chatList = WhatsAppAccessibilityMap().chatList(in: root)
         let messageList = WhatsAppAccessibilityMap().messageList(in: root)
-        let conversationCandidates = conversationListParser.conversationCandidates(from: accessibilityObject)
+        let conversationCandidates = conversationListReader.candidates(from: accessibilityObject)
         let parsed = parse(snapshot: snapshot)
 
         let candidateLines = conversationCandidates.prefix(80).map { node in
