@@ -1,6 +1,6 @@
 import Foundation
 
-struct WaitNextEventTool: MCPToolHandler {
+struct WaitForEventTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "wait_for_event",
         description: "Waits until any unread WhatsApp messages are available and returns them grouped by chat.",

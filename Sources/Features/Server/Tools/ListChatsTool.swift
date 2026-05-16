@@ -13,9 +13,11 @@ struct ListChatsTool: MCPToolHandler {
     )
 
     static func handle(_ call: MCPToolCall, context: MCPServerContext) async -> Result<JSONValue, Error> {
-        let chats = context.memoryStore.conversations
-            .filter { !context.isBlocked($0.name) }
-            .map(context.conversationJSONValue)
+        let chats = await MainActor.run {
+            context.memoryStore.conversations
+                .filter { !context.isBlocked($0.name) }
+                .map(context.conversationJSONValue)
+        }
         return .success(.object(["chats": .array(chats)]))
     }
 }

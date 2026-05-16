@@ -13,10 +13,14 @@ struct ListUnreadChatsTool: MCPToolHandler {
     )
 
     static func handle(_ call: MCPToolCall, context: MCPServerContext) async -> Result<JSONValue, Error> {
-        let chats = context.memoryStore.conversations
-            .filter { !context.isBlocked($0.name) }
-            .filter { $0.unreadCount > 0 }
-            .map(context.conversationJSONValue)
+        let chats = await MainActor.run {
+            context.memoryStore.conversations
+                .filter { !context.isBlocked($0.name) }
+                .filter { conversation in
+                    conversation.unreadCount > 0 || !context.memoryStore.unreadMessages(chatId: conversation.id).isEmpty
+                }
+                .map(context.conversationJSONValue)
+        }
         return .success(.object(["chats": .array(chats)]))
     }
 }

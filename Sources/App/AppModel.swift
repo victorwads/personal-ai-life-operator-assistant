@@ -24,7 +24,7 @@ final class AppModel: ObservableObject {
     @Published var waitingForAccessibilityRelaunch = false
     @Published var messageDraft = ""
     @Published var isSendingMessage = false
-    @Published var pollingIntervalSeconds = 3
+    @Published var pollingIntervalSeconds = 5
     @Published var mcpServerHost = "localhost"
     @Published var mcpServerPort = 8080
     @Published var mcpServerPortText = "8080"

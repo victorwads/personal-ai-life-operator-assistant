@@ -79,7 +79,19 @@ extension MCPServerContext {
             "durationSeconds": message.durationSeconds.map(JSONValue.number) ?? .null,
             "timestamp": .from(date: message.timestamp),
             "status": .string(message.status.rawValue),
-            "rawAccessibilityText": .string(message.rawAccessibilityText)
+            "rawAccessibilityText": .string(message.rawAccessibilityText),
+            "whatsappTimestampText": message.whatsappTimestampText.map(JSONValue.string) ?? .null,
+            "ingestedAt": .from(date: message.ingestedAt),
+            "handledAt": .from(date: message.handledAt),
+            "isHandled": .bool(message.isHandled)
+        ])
+    }
+
+    func chatMessagesEventJSONValue(chat: ConversationSummary, messages: [Message]) -> JSONValue {
+        .object([
+            "type": .string("chat_messages"),
+            "chat": conversationJSONValue(chat),
+            "messages": .array(messages.map(messageJSONValue))
         ])
     }
 

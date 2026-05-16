@@ -51,7 +51,13 @@ struct WhatsAppCurrentConversationParser {
                 return nil
             }
 
-            let signature = "\(Int(node.frame?.minY ?? 0))|\(rawText)"
+            let signature = WhatsAppParserSupport.messageDeduplicationKey(
+                chatId: selectedChatName.map(WhatsAppParserSupport.stableId(for:)) ?? "selected-chat",
+                direction: parsedMessage.direction,
+                kind: parsedMessage.kind,
+                text: rawText,
+                timestampText: parsedMessage.timestampText
+            )
             guard !seen.contains(signature) else {
                 return nil
             }
@@ -69,7 +75,8 @@ struct WhatsAppCurrentConversationParser {
                 durationSeconds: nil,
                 timestamp: nil,
                 status: parsedMessage.status,
-                rawAccessibilityText: rawAccessibilityText
+                rawAccessibilityText: rawAccessibilityText,
+                whatsappTimestampText: parsedMessage.timestampText
             )
         }
 
@@ -92,10 +99,10 @@ struct WhatsAppCurrentConversationParser {
             || text.contains("message,")
     }
 
-    private func parseMessageDescription(_ description: String?) -> (text: String?, direction: MessageDirection, kind: MessageKind, status: MessageStatus) {
+    private func parseMessageDescription(_ description: String?) -> (text: String?, direction: MessageDirection, kind: MessageKind, status: MessageStatus, timestampText: String?) {
         let tokens = WhatsAppParserSupport.axTokens(description)
         guard let first = tokens.first else {
-            return (nil, .unknown, .unknown, .unknown)
+            return (nil, .unknown, .unknown, .unknown, nil)
         }
 
         let combined = tokens.joined(separator: " ").lowercased()
@@ -103,15 +110,16 @@ struct WhatsAppCurrentConversationParser {
         let kind = WhatsAppParserSupport.messageKind(in: combined)
         let status = WhatsAppParserSupport.messageStatus(in: combined)
         let metadataIndex = tokens.firstIndex(where: WhatsAppParserSupport.isMessageMetadata(_:)) ?? tokens.count
+        let timestampText = WhatsAppParserSupport.messageTimestampText(in: Array(tokens[metadataIndex..<tokens.count]))
 
         if first.lowercased().contains("voice message") {
-            return ("Voice message", direction, .voice, status)
+            return ("Voice message", direction, .voice, status, timestampText)
         }
 
         let messageStart = first.lowercased().contains("your message") || first.lowercased() == "message" ? 1 : 0
         let messageTokens = messageStart < metadataIndex ? Array(tokens[messageStart..<metadataIndex]) : []
         let messageText = messageTokens.joined(separator: ", ").trimmingCharacters(in: .whitespacesAndNewlines)
 
-        return (messageText.isEmpty ? first : messageText, direction, kind, status)
+        return (messageText.isEmpty ? first : messageText, direction, kind, status, timestampText)
     }
 }

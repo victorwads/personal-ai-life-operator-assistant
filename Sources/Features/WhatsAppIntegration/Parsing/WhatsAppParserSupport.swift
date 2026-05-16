@@ -82,6 +82,39 @@ enum WhatsAppParserSupport {
         return .unknown
     }
 
+    static func normalizedMessageTimestampText(_ text: String?) -> String? {
+        guard let text else { return nil }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    static func messageTimestampText(in tokens: [String]) -> String? {
+        tokens.first(where: looksLikeDateOrTime(_:))
+    }
+
+    static func messageDeduplicationKey(
+        chatId: String,
+        direction: MessageDirection,
+        kind: MessageKind,
+        text: String,
+        timestampText: String?
+    ) -> String {
+        let normalizedText = text
+            .normalizedAXText
+            .lowercased()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+        let normalizedTimestamp = normalizedMessageTimestampText(timestampText)?.lowercased() ?? ""
+
+        return [
+            chatId,
+            direction.rawValue,
+            kind.rawValue,
+            normalizedText,
+            normalizedTimestamp
+        ].joined(separator: "|")
+    }
+
     static func looksLikeDateOrTime(_ text: String) -> Bool {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let compact = trimmed.replacingOccurrences(of: " ", with: "")

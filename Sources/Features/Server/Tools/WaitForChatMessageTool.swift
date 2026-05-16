@@ -1,6 +1,6 @@
 import Foundation
 
-struct WaitForMessageTool: MCPToolHandler {
+struct WaitForChatMessageTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "wait_for_chat_message",
         description: "Waits until unread messages appear for a specific WhatsApp chat and returns them.",

@@ -25,9 +25,11 @@ final class WhatsAppMemoryStore: ObservableObject {
     private init() {}
 
     func replaceAllChatStates(_ chatStatesById: [String: ChatState]) {
-        self.chatStatesById = chatStatesById
+        self.chatStatesById = chatStatesById.mapValues { state in
+            normalizeChatState(state, persistedAt: Date())
+        }
 
-        if let selectedConversationId, let cached = chatStatesById[selectedConversationId] {
+        if let selectedConversationId, let cached = self.chatStatesById[selectedConversationId] {
             selectedChatState = cached
         }
     }
@@ -37,44 +39,52 @@ final class WhatsAppMemoryStore: ObservableObject {
     }
 
     func replaceConversations(_ conversations: [ConversationSummary]) {
-        self.conversations = conversations
-        let validIDs = Set(conversations.map(\.id))
-        chatStatesById = chatStatesById.filter { validIDs.contains($0.key) }
-
-        if let selectedConversationId {
-            let latestSelectedConversation = conversations.first { $0.id == selectedConversationId }
-            if let latestSelectedConversation {
-                if let cachedState = chatStatesById[selectedConversationId] {
-                    selectedChatState = ChatState(
-                        chat: latestSelectedConversation,
-                        messages: cachedState.messages,
-                        composeFocused: cachedState.composeFocused,
-                        canSendText: cachedState.canSendText
-                    )
-                } else {
-                    selectedChatState = ChatState(
-                        chat: latestSelectedConversation,
-                        messages: [],
-                        composeFocused: false,
-                        canSendText: false
-                    )
-                }
+        for conversation in conversations {
+            if let index = self.conversations.firstIndex(where: { $0.id == conversation.id }) {
+                self.conversations[index] = conversation
             } else {
-                selectedChatState = nil
+                self.conversations.append(conversation)
+            }
+
+            if let cachedState = chatStatesById[conversation.id] {
+                chatStatesById[conversation.id] = cachedState.replacing(chat: conversation)
+                if selectedConversationId == conversation.id {
+                    selectedChatState = chatStatesById[conversation.id]
+                }
             }
         }
 
-        emit(.conversationsUpdated(conversations))
+        if let selectedConversationId,
+           let latestSelectedConversation = self.conversations.first(where: { $0.id == selectedConversationId }) {
+            selectedChatState = chatStatesById[selectedConversationId]?.replacing(chat: latestSelectedConversation)
+                ?? ChatState(
+                    chat: latestSelectedConversation,
+                    messages: [],
+                    composeFocused: false,
+                    canSendText: false
+                )
+        }
+
+        emit(.conversationsUpdated(self.conversations))
     }
 
     func upsertChatState(_ chatState: ChatState) {
-        chatStatesById[chatState.chat.id] = chatState
+        let persistedAt = Date()
+        let normalizedState = normalizeChatState(chatState, persistedAt: persistedAt)
+        let existingState = chatStatesById[chatState.chat.id]
+        let mergedMessages = mergeMessages(existing: existingState?.messages ?? [], incoming: normalizedState.messages, persistedAt: persistedAt)
+        let mergedState = normalizedState.replacing(
+            messages: mergedMessages,
+            composeFocused: normalizedState.composeFocused,
+            canSendText: normalizedState.canSendText
+        )
+        chatStatesById[chatState.chat.id] = mergedState
 
         if selectedConversationId == chatState.chat.id {
-            selectedChatState = chatState
+            selectedChatState = mergedState
         }
 
-        emit(.chatStateUpdated(chatState))
+        emit(.chatStateUpdated(mergedState))
     }
 
     func selectConversation(id: String) {
@@ -144,6 +154,39 @@ final class WhatsAppMemoryStore: ObservableObject {
 
     func conversation(for id: String) -> ConversationSummary? {
         conversations.first(where: { $0.id == id })
+    }
+
+    func unreadMessages(chatId: String? = nil) -> [Message] {
+        messages(
+            chatId: chatId,
+            onlyUnhandled: true
+        )
+    }
+
+    func recentMessages(chatId: String, limit: Int) -> [Message] {
+        guard let state = chatStatesById[chatId] else {
+            return []
+        }
+        return Array(state.messages.suffix(max(1, limit)))
+    }
+
+    @discardableResult
+    func consumeUnreadMessages(chatId: String? = nil) -> [Message] {
+        let now = Date()
+        let messageIds = messages(chatId: chatId, onlyUnhandled: true).map(\.id)
+        guard !messageIds.isEmpty else {
+            return []
+        }
+
+        updateMessages(messageIds: Set(messageIds), handledAt: now, chatId: chatId)
+        return messages(chatId: chatId, onlyUnhandled: false)
+            .filter { messageIds.contains($0.id) }
+            .sorted(by: messageSortComparator)
+    }
+
+    func markMessagesHandled(messageIds: Set<String>, chatId: String? = nil) {
+        guard !messageIds.isEmpty else { return }
+        updateMessages(messageIds: messageIds, handledAt: Date(), chatId: chatId)
     }
 
     /// Wait indefinitely (no timeout) until a new message arrives.
@@ -217,6 +260,134 @@ final class WhatsAppMemoryStore: ObservableObject {
         for listener in listeners.values {
             listener(event)
         }
+    }
+
+    private func normalizeChatState(_ state: ChatState, persistedAt: Date) -> ChatState {
+        let messages = state.messages.map { message in
+            let ingestedAt = message.ingestedAt ?? persistedAt
+            let handledAt = message.handledAt ?? (message.direction == .outgoing ? persistedAt : nil)
+            return message.replacing(ingestedAt: ingestedAt, handledAt: handledAt)
+        }
+        return state.replacing(messages: messages)
+    }
+
+    private func mergeMessages(existing: [Message], incoming: [Message], persistedAt: Date) -> [Message] {
+        var merged = existing
+        var indexByKey: [String: Int] = [:]
+        for (index, message) in merged.enumerated() {
+            indexByKey[message.semanticDeduplicationKey] = index
+        }
+
+        for message in incoming {
+            let key = message.semanticDeduplicationKey
+            if let index = indexByKey[key] {
+                let current = merged[index]
+                merged[index] = mergeMessage(existing: current, incoming: message, persistedAt: persistedAt)
+            } else {
+                let stored = message.replacing(
+                    ingestedAt: message.ingestedAt ?? persistedAt,
+                    handledAt: message.handledAt ?? (message.direction == .outgoing ? persistedAt : nil)
+                )
+                indexByKey[key] = merged.count
+                merged.append(stored)
+            }
+        }
+
+        return merged.sorted(by: messageSortComparator)
+    }
+
+    private func mergeMessage(existing: Message, incoming: Message, persistedAt: Date) -> Message {
+        let status: MessageStatus = {
+            switch (existing.status, incoming.status) {
+            case (.unknown, let newStatus):
+                return newStatus
+            case (let current, .unknown):
+                return current
+            default:
+                return incoming.status
+            }
+        }()
+
+        return existing.replacing(
+            text: incoming.text ?? existing.text,
+            durationSeconds: incoming.durationSeconds ?? existing.durationSeconds,
+            timestamp: incoming.timestamp ?? existing.timestamp,
+            status: status,
+            rawAccessibilityText: incoming.rawAccessibilityText.isEmpty ? existing.rawAccessibilityText : incoming.rawAccessibilityText,
+            whatsappTimestampText: incoming.whatsappTimestampText ?? existing.whatsappTimestampText,
+            ingestedAt: existing.ingestedAt ?? incoming.ingestedAt ?? persistedAt,
+            handledAt: existing.handledAt ?? incoming.handledAt ?? (incoming.direction == .outgoing ? persistedAt : nil)
+        )
+    }
+
+    private func messages(chatId: String?, onlyUnhandled: Bool) -> [Message] {
+        let allMessages: [Message]
+        if let chatId, let state = chatStatesById[chatId] {
+            allMessages = state.messages
+        } else {
+            allMessages = chatStatesById.values.flatMap(\.messages)
+        }
+
+        return allMessages
+            .filter { onlyUnhandled ? !$0.isHandled : true }
+            .sorted(by: messageSortComparator)
+    }
+
+    private func updateMessages(messageIds: Set<String>, handledAt: Date, chatId: String?) {
+        let targetChatIds: [String]
+        if let chatId {
+            targetChatIds = [chatId]
+        } else {
+            targetChatIds = Array(chatStatesById.keys)
+        }
+
+        for chatId in targetChatIds {
+            guard let state = chatStatesById[chatId] else {
+                continue
+            }
+
+            let updatedMessages = state.messages.map { message in
+                guard messageIds.contains(message.id) else { return message }
+                return message.replacing(handledAt: handledAt)
+            }
+
+            guard updatedMessages != state.messages else {
+                continue
+            }
+
+            let updatedState = state.replacing(messages: updatedMessages)
+            chatStatesById[chatId] = updatedState
+            if selectedConversationId == chatId {
+                selectedChatState = updatedState
+            }
+            emit(.chatStateUpdated(updatedState))
+        }
+    }
+
+    private func messageSortComparator(_ lhs: Message, _ rhs: Message) -> Bool {
+        switch (lhs.ingestedAt, rhs.ingestedAt) {
+        case let (left?, right?):
+            if left != right { return left < right }
+        case (.some, .none):
+            return true
+        case (.none, .some):
+            return false
+        case (.none, .none):
+            break
+        }
+
+        switch (lhs.timestamp, rhs.timestamp) {
+        case let (left?, right?):
+            if left != right { return left < right }
+        case (.some, .none):
+            return true
+        case (.none, .some):
+            return false
+        case (.none, .none):
+            break
+        }
+
+        return lhs.id < rhs.id
     }
 
     private func latestMessageResult(chatId: String?, afterMessageId: String?) -> WaitForMessageResult? {
