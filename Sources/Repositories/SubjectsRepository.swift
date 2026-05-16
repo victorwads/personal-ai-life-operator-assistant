@@ -18,7 +18,7 @@ actor SubjectsRepository {
     static let shared = SubjectsRepository()
 
     private let defaults: UserDefaults
-    private let storageKey = "subjects.v1"
+    private let storageKey = "subjects.v2"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -45,10 +45,13 @@ actor SubjectsRepository {
 
     func create(
         title: String?,
+        summary: String?,
+        initialRequest: String?,
         details: String?,
         priority: Int?,
         participants: [String]?,
         nextSteps: [String]?,
+        eventLog: [EventEntry]?,
         whatsappChatId: String?,
         gmailThreadId: String?,
         calendarEventId: String?
@@ -58,16 +61,29 @@ actor SubjectsRepository {
             throw SubjectsRepositoryError.missingParameter("title")
         }
 
+        let trimmedSummary = (summary ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedSummary.isEmpty {
+            throw SubjectsRepositoryError.missingParameter("summary")
+        }
+
+        let trimmedInitialRequest = (initialRequest ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedInitialRequest.isEmpty {
+            throw SubjectsRepositoryError.missingParameter("initialRequest")
+        }
+
         var all = loadAll()
         let now = Date()
         let entry = SubjectEntry(
             id: UUID(),
             title: trimmedTitle,
+            summary: trimmedSummary,
+            initialRequest: trimmedInitialRequest,
             details: details?.trimmingCharacters(in: .whitespacesAndNewlines),
             status: .active,
             priority: max(0, priority ?? 0),
             participants: (participants ?? []).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty },
             nextSteps: (nextSteps ?? []).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty },
+            eventLog: (eventLog ?? []).sorted { $0.timestamp < $1.timestamp },
             whatsappChatId: whatsappChatId?.trimmingCharacters(in: .whitespacesAndNewlines),
             whatsappAfterMessageId: nil,
             gmailThreadId: gmailThreadId?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -83,11 +99,14 @@ actor SubjectsRepository {
     func update(
         id: UUID?,
         title: String?,
+        summary: String?,
+        initialRequest: String?,
         details: String?,
         status: SubjectStatus?,
         priority: Int?,
         participants: [String]?,
         nextSteps: [String]?,
+        eventLog: [EventEntry]?,
         whatsappChatId: String?,
         whatsappAfterMessageId: String?,
         gmailThreadId: String?,
@@ -109,6 +128,18 @@ actor SubjectsRepository {
                 subject.title = trimmedTitle
             }
         }
+        if let summary {
+            let trimmedSummary = summary.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmedSummary.isEmpty {
+                subject.summary = trimmedSummary
+            }
+        }
+        if let initialRequest {
+            let trimmed = initialRequest.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                subject.initialRequest = trimmed
+            }
+        }
         if let details {
             let trimmed = details.trimmingCharacters(in: .whitespacesAndNewlines)
             subject.details = trimmed.isEmpty ? nil : trimmed
@@ -124,6 +155,9 @@ actor SubjectsRepository {
         }
         if let nextSteps {
             subject.nextSteps = nextSteps.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        }
+        if let eventLog {
+            subject.eventLog = eventLog.sorted { $0.timestamp < $1.timestamp }
         }
         if let whatsappChatId {
             let trimmed = whatsappChatId.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -152,11 +186,14 @@ actor SubjectsRepository {
         try update(
             id: id,
             title: nil,
+            summary: nil,
+            initialRequest: nil,
             details: nil,
             status: .finished,
             priority: nil,
             participants: nil,
             nextSteps: nil,
+            eventLog: nil,
             whatsappChatId: nil,
             whatsappAfterMessageId: nil,
             gmailThreadId: nil,
@@ -180,10 +217,81 @@ actor SubjectsRepository {
     }
 
     private func loadAll() -> [SubjectEntry] {
-        guard let data = defaults.data(forKey: storageKey) else {
-            return []
+        if let data = defaults.data(forKey: storageKey),
+           let entries = try? JSONDecoder().decode([SubjectEntry].self, from: data) {
+            return entries.map { migrate($0) }
         }
-        return (try? JSONDecoder().decode([SubjectEntry].self, from: data)) ?? []
+
+        if let migrated = loadAllFromV1Fallback() {
+            // Persist as v2 so we only migrate once.
+            persistAll(migrated)
+            return migrated
+        }
+
+        return []
+    }
+
+    private struct SubjectEntryV1: Codable {
+        let id: UUID
+        var title: String
+        var summary: String
+        var details: String?
+        var status: SubjectStatus
+        var priority: Int
+        var participants: [String]
+        var nextSteps: [String]
+        var eventLog: [EventEntry]
+
+        var whatsappChatId: String?
+        var whatsappAfterMessageId: String?
+        var gmailThreadId: String?
+        var calendarEventId: String?
+
+        let createdAt: Date
+        var updatedAt: Date
+    }
+
+    private func loadAllFromV1Fallback() -> [SubjectEntry]? {
+        let v1Key = "subjects.v1"
+        guard let data = defaults.data(forKey: v1Key) else { return nil }
+        guard let entries = try? JSONDecoder().decode([SubjectEntryV1].self, from: data) else { return nil }
+
+        let migrated: [SubjectEntry] = entries.map { old in
+            SubjectEntry(
+                id: old.id,
+                title: old.title,
+                summary: old.summary,
+                initialRequest: old.summary,
+                details: old.details,
+                status: old.status,
+                priority: old.priority,
+                participants: old.participants,
+                nextSteps: old.nextSteps,
+                eventLog: old.eventLog,
+                whatsappChatId: old.whatsappChatId,
+                whatsappAfterMessageId: old.whatsappAfterMessageId,
+                gmailThreadId: old.gmailThreadId,
+                calendarEventId: old.calendarEventId,
+                createdAt: old.createdAt,
+                updatedAt: old.updatedAt
+            )
+        }
+
+        return migrated.map { migrate($0) }
+    }
+
+    private func migrate(_ entry: SubjectEntry) -> SubjectEntry {
+        var mutable = entry
+        if mutable.summary.isEmpty {
+            mutable.summary = "(Resumo não disponível - sujeito antigo)"
+        }
+        if mutable.initialRequest.isEmpty {
+            mutable.initialRequest = "(Solicitacao inicial nao disponivel - sujeito antigo)"
+        }
+        if mutable.eventLog.isEmpty {
+            mutable.eventLog = []
+        }
+        return mutable
     }
 
     private func persistAll(_ subjects: [SubjectEntry]) {
@@ -193,4 +301,3 @@ actor SubjectsRepository {
         defaults.set(data, forKey: storageKey)
     }
 }
-

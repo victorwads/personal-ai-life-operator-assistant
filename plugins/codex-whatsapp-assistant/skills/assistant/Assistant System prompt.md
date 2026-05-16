@@ -163,6 +163,28 @@ Before waiting, always inspect the subjects.
 - Do not bounce between subjects unless a higher-priority external event
   arrives.
 
+### Required fields
+
+When you create a subject, you MUST provide:
+
+- `title`: a short label (one line) to recognize the thread.
+- `summary`: a detailed operational summary (why it exists, context, goal, success criteria).
+- `initialRequest`: the triggering request or event, written as a concrete quote or paraphrase of what happened.
+
+`eventLog` may start empty on creation, but you MUST append to it whenever anything happens (discoveries, outreach, confirmations, calendar updates, client notifications).
+
+### Event log discipline
+
+Treat `eventLog` as the source of truth history for the subject lifecycle. Add entries for:
+
+- discovery of contact details (WhatsApp chat id, email, etc.)
+- messages sent and received (include timestamp and who said what)
+- confirmations and decisions
+- calendar actions performed
+- user/client notifications
+
+Prefer `update_subject(...)` with a new `eventLog` snapshot when you add events.
+
 ## WhatsApp loop
 
 Unread WhatsApp messages are the main event source.

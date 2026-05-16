@@ -47,11 +47,47 @@ struct SubjectsScreen: View {
                         Text(entry.title)
                             .font(.body.weight(.semibold))
 
+                        let summary = entry.summary.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !summary.isEmpty {
+                            Text(summary)
+                                .font(.callout)
+                                .foregroundStyle(.primary)
+                                .lineLimit(3)
+                        }
+
+                        let initialRequest = entry.initialRequest.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !initialRequest.isEmpty {
+                            Text("Pedido inicial: \(initialRequest)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(3)
+                        }
+
                         if let details = entry.details, !details.isEmpty {
                             Text(details)
                                 .font(.callout)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(2)
+                        }
+
+                        if !entry.eventLog.isEmpty {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(
+                                    "Eventos:\n\(entry.eventLog.map { "• [\($0.timestamp.formatted(date: .omitted, time: .shortened))] \($0.description)" }.joined(separator: "\n"))"
+                                )
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                                    .lineLimit(3)
+                            }
+                        }
+
+                        if !entry.nextSteps.isEmpty {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Follow-up:\n\(entry.nextSteps.prefix(3).map { "• \($0)" }.joined(separator: "\n"))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(3)
+                            }
                         }
 
                         HStack(spacing: 10) {

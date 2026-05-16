@@ -343,35 +343,41 @@ extension AppModel {
             ),
             MCPToolDefinition(
                 name: "create_subject",
-                description: "Creates a new operational subject to track until resolution.",
+                description: "Creates a new operational subject to track until resolution.\n\nRequired fields:\n- title: short label\n- summary: detailed operational summary (context + goal + success criteria)\n- initialRequest: triggering request/event (quote or concrete paraphrase)\n\nUse nextSteps for follow-up actions. Use eventLog to record events that happen during the subject's lifecycle (discoveries, outreach, confirmations, calendar updates, client notifications).",
                 inputSchema: [
                     "type": .string("object"),
                     "properties": .object([
                         "title": .object(["type": .string("string")]),
+                        "summary": .object(["type": .string("string")]),
+                        "initialRequest": .object(["type": .string("string")]),
                         "details": .object(["type": .string("string")]),
                         "priority": .object(["type": .string("number")]),
                         "participants": .object(["type": .string("array"), "items": .object(["type": .string("string")])]),
                         "nextSteps": .object(["type": .string("array"), "items": .object(["type": .string("string")])]),
+                        "eventLog": .object(["type": .string("array"), "items": .object(["type": .string("object")])]),
                         "whatsappChatId": .object(["type": .string("string")]),
                         "gmailThreadId": .object(["type": .string("string")]),
                         "calendarEventId": .object(["type": .string("string")])
                     ]),
-                    "required": .array([.string("title")])
+                    "required": .array([.string("title"), .string("summary"), .string("initialRequest")])
                 ]
             ),
             MCPToolDefinition(
                 name: "update_subject",
-                description: "Updates an operational subject by id.",
+                description: "Updates an operational subject by id. Use to append eventLog entries and to update summary/initialRequest/nextSteps as the work progresses.",
                 inputSchema: [
                     "type": .string("object"),
                     "properties": .object([
                         "id": .object(["type": .string("string")]),
                         "title": .object(["type": .string("string")]),
+                        "summary": .object(["type": .string("string")]),
+                        "initialRequest": .object(["type": .string("string")]),
                         "details": .object(["type": .string("string")]),
                         "status": .object(["type": .string("string")]),
                         "priority": .object(["type": .string("number")]),
                         "participants": .object(["type": .string("array"), "items": .object(["type": .string("string")])]),
                         "nextSteps": .object(["type": .string("array"), "items": .object(["type": .string("string")])]),
+                        "eventLog": .object(["type": .string("array"), "items": .object(["type": .string("object")])]),
                         "whatsappChatId": .object(["type": .string("string")]),
                         "whatsappAfterMessageId": .object(["type": .string("string")]),
                         "gmailThreadId": .object(["type": .string("string")]),
@@ -691,13 +697,40 @@ extension AppModel {
                 return .failure(error)
             }
         case "create_subject":
+            let rawSummary = call.arguments["summary"]?.stringValue
+            guard let rawSummary, !rawSummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                return .failure(SubjectsRepositoryError.missingParameter("summary"))
+            }
+            let rawInitialRequest = call.arguments["initialRequest"]?.stringValue
+            guard let rawInitialRequest, !rawInitialRequest.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                return .failure(SubjectsRepositoryError.missingParameter("initialRequest"))
+            }
             do {
                 let entry = try await subjectsRepository.create(
                     title: call.arguments["title"]?.stringValue,
+                    summary: rawSummary,
+                    initialRequest: rawInitialRequest,
                     details: call.arguments["details"]?.stringValue,
                     priority: call.arguments["priority"]?.intValue,
                     participants: call.arguments["participants"]?.arrayValue?.compactMap(\.stringValue),
                     nextSteps: call.arguments["nextSteps"]?.arrayValue?.compactMap(\.stringValue),
+                    eventLog: call.arguments["eventLog"]?.arrayValue?.compactMap { (eventLogEntry) -> EventEntry? in
+                        guard let eventObj = eventLogEntry.objectValue else { return nil }
+                        let desc = eventObj["description"]?.stringValue ?? ""
+                        let source = eventObj["source"]?.stringValue
+                        let author = eventObj["author"]?.stringValue
+                        let timestampStr = eventObj["timestamp"]?.stringValue
+                        let timestamp: Date = {
+                            if let iso = ISO8601DateFormatter().date(from: timestampStr ?? "") {
+                                return iso
+                            }
+                            if let sec = eventObj["timestamp"]?.numberValue {
+                                return Date(timeIntervalSince1970: sec)
+                            }
+                            return Date()
+                        }()
+                        return EventEntry(timestamp: timestamp, description: desc, source: source, author: author)
+                    },
                     whatsappChatId: call.arguments["whatsappChatId"]?.stringValue,
                     gmailThreadId: call.arguments["gmailThreadId"]?.stringValue,
                     calendarEventId: call.arguments["calendarEventId"]?.stringValue
@@ -719,11 +752,30 @@ extension AppModel {
                 let entry = try await subjectsRepository.update(
                     id: id,
                     title: call.arguments["title"]?.stringValue,
+                    summary: call.arguments["summary"]?.stringValue,
+                    initialRequest: call.arguments["initialRequest"]?.stringValue,
                     details: call.arguments["details"]?.stringValue,
                     status: status,
                     priority: call.arguments["priority"]?.intValue,
                     participants: call.arguments["participants"]?.arrayValue?.compactMap(\.stringValue),
                     nextSteps: call.arguments["nextSteps"]?.arrayValue?.compactMap(\.stringValue),
+                    eventLog: call.arguments["eventLog"]?.arrayValue?.compactMap { (eventLogEntry) -> EventEntry? in
+                        guard let eventObj = eventLogEntry.objectValue else { return nil }
+                        let desc = eventObj["description"]?.stringValue ?? ""
+                        let source = eventObj["source"]?.stringValue
+                        let author = eventObj["author"]?.stringValue
+                        let timestampStr = eventObj["timestamp"]?.stringValue
+                        let timestamp: Date = {
+                            if let iso = ISO8601DateFormatter().date(from: timestampStr ?? "") {
+                                return iso
+                            }
+                            if let sec = eventObj["timestamp"]?.numberValue {
+                                return Date(timeIntervalSince1970: sec)
+                            }
+                            return Date()
+                        }()
+                        return EventEntry(timestamp: timestamp, description: desc, source: source, author: author)
+                    },
                     whatsappChatId: call.arguments["whatsappChatId"]?.stringValue,
                     whatsappAfterMessageId: call.arguments["whatsappAfterMessageId"]?.stringValue,
                     gmailThreadId: call.arguments["gmailThreadId"]?.stringValue,
@@ -802,11 +854,22 @@ extension AppModel {
         .object([
             "id": .string(entry.id.uuidString),
             "title": .string(entry.title),
+            "summary": .string(entry.summary),
+            "initialRequest": .string(entry.initialRequest),
             "details": entry.details.map(JSONValue.string) ?? .null,
             "status": .string(entry.status.rawValue),
             "priority": .number(Double(entry.priority)),
             "participants": .array(entry.participants.map(JSONValue.string)),
             "nextSteps": .array(entry.nextSteps.map(JSONValue.string)),
+            "eventLog": .array(entry.eventLog.map { event in
+                .object([
+                    "id": .string(event.id.uuidString),
+                    "timestamp": .from(date: event.timestamp),
+                    "description": .string(event.description),
+                    "source": event.source.map(JSONValue.string) ?? .null,
+                    "author": event.author.map(JSONValue.string) ?? .null
+                ])
+            }),
             "whatsappChatId": entry.whatsappChatId.map(JSONValue.string) ?? .null,
             "whatsappAfterMessageId": entry.whatsappAfterMessageId.map(JSONValue.string) ?? .null,
             "gmailThreadId": entry.gmailThreadId.map(JSONValue.string) ?? .null,
