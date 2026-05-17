@@ -38,11 +38,11 @@ private struct WebParser: WhatsAppConversationParser {
                 id: "web:\(accountId.uuidString):\(item.title)",
                 accessibilityPath: [],
                 name: item.title,
-                unreadCount: 0,
+                unreadCount: item.unreadCount ?? 0,
                 isPinned: false,
                 isSelected: false,
-                lastMessagePreview: nil,
-                lastMessageAtText: nil,
+                lastMessagePreview: item.preview,
+                lastMessageAtText: item.timeText,
                 lastMessageDirection: .unknown,
                 lastMessageStatus: .unknown,
                 isTyping: false
@@ -107,6 +107,6 @@ private struct WebInteractor: WhatsAppConversationInteractor {
             }
         }
 
-        throw WhatsAppWebBridgeError.elementNotFound
+        throw WhatsAppWebBridgeError.elementNotFound("WebInteractor.openConversation(title='\(conversation.name)') could not confirm chat selection after retries.")
     }
 }

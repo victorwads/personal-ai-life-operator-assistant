@@ -3,7 +3,8 @@ import Foundation
 enum WhatsAppWebDebugArtifacts {
     static func captureYAML(
         accountName: String,
-        snapshot: WhatsAppWebPageSnapshot
+        snapshot: WhatsAppWebPageSnapshot,
+        dom: WhatsAppWebDebugDOMSnapshot?
     ) -> String {
         var lines: [String] = []
         lines.append("whatsapp_web_capture:")
@@ -21,6 +22,14 @@ enum WhatsAppWebDebugArtifacts {
         lines.append("  selected_chat_title: \(yamlScalar(snapshot.selectedChatTitle))")
         lines.append("  compose_placeholder: \(yamlScalar(snapshot.composePlaceholder))")
         lines.append("  body_text_sample: \(yamlScalar(snapshot.bodyTextSample))")
+
+        if let dom {
+            lines.append("  dom:")
+            lines.append("    chat_list_html: \(yamlScalar(dom.chatListHTML))")
+            lines.append("    conversation_panel_wrapper_html: \(yamlScalar(dom.conversationPanelWrapperHTML))")
+            lines.append("    conversation_header_title_html: \(yamlScalar(dom.conversationHeaderTitleHTML))")
+            lines.append("    conversation_panel_body_html: \(yamlScalar(dom.conversationPanelBodyHTML))")
+        }
         return lines.joined(separator: "\n")
     }
 

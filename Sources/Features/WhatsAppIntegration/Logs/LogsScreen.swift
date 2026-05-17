@@ -1,7 +1,9 @@
+import AppKit
 import SwiftUI
 
 struct LogsScreen: View {
     @EnvironmentObject private var appModel: AppModel
+    @State private var didCopyLogs = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -36,6 +38,23 @@ struct LogsScreen: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 8) {
+                Button {
+                    copyLogsToClipboard()
+                    didCopyLogs = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                        didCopyLogs = false
+                    }
+                } label: {
+                    Label(didCopyLogs ? "Copied" : "Copy logs", systemImage: didCopyLogs ? "checkmark" : "doc.on.doc")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help("Copies all WhatsApp Integration logs to the clipboard.")
+
+                Spacer(minLength: 0)
+            }
+
+            HStack(spacing: 8) {
                 runtimeStatusPill(text: appModel.lastRefreshDescription, systemImage: "clock")
                 runtimeStatusPill(text: appModel.isPolling ? "Polling active" : "Polling idle", systemImage: "dot.radiowaves.left.and.right")
                 runtimeStatusPill(text: appModel.mcpServerStatusDescription, systemImage: "server.rack")
@@ -58,6 +77,18 @@ struct LogsScreen: View {
         .padding(.horizontal, 12)
         .padding(.top, 12)
         .padding(.bottom, 10)
+    }
+
+    private func copyLogsToClipboard() {
+        let lines = appModel.logs.map { entry in
+            let ts = entry.timestamp.formatted(date: .omitted, time: .standard)
+            return "[\(ts)] [\(entry.level.rawValue.uppercased())] \(entry.message)"
+        }
+        let joined = lines.joined(separator: "\n")
+
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(joined, forType: .string)
     }
 
     private func runtimeChip(title: String, isOn: Bool) -> some View {

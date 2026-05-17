@@ -260,6 +260,15 @@ The next major expansion areas are:
 
 The current subject model already anticipates that direction, so the project can grow without redesigning the entire data model.
 
+### Multi-profile / Multi-instance (ToDo)
+
+Planned direction: allow multiple independent app “profiles” (similar to Chrome profiles), each with its own MCP server port and its own WhatsApp Web / WhatsApp Desktop account context.
+
+- Add profile-aware persistence namespacing (default profile keeps current keys with **no** prefix for backwards compatibility).
+- Support opening multiple app windows, one per profile, without shared global state bleeding across profiles.
+- Add “Delete profile” that removes **all** data for that profile (UserDefaults keys, Application Support files, Keychain entries, etc).
+- Add profile export/import (memories, subjects, nicknames, settings, sensitive data metadata) to allow backup/migration before deletion.
+
 ## Notes For Contributors
 
 - Keep the app native and local-first.

@@ -13,14 +13,17 @@ struct MessageRow: View {
                 Text(authorLabel)
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(message.direction == .incoming ? .secondary : .primary)
+                    .help(authorHelp)
 
                 Text(message.kind.rawValue)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .help("Message kind (text/voice/image/etc). For WhatsApp Web we currently map most items as text.")
 
                 Text(message.status.rawValue)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .help("Delivery status (sent/delivered/read). WhatsApp Web parsing still treats most as unknown.")
 
                 statusChip
 
@@ -90,6 +93,7 @@ struct MessageRow: View {
         Text(message.isHandled ? "handled" : "pending")
             .font(.caption2.weight(.semibold))
             .foregroundStyle(message.isHandled ? Color.secondary : Color.orange)
+            .help("pending = the assistant has not marked this incoming message as read/handled yet. handled = already consumed by a wait/tool or manually marked.")
     }
 
     private var shouldShowMarkUnhandledMenu: Bool {
@@ -103,11 +107,25 @@ struct MessageRow: View {
     private var authorLabel: String {
         switch message.direction {
         case .incoming:
-            return message.authorName ?? "Incoming"
+            return message.authorName ?? "Incoming (author unknown)"
         case .outgoing:
             return "You"
         case .unknown:
-            return "Unknown"
+            return "Unknown (direction)"
+        }
+    }
+
+    private var authorHelp: String {
+        switch message.direction {
+        case .incoming:
+            if let author = message.authorName, !author.isEmpty {
+                return "Parsed author name: \(author)"
+            }
+            return "Incoming message, but author name was not found (common in 1:1 chats or when DOM selectors miss group headers)."
+        case .outgoing:
+            return "Outgoing message from this device/account."
+        case .unknown:
+            return "Direction could not be inferred from the DOM snapshot."
         }
     }
 
@@ -132,6 +150,7 @@ struct MessageRow: View {
         Text(label)
             .font(.caption2.weight(.semibold))
             .foregroundStyle(message.origin == .assistant ? Color.blue : Color.secondary)
+            .help("Origin only applies to outgoing messages. assistant = sent by MCP tool; human = typed by you; unknown = not inferred.")
     }
 
     private var backgroundColor: Color {
