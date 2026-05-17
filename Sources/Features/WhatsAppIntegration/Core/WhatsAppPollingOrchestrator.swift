@@ -16,8 +16,16 @@ final class WhatsAppPollingOrchestrator {
 
     func refresh(provider: WhatsAppIntegrationProvider, messageLimit: Int) async {
         do {
+            let conversationsBefore = memoryStore.conversations.count
             let conversations = try await provider.parser.listConversations()
             memoryStore.replaceConversations(conversations)
+            let conversationsAfter = memoryStore.conversations.count
+            let dedupedIncomingCount = Set(conversations.map(\.name)).count
+            let conversationDelta = max(0, conversationsAfter - conversationsBefore)
+            appendLog(
+                "Polling(\(provider.kind.rawValue)) conversations: incoming=\(conversations.count) (dedupByName=\(dedupedIncomingCount)) storeBefore=\(conversationsBefore) storeAfter=\(conversationsAfter) added=\(conversationDelta).",
+                .info
+            )
             await refreshChangedChats(
                 provider: provider,
                 conversations: conversations,
@@ -79,8 +87,15 @@ final class WhatsAppPollingOrchestrator {
                     composeFocused: read.composeFocused,
                     canSendText: read.canSendText
                 )
+
+                let beforeCount = memoryStore.chatState(for: conversation.id)?.messages.count ?? 0
                 memoryStore.upsertChatState(chatState)
-                appendLog("Loaded \(read.messages.count) messages for \(conversation.name).", .info)
+                let afterCount = memoryStore.chatState(for: conversation.id)?.messages.count ?? 0
+                let added = max(0, afterCount - beforeCount)
+                appendLog(
+                    "Loaded \(read.messages.count) messages for \(conversation.name) (\(provider.kind.rawValue)) ingestedAdded=\(added) storeTotal=\(afterCount) storeBefore=\(beforeCount) flow=\(match.flowLabel(read.flow)).",
+                    .info
+                )
             } catch {
                 appendLog("Failed to load messages for \(conversation.name): \(error.localizedDescription)", .warning)
             }

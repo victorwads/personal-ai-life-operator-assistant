@@ -319,7 +319,9 @@ final class WhatsAppMemoryStore: ObservableObject {
 
     /// Wait indefinitely (no timeout) until a new message arrives.
     func waitForNextMessage(chatId: String?, afterMessageId: String?) async -> WaitForMessageResult? {
-        if let immediateMatch = latestMessageResult(chatId: chatId, afterMessageId: afterMessageId) {
+        let canonicalRequestedChatId = chatId.map { canonicalChatId(for: $0) }
+
+        if let immediateMatch = latestMessageResult(chatId: canonicalRequestedChatId, afterMessageId: afterMessageId) {
             return immediateMatch
         }
 
@@ -348,7 +350,7 @@ final class WhatsAppMemoryStore: ObservableObject {
                     return
                 }
 
-                guard chatId == nil || chatState.chat.id == chatId else {
+                guard canonicalRequestedChatId == nil || chatState.chat.id == canonicalRequestedChatId else {
                     return
                 }
 

@@ -135,11 +135,16 @@ extension AppModel {
             return
         }
         do {
+            let beforeCount = memoryStore.chatState(for: conversation.id)?.messages.count ?? 0
             let snapshot = try await openConversationAndCapture(conversation)
             let screenState = parser.parse(snapshot: snapshot, messageLimit: 10)
             let chatState = makeChatState(from: screenState, preferredConversation: conversation)
             memoryStore.upsertChatState(chatState)
-            appendLog("Loaded \(screenState.messages.count) messages for \(conversation.name) (\(reason)).")
+            let afterCount = memoryStore.chatState(for: conversation.id)?.messages.count ?? 0
+            let added = max(0, afterCount - beforeCount)
+            appendLog(
+                "Loaded \(screenState.messages.count) messages for \(conversation.name) (desktopAX) ingestedAdded=\(added) storeTotal=\(afterCount) storeBefore=\(beforeCount) reason=\(reason)."
+            )
         } catch {
             appendLog("Failed to load messages for \(conversation.name): \(error.localizedDescription)", level: .error)
         }
