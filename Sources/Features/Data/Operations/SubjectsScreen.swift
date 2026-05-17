@@ -30,44 +30,22 @@ struct SubjectsScreen: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 12) {
-                    Picker("Filter", selection: $filter) {
-                        ForEach(Filter.allCases) { filter in
-                            Text(filter.rawValue).tag(filter)
-                        }
+            subjectsListPane
+
+            if selectedSubjectId != nil {
+                Divider()
+
+                SubjectDetailView(
+                    subject: detailSubject,
+                    relatedSensitiveAudits: relatedSensitiveAudits,
+                    isLoading: detailLoading,
+                    errorText: detailErrorText,
+                    onClose: {
+                        selectedSubjectId = nil
                     }
-                    .pickerStyle(.segmented)
-                    .frame(maxWidth: 360)
-
-                    Spacer()
-                }
-
-                if let errorText {
-                    Text(errorText)
-                        .foregroundStyle(.red)
-                        .font(.callout)
-                }
-
-                List(filteredEntries, selection: $selectedSubjectId) { entry in
-                    subjectRow(entry)
-                        .contentShape(Rectangle())
-                        .onTapGesture(count: 2) {
-                            selectedSubjectId = entry.id
-                        }
-                }
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .frame(minWidth: 420, maxWidth: 520)
-
-            Divider()
-
-            SubjectDetailView(
-                subject: detailSubject,
-                relatedSensitiveAudits: relatedSensitiveAudits,
-                isLoading: detailLoading,
-                errorText: detailErrorText
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .padding(12)
         .sheet(item: $pendingCancelEntry) { entry in
@@ -121,6 +99,34 @@ struct SubjectsScreen: View {
             guard !PreviewSupport.isRunningForPreviews else { return }
             await refreshDetail()
         }
+    }
+
+    private var subjectsListPane: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                Picker("Filter", selection: $filter) {
+                    ForEach(Filter.allCases) { filter in
+                        Text(filter.rawValue).tag(filter)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 360)
+
+                Spacer()
+            }
+
+            if let errorText {
+                Text(errorText)
+                    .foregroundStyle(.red)
+                    .font(.callout)
+            }
+
+            List(filteredEntries, selection: $selectedSubjectId) { entry in
+                subjectRow(entry)
+                    .contentShape(Rectangle())
+            }
+        }
+        .frame(minWidth: 420, maxWidth: selectedSubjectId == nil ? .infinity : 520)
     }
 
     private var filteredEntries: [SubjectEntry] {

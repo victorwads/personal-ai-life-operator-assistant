@@ -5,6 +5,21 @@ struct SubjectDetailView: View {
     let relatedSensitiveAudits: [SensitiveDataAuditEntry]
     let isLoading: Bool
     let errorText: String?
+    let onClose: (() -> Void)?
+
+    init(
+        subject: SubjectEntry?,
+        relatedSensitiveAudits: [SensitiveDataAuditEntry],
+        isLoading: Bool,
+        errorText: String?,
+        onClose: (() -> Void)? = nil
+    ) {
+        self.subject = subject
+        self.relatedSensitiveAudits = relatedSensitiveAudits
+        self.isLoading = isLoading
+        self.errorText = errorText
+        self.onClose = onClose
+    }
 
     var body: some View {
         ScrollView {
@@ -32,7 +47,7 @@ struct SubjectDetailView: View {
                     ContentUnavailableView(
                         "Select a subject",
                         systemImage: "checklist",
-                        description: Text("Double-click a subject to inspect the full details and related sensitive-data audits.")
+                        description: Text("Select a subject to inspect the full details and related sensitive-data audits.")
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(.top, 60)
@@ -59,6 +74,17 @@ struct SubjectDetailView: View {
                 Spacer()
 
                 VStack(alignment: .trailing, spacing: 6) {
+                    if let onClose {
+                        Button {
+                            onClose()
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Close")
+                    }
+
                     Text(subject.status.displayName)
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 10)
