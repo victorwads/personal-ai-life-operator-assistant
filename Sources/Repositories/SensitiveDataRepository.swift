@@ -55,8 +55,12 @@ actor SensitiveDataRepository {
         return store.entries.sorted { $0.updatedAt > $1.updatedAt }
     }
 
-    func listAudits(limit: Int = 50) -> [SensitiveDataAuditEntry] {
+    func listAudits(limit: Int = 50, subjectId: String? = nil) -> [SensitiveDataAuditEntry] {
         let all = loadStore().audits
+            .filter { audit in
+                guard let subjectId else { return true }
+                return audit.subjectId == subjectId
+            }
             .sorted { lhs, rhs in
                 if lhs.timestamp == rhs.timestamp {
                     return lhs.id.uuidString > rhs.id.uuidString

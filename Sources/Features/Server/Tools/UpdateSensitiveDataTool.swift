@@ -38,6 +38,7 @@ struct UpdateSensitiveDataTool: MCPToolHandler {
         }
 
         do {
+            let validatedSubjectId = try await context.validatedSubjectId(subjectId)
             let entry = try await context.sensitiveDataRepository.update(
                 id: id,
                 key: key,
@@ -45,10 +46,10 @@ struct UpdateSensitiveDataTool: MCPToolHandler {
                 kind: arguments.string(for: "kind"),
                 value: arguments.string(for: "value"),
                 allowedChats: arguments.stringArray(for: "allowedChats"),
-                subjectId: subjectId,
+                subjectId: validatedSubjectId,
                 reason: reason
             )
-            let audits = await context.sensitiveDataRepository.listAudits(limit: 20)
+            let audits = await context.sensitiveDataRepository.listAudits(limit: 20, subjectId: validatedSubjectId)
             return .success(.object([
                 "ok": .bool(true),
                 "entry": context.sensitiveDataEntryJSONValue(entry),

@@ -30,8 +30,9 @@ struct SearchSensitiveDataTool: MCPToolHandler {
         let reason = arguments.string(for: "reason")?.trimmingCharacters(in: .whitespacesAndNewlines)
 
         do {
-            let matches = try await context.sensitiveDataRepository.search(query: query, limit: limit, subjectId: subjectId, reason: reason)
-            let audits = await context.sensitiveDataRepository.listAudits(limit: 20)
+            let validatedSubjectId = try await context.validatedSubjectId(subjectId)
+            let matches = try await context.sensitiveDataRepository.search(query: query, limit: limit, subjectId: validatedSubjectId, reason: reason)
+            let audits = await context.sensitiveDataRepository.listAudits(limit: 20, subjectId: validatedSubjectId)
 
             return .success(.object([
                 "matches": .array(matches.map {

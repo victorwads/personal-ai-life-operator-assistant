@@ -35,16 +35,17 @@ struct SaveSensitiveDataTool: MCPToolHandler {
         let reason = arguments.string(for: "reason")?.trimmingCharacters(in: .whitespacesAndNewlines)
 
         do {
+            let validatedSubjectId = try await context.validatedSubjectId(subjectId)
             let result = try await context.sensitiveDataRepository.save(
                 key: arguments.string(for: "key"),
                 label: arguments.string(for: "label"),
                 kind: arguments.string(for: "kind"),
                 value: arguments.string(for: "value"),
                 allowedChats: arguments.stringArray(for: "allowedChats"),
-                subjectId: subjectId,
+                subjectId: validatedSubjectId,
                 reason: reason
             )
-            let audits = await context.sensitiveDataRepository.listAudits(limit: 20)
+            let audits = await context.sensitiveDataRepository.listAudits(limit: 20, subjectId: validatedSubjectId)
             return .success(.object([
                 "ok": .bool(true),
                 "created": .bool(result.created),

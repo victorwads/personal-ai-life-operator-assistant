@@ -2,6 +2,11 @@ import SwiftUI
 
 struct SensitiveDataScreen: View {
     @EnvironmentObject private var appModel: AppModel
+    let onOpenSubject: (String) -> Void
+
+    init(onOpenSubject: @escaping (String) -> Void = { _ in }) {
+        self.onOpenSubject = onOpenSubject
+    }
 
     @State private var entries: [SensitiveDataEntry] = []
     @State private var searchQuery = ""
@@ -123,7 +128,16 @@ struct SensitiveDataScreen: View {
                                     .font(.callout)
 
                                 HStack(spacing: 8) {
-                                    Text("subject: \(audit.subjectId)")
+                                    if UUID(uuidString: audit.subjectId) != nil {
+                                        Button {
+                                            onOpenSubject(audit.subjectId)
+                                        } label: {
+                                            Label("subject: \(audit.subjectId)", systemImage: "arrow.up.right.square")
+                                        }
+                                        .buttonStyle(.link)
+                                    } else {
+                                        Text("subject: \(audit.subjectId)")
+                                    }
                                     if let key = audit.key {
                                         Text("key: \(key)")
                                     } else if let query = audit.query {

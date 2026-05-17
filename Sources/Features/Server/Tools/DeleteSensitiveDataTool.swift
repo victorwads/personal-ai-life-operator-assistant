@@ -27,16 +27,17 @@ struct DeleteSensitiveDataTool: MCPToolHandler {
         let reason = arguments.string(for: "reason")?.trimmingCharacters(in: .whitespacesAndNewlines)
 
         do {
+            let validatedSubjectId = try await context.validatedSubjectId(subjectId)
             let deleted: Bool
             if let id = arguments.uuid(for: "id") {
-                deleted = try await context.sensitiveDataRepository.delete(id: id, subjectId: subjectId, reason: reason)
+                deleted = try await context.sensitiveDataRepository.delete(id: id, subjectId: validatedSubjectId, reason: reason)
             } else if let key = arguments.string(for: "key") {
-                deleted = try await context.sensitiveDataRepository.delete(key: key, subjectId: subjectId, reason: reason)
+                deleted = try await context.sensitiveDataRepository.delete(key: key, subjectId: validatedSubjectId, reason: reason)
             } else {
                 return .failure(SensitiveDataRepositoryError.missingParameter("id or key"))
             }
 
-            let audits = await context.sensitiveDataRepository.listAudits(limit: 20)
+            let audits = await context.sensitiveDataRepository.listAudits(limit: 20, subjectId: validatedSubjectId)
             return .success(.object([
                 "ok": .bool(true),
                 "deleted": .bool(deleted),

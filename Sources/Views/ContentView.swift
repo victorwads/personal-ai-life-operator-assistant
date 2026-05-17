@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var appModel: AppModel
     @State private var selectedScreen: SidebarScreen = .whatsAppChats
+    @State private var selectedSubjectId: UUID?
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     enum SidebarScreen: String, CaseIterable, Identifiable {
@@ -98,11 +99,16 @@ struct ContentView: View {
             case .nicknames:
                 NicknamesScreen()
             case .subjects:
-                SubjectsScreen()
+                SubjectsScreen(selectedSubjectId: $selectedSubjectId)
             case .memories:
                 MemoriesScreen()
             case .sensitiveData:
-                SensitiveDataScreen()
+                SensitiveDataScreen { subjectId in
+                    if let subjectUUID = UUID(uuidString: subjectId) {
+                        selectedSubjectId = subjectUUID
+                    }
+                    selectedScreen = .subjects
+                }
             case .clientVoice:
                 ClientVoiceScreen()
             case .whatsAppChats:

@@ -17,6 +17,20 @@ struct MCPServerContext {
 }
 
 extension MCPServerContext {
+    func validatedSubjectId(_ subjectId: String?) async throws -> String {
+        let trimmed = (subjectId ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            throw SubjectsRepositoryError.missingParameter("subjectId")
+        }
+
+        guard let uuid = UUID(uuidString: trimmed) else {
+            throw SubjectsRepositoryError.invalidParameter("Invalid subjectId")
+        }
+
+        _ = try await subjectsRepository.get(id: uuid)
+        return trimmed
+    }
+
     func assistantName() -> String {
         runtime.assistantName()
     }

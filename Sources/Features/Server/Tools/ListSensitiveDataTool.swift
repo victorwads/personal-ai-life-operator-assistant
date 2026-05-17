@@ -27,8 +27,9 @@ struct ListSensitiveDataTool: MCPToolHandler {
         let limit = max(1, arguments.int(for: "limit") ?? 50)
 
         do {
-            let entries = try await context.sensitiveDataRepository.list(subjectId: subjectId, reason: reason)
-            let audits = await context.sensitiveDataRepository.listAudits(limit: limit)
+            let validatedSubjectId = try await context.validatedSubjectId(subjectId)
+            let entries = try await context.sensitiveDataRepository.list(subjectId: validatedSubjectId, reason: reason)
+            let audits = await context.sensitiveDataRepository.listAudits(limit: limit, subjectId: validatedSubjectId)
             return .success(.object([
                 "entries": .array(entries.map(context.sensitiveDataSummaryJSONValue)),
                 "audits": .array(audits.map(context.sensitiveDataAuditJSONValue))
