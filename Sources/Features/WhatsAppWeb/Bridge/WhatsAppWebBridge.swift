@@ -36,7 +36,8 @@ final class WhatsAppWebBridge {
 
     func captureSelectedChat(from webView: WKWebView, limit: Int) async throws -> WhatsAppWebChatCapture {
         let resolvedLimit = max(1, min(limit, 200))
-        let script = String(format: Self.chatCaptureScript, "\(resolvedLimit)")
+        // Avoid `String(format:)` with large JS blobs; stray `%` sequences can crash by reading invalid varargs.
+        let script = Self.chatCaptureScript.replacingOccurrences(of: "__LIMIT__", with: "\(resolvedLimit)")
         let json = try await webView.evaluateJavaScriptString(script)
 
         guard let data = json.data(using: .utf8) else {
@@ -120,7 +121,7 @@ final class WhatsAppWebBridge {
       else if (selectedChatTitle) flow = 'chatSelected';
       else if (isChatList) flow = 'chatList';
 
-      const limit = %s;
+      const limit = __LIMIT__;
       let nodes = Array.from(document.querySelectorAll('[data-testid="msg-container"]'));
       if (nodes.length === 0) nodes = Array.from(document.querySelectorAll('div.message-in, div.message-out'));
       if (nodes.length === 0) nodes = Array.from(document.querySelectorAll('div[role="row"]'));
