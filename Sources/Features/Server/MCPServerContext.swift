@@ -81,49 +81,33 @@ extension MCPServerContext {
     }
 
     func conversationJSONValue(_ conversation: ConversationSummary) -> JSONValue {
-        var payload: [String: JSONValue] = [
+        .object([
             "id": .string(conversation.id),
             "name": .string(conversation.name),
             "unreadCount": .number(Double(conversation.unreadCount)),
+            "lastMessagePreview": .nonEmptyString(conversation.lastMessagePreview),
+            "lastMessageAtText": .nonEmptyString(conversation.lastMessageAtText),
             "lastMessageDirection": .string(conversation.lastMessageDirection.mcpValue),
             "lastMessageStatus": .string(conversation.lastMessageStatus.rawValue),
             "isTyping": .bool(conversation.isTyping)
-        ]
-
-        if let lastMessagePreview = conversation.lastMessagePreview {
-            payload["lastMessagePreview"] = .string(lastMessagePreview)
-        }
-        if let lastMessageAtText = conversation.lastMessageAtText {
-            payload["lastMessageAtText"] = .string(lastMessageAtText)
-        }
-
-        return .object(payload)
+        ])
+        .pruningNulls()
     }
 
     func messageJSONValue(_ message: Message) -> JSONValue {
-        var payload: [String: JSONValue] = [
+        .object([
             "id": .string(message.id),
             "direction": .string(message.direction.mcpValue),
             "kind": .string(message.kind.rawValue),
+            "text": .nonEmptyString(message.text),
+            "durationSeconds": .optionalNumber(message.durationSeconds),
+            "timestamp": .from(date: message.timestamp),
             "status": .string(message.status.rawValue),
             "rawAccessibilityText": .string(message.rawAccessibilityText),
+            "whatsappTimestampText": .nonEmptyString(message.whatsappTimestampText),
             "isHandled": .bool(message.isHandled)
-        ]
-
-        if let text = message.text {
-            payload["text"] = .string(text)
-        }
-        if let durationSeconds = message.durationSeconds {
-            payload["durationSeconds"] = .number(durationSeconds)
-        }
-        if let timestamp = message.timestamp {
-            payload["timestamp"] = .from(date: timestamp)
-        }
-        if let whatsappTimestampText = message.whatsappTimestampText {
-            payload["whatsappTimestampText"] = .string(whatsappTimestampText)
-        }
-
-        return .object(payload)
+        ])
+        .pruningNulls()
     }
 
     func chatMessagesEventJSONValue(chat: ConversationSummary, messages: [Message]) -> JSONValue {
@@ -143,36 +127,24 @@ extension MCPServerContext {
     }
 
     func subjectEntryJSONValue(_ entry: SubjectEntry) -> JSONValue {
-        var payload: [String: JSONValue] = [
+        .object([
             "id": .string(entry.id.uuidString),
             "title": .string(entry.title),
             "summary": .string(entry.summary),
             "initialRequest": .string(entry.initialRequest),
+            "details": .nonEmptyString(entry.details),
             "status": .string(entry.status.rawValue),
             "priority": .number(Double(entry.priority)),
             "participants": .array(entry.participants.map(JSONValue.string)),
             "nextSteps": .array(entry.nextSteps.map(JSONValue.string)),
             "updatesLog": .array(entry.eventLog.map { .string($0.description) }),
+            "whatsappChatId": .nonEmptyString(entry.whatsappChatId),
+            "whatsappAfterMessageId": .nonEmptyString(entry.whatsappAfterMessageId),
+            "gmailThreadId": .nonEmptyString(entry.gmailThreadId),
+            "calendarEventId": .nonEmptyString(entry.calendarEventId),
             "createdAt": .from(date: entry.createdAt)
-        ]
-
-        if let details = entry.details?.trimmingCharacters(in: .whitespacesAndNewlines), !details.isEmpty {
-            payload["details"] = .string(details)
-        }
-        if let whatsappChatId = entry.whatsappChatId?.trimmingCharacters(in: .whitespacesAndNewlines), !whatsappChatId.isEmpty {
-            payload["whatsappChatId"] = .string(whatsappChatId)
-        }
-        if let whatsappAfterMessageId = entry.whatsappAfterMessageId?.trimmingCharacters(in: .whitespacesAndNewlines), !whatsappAfterMessageId.isEmpty {
-            payload["whatsappAfterMessageId"] = .string(whatsappAfterMessageId)
-        }
-        if let gmailThreadId = entry.gmailThreadId?.trimmingCharacters(in: .whitespacesAndNewlines), !gmailThreadId.isEmpty {
-            payload["gmailThreadId"] = .string(gmailThreadId)
-        }
-        if let calendarEventId = entry.calendarEventId?.trimmingCharacters(in: .whitespacesAndNewlines), !calendarEventId.isEmpty {
-            payload["calendarEventId"] = .string(calendarEventId)
-        }
-
-        return .object(payload)
+        ])
+        .pruningNulls()
     }
 
     func nicknameEntryJSONValue(_ entry: NicknameEntry) -> JSONValue {

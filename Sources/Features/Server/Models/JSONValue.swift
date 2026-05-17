@@ -98,6 +98,39 @@ enum JSONValue: Codable, Equatable, Hashable, Sendable {
         return .string(ISO8601DateFormatter().string(from: date))
     }
 
+    func pruningNulls() -> JSONValue {
+        switch self {
+        case .object(let object):
+            var cleaned: [String: JSONValue] = [:]
+            cleaned.reserveCapacity(object.count)
+            for (key, value) in object {
+                let pruned = value.pruningNulls()
+                guard pruned != .null else { continue }
+                cleaned[key] = pruned
+            }
+            return .object(cleaned)
+        case .array(let array):
+            let cleaned = array
+                .map { $0.pruningNulls() }
+                .filter { $0 != .null }
+            return .array(cleaned)
+        default:
+            return self
+        }
+    }
+
+    static func nonEmptyString(_ value: String?) -> JSONValue {
+        guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
+            return .null
+        }
+        return .string(trimmed)
+    }
+
+    static func optionalNumber(_ value: Double?) -> JSONValue {
+        guard let value else { return .null }
+        return .number(value)
+    }
+
     static func from(any value: Any) -> JSONValue? {
         switch value {
         case let value as String:
