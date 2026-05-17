@@ -70,6 +70,9 @@ struct ClientVoicePromptWindow: View {
         .padding(14)
         .task {
             guard !PreviewSupport.isRunningForPreviews else { return }
+            if let persisted = await appModel.clientPromptWaitRepository.getDraft(), !persisted.isEmpty {
+                draftResponse = persisted
+            }
             startHandsFreeListening()
         }
         .onDisappear { stopRecognition() }
@@ -89,6 +92,7 @@ struct ClientVoicePromptWindow: View {
                     onPartial: { partial in
                         guard !didResolve else { return }
                         draftResponse = partial
+                        Task { await appModel.clientPromptWaitRepository.setDraft(partial) }
                         scheduleAutoSubmit(with: partial)
                     },
                     onFinal: { final in

@@ -76,6 +76,12 @@ struct ClientVoiceHandsFreeWindow: View {
             guard !PreviewSupport.isRunningForPreviews else { return }
             await handleSpeechStateChange()
         }
+        .task {
+            guard !PreviewSupport.isRunningForPreviews else { return }
+            if let persisted = await appModel.clientVoiceEventsRepository.draftForAsk(id: askId) {
+                draftResponse = persisted
+            }
+        }
         .onDisappear { stopRecognition() }
     }
 
@@ -105,6 +111,7 @@ struct ClientVoiceHandsFreeWindow: View {
                     onPartial: { partial in
                         guard !didResolve else { return }
                         draftResponse = partial
+                        Task { await appModel.clientVoiceEventsRepository.updateAskDraft(id: askId, draft: partial) }
                         scheduleAutoSubmit(with: partial)
                     },
                     onFinal: { final in

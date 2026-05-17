@@ -20,6 +20,7 @@ struct ClientVoiceEvent: Codable, Identifiable, Equatable {
 
     var prompt: String?
     var transcript: String?
+    var draftTranscript: String?
     var askStatus: ClientVoiceAskStatus?
     var answeredAt: Date?
 }

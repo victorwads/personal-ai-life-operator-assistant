@@ -23,8 +23,12 @@ actor ClientVoiceEventsRepository {
         var events = loadAll()
         var changedCount = 0
 
-        for index in events.indices where events[index].kind == .ask && events[index].askStatus == .pending {
+        // Only mark *stale* pending asks as lost. Restarts should not immediately
+        // discard pending items; we want a chance to recover drafts.
+        let cutoff = Date().addingTimeInterval(-24 * 60 * 60)
+        for index in events.indices where events[index].kind == .ask && events[index].askStatus == .pending && events[index].createdAt < cutoff {
             events[index].askStatus = .lost
+            events[index].draftTranscript = nil
             changedCount += 1
         }
 
@@ -53,6 +57,7 @@ actor ClientVoiceEventsRepository {
             text: text,
             prompt: nil,
             transcript: nil,
+            draftTranscript: nil,
             askStatus: nil,
             answeredAt: nil
         )
@@ -70,12 +75,33 @@ actor ClientVoiceEventsRepository {
             text: nil,
             prompt: prompt,
             transcript: nil,
+            draftTranscript: nil,
             askStatus: .pending,
             answeredAt: nil
         )
         events.append(event)
         persistAll(events)
         return event
+    }
+
+    func draftForAsk(id: UUID) -> String? {
+        let existing = loadAll().first(where: { $0.id == id })
+        let value = (existing?.draftTranscript ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? nil : value
+    }
+
+    func updateAskDraft(id: UUID, draft: String) {
+        let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        var events = loadAll()
+        guard let index = events.firstIndex(where: { $0.id == id }) else { return }
+        var event = events[index]
+        guard event.kind == .ask, event.askStatus == .pending else { return }
+
+        event.draftTranscript = trimmed
+        events[index] = event
+        persistAll(events)
     }
 
     func answerAsk(id: UUID, response: String) throws -> ClientVoiceEvent {
@@ -95,6 +121,7 @@ actor ClientVoiceEventsRepository {
         }
 
         event.transcript = trimmed
+        event.draftTranscript = nil
         event.askStatus = .answered
         event.answeredAt = Date()
         events[index] = event
