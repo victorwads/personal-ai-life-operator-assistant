@@ -5,6 +5,7 @@ extension AppModel {
         let accounts = await whatsAppWebAccountsRepository.list()
         whatsAppWebAccounts = accounts
         whatsAppWebSessionStore.warmSessions(for: accounts)
+        restartWhatsAppWebBridgePolling()
 
         if let selectedWhatsAppWebAccountId,
            accounts.contains(where: { $0.id == selectedWhatsAppWebAccountId }) {
@@ -27,6 +28,7 @@ extension AppModel {
             _ = whatsAppWebSessionStore.webView(for: account)
             selectedWhatsAppWebAccountId = account.id
             appendLog("Created WhatsApp Web account '\(account.name)'.")
+            restartWhatsAppWebBridgePolling()
         } catch {
             appendLog("Failed to create WhatsApp Web account: \(error.localizedDescription)", level: .error)
         }
@@ -45,6 +47,8 @@ extension AppModel {
         if removedWasSelected {
             selectedWhatsAppWebAccountId = whatsAppWebAccounts.first?.id
         }
+        whatsAppWebPageSnapshotsByAccountId.removeValue(forKey: id)
+        restartWhatsAppWebBridgePolling()
         appendLog("Deleted WhatsApp Web account.")
     }
 
@@ -54,5 +58,52 @@ extension AppModel {
         }
 
         return whatsAppWebAccounts.first { $0.id == selectedWhatsAppWebAccountId }
+    }
+
+    var selectedWhatsAppWebPageSnapshot: WhatsAppWebPageSnapshot? {
+        guard let selectedWhatsAppWebAccountId else {
+            return nil
+        }
+
+        return whatsAppWebPageSnapshotsByAccountId[selectedWhatsAppWebAccountId]
+    }
+
+    func captureWhatsAppWebSnapshot(for account: WhatsAppWebAccount) async {
+        let webView = whatsAppWebSessionStore.webView(for: account)
+
+        do {
+            let snapshot = try await whatsAppWebBridge.captureSnapshot(from: webView)
+            whatsAppWebPageSnapshotsByAccountId[account.id] = snapshot
+        } catch {
+            appendLog("WhatsApp Web snapshot failed for '\(account.name)': \(error.localizedDescription)", level: .warning)
+        }
+    }
+
+    func restartWhatsAppWebBridgePolling() {
+        whatsAppWebBridgePollingTask?.cancel()
+        whatsAppWebBridgePollingTask = nil
+
+        guard whatsAppWebSettings.bridgePollingEnabled, !whatsAppWebAccounts.isEmpty else {
+            return
+        }
+
+        let intervalSeconds = max(1.0, whatsAppWebSettings.bridgePollingIntervalSeconds)
+        whatsAppWebBridgePollingTask = Task { [weak self] in
+            guard let self else { return }
+
+            while !Task.isCancelled {
+                let accounts = self.whatsAppWebAccounts
+                for account in accounts {
+                    if Task.isCancelled { return }
+                    await self.captureWhatsAppWebSnapshot(for: account)
+                }
+
+                do {
+                    try await Task.sleep(for: .seconds(intervalSeconds))
+                } catch {
+                    return
+                }
+            }
+        }
     }
 }

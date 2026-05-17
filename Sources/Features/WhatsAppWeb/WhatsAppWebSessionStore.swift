@@ -5,6 +5,7 @@ import WebKit
 final class WhatsAppWebSessionStore {
     private var webViewsByAccountId: [UUID: WKWebView] = [:]
     private var customUserAgent = WhatsAppWebSettingsModel.defaultCustomUserAgent
+    private var isInspectable = WhatsAppWebSettingsModel.defaultInspectable
 
     func warmSessions(for accounts: [WhatsAppWebAccount]) {
         for account in accounts {
@@ -29,6 +30,20 @@ final class WhatsAppWebSessionStore {
         }
     }
 
+    func setInspectable(_ value: Bool) {
+        guard isInspectable != value else {
+            return
+        }
+
+        isInspectable = value
+
+        for webView in webViewsByAccountId.values {
+            if #available(macOS 13.3, *) {
+                webView.isInspectable = value
+            }
+        }
+    }
+
     func webView(for account: WhatsAppWebAccount) -> WKWebView {
         if let existing = webViewsByAccountId[account.id] {
             return existing
@@ -42,6 +57,9 @@ final class WhatsAppWebSessionStore {
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.allowsMagnification = true
         webView.customUserAgent = customUserAgent
+        if #available(macOS 13.3, *) {
+            webView.isInspectable = isInspectable
+        }
         webView.load(URLRequest(url: Self.whatsAppWebURL))
 
         webViewsByAccountId[account.id] = webView

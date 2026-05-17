@@ -26,6 +26,14 @@ struct WhatsAppWebScreen: View {
                     }
 
                     Spacer()
+
+                    Button {
+                        Task {
+                            await appModel.captureWhatsAppWebSnapshot(for: account)
+                        }
+                    } label: {
+                        Label("Capture Snapshot", systemImage: "arrow.clockwise.circle")
+                    }
                 }
                 .padding(12)
 
@@ -33,6 +41,34 @@ struct WhatsAppWebScreen: View {
 
                 WhatsAppWebView(webView: appModel.whatsAppWebSessionStore.webView(for: account))
                     .id(account.id)
+
+                if let snapshot = appModel.selectedWhatsAppWebPageSnapshot {
+                    Divider()
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Bridge Snapshot")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+
+                        Text("State: \(snapshot.documentReadyState) • Logged in: \(snapshot.isLoggedIn ? "yes" : "no") • Chats: \(snapshot.chatRowCount) • Unread markers: \(snapshot.unreadBadgeCount)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        if let selectedChatTitle = snapshot.selectedChatTitle, !selectedChatTitle.isEmpty {
+                            Text("Selected chat: \(selectedChatTitle)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        if let composePlaceholder = snapshot.composePlaceholder, !composePlaceholder.isEmpty {
+                            Text("Composer: \(composePlaceholder)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                }
             }
         } else {
             ContentUnavailableView(

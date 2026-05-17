@@ -149,6 +149,39 @@ struct SettingsScreen: View {
                             }
                         }
 
+                        VStack(alignment: .leading, spacing: 8) {
+                            Toggle("Enable Web Inspector", isOn: $whatsAppWebSettings.isInspectable)
+                                .toggleStyle(.switch)
+
+                            Text("Enabled by default. With Safari's Develop menu enabled, this lets you inspect the embedded WhatsApp Web view from Safari.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Toggle("Bridge polling", isOn: $whatsAppWebSettings.bridgePollingEnabled)
+                                .toggleStyle(.switch)
+
+                            HStack {
+                                Text("Bridge interval")
+                                Spacer()
+                                Stepper(
+                                    value: $whatsAppWebSettings.bridgePollingIntervalSeconds,
+                                    in: 1...30,
+                                    step: 1
+                                ) {
+                                    Text("\(Int(whatsAppWebSettings.bridgePollingIntervalSeconds))s")
+                                        .monospacedDigit()
+                                }
+                                .frame(width: 140, alignment: .trailing)
+                            }
+                            .disabled(!whatsAppWebSettings.bridgePollingEnabled)
+
+                            Text("Runs a lightweight JavaScript snapshot against each embedded WhatsApp Web account every few seconds so we can start mapping chats, selected conversation, composer state, and login status.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
                         Divider()
 
                         HStack(spacing: 8) {

@@ -40,6 +40,7 @@ final class AppModel: ObservableObject {
     @Published var speechSynthesizerSpeaking = false
     @Published var whatsAppWebAccounts: [WhatsAppWebAccount] = []
     @Published var selectedWhatsAppWebAccountId: UUID?
+    @Published var whatsAppWebPageSnapshotsByAccountId: [UUID: WhatsAppWebPageSnapshot] = [:]
 
     let voiceSettings: VoiceSettingsModel
     let handsFreeClientVoiceSettings: HandsFreeClientVoiceSettingsModel
@@ -51,6 +52,7 @@ final class AppModel: ObservableObject {
     let accessibilityScheduler = AccessibilityActionScheduler()
     let parser = WhatsAppAppParser()
     let whatsAppWebSessionStore = WhatsAppWebSessionStore()
+    let whatsAppWebBridge = WhatsAppWebBridge()
     let clientPromptWaitRepository = ClientPromptWaitRepository.shared
     lazy var whatsappMessageSendCoordinator = WhatsAppMessageSendCoordinator(
         accessibility: accessibility,
@@ -125,6 +127,7 @@ final class AppModel: ObservableObject {
     }()
     let voiceAssistant = VoiceAssistant()
     var pollingTask: Task<Void, Never>?
+    var whatsAppWebBridgePollingTask: Task<Void, Never>?
     var permissionMonitorTask: Task<Void, Never>?
     var listSignaturesById: [String: String] = [:]
     var cancellables: Set<AnyCancellable> = []
@@ -148,6 +151,7 @@ final class AppModel: ObservableObject {
         mcpSendPrefixSettings = MCPSendPrefixSettingsModel(loadPersistedValues: shouldLoadPersistedSettings)
         whatsAppWebSettings = WhatsAppWebSettingsModel(loadPersistedValues: shouldLoadPersistedSettings)
         whatsAppWebSessionStore.setCustomUserAgent(whatsAppWebSettings.effectiveCustomUserAgent)
+        whatsAppWebSessionStore.setInspectable(whatsAppWebSettings.isInspectable)
 
         voiceAssistant.onSpeakingStateChanged = { [weak self] isSpeaking in
             self?.speechSynthesizerSpeaking = isSpeaking
@@ -231,6 +235,30 @@ final class AppModel: ObservableObject {
             .receive(on: RunLoop.main)
             .sink { [weak self] value in
                 self?.whatsAppWebSessionStore.setCustomUserAgent(value)
+            }
+            .store(in: &cancellables)
+
+        whatsAppWebSettings.$isInspectable
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] value in
+                self?.whatsAppWebSessionStore.setInspectable(value)
+            }
+            .store(in: &cancellables)
+
+        whatsAppWebSettings.$bridgePollingEnabled
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.restartWhatsAppWebBridgePolling()
+            }
+            .store(in: &cancellables)
+
+        whatsAppWebSettings.$bridgePollingIntervalSeconds
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.restartWhatsAppWebBridgePolling()
             }
             .store(in: &cancellables)
     }
