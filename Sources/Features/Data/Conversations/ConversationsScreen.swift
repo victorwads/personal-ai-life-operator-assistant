@@ -18,6 +18,12 @@ struct ConversationsScreen: View {
                         .controlSize(.small)
                         .help("Clears all saved WhatsApp data for the integration (keeps allow/deny lists).")
 
+                        Button("Mark all handled") {
+                            appModel.markAllIncomingMessagesHandled()
+                        }
+                        .controlSize(.small)
+                        .help("Marks all pending incoming messages as handled for every cached chat.")
+
                         Text("\(appModel.conversations.count)")
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(.secondary)
@@ -36,7 +42,10 @@ struct ConversationsScreen: View {
                         Button {
                             open(conversation)
                         } label: {
-                            ConversationRow(conversation: conversation)
+                            ConversationRow(
+                                conversation: conversation,
+                                pendingIncomingCount: appModel.pendingIncomingCount(chatId: conversation.id)
+                            )
                                 .contentShape(Rectangle())
                                 .padding(.horizontal, 4)
                                 .background(selectionBackground(for: conversation))

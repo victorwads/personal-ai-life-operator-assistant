@@ -85,6 +85,8 @@ enum WhatsAppDebugArtifacts {
             "\(childIndent)chat_id: \(yamlScalar(message.chatId))",
             "\(childIndent)direction: \(yamlScalar(message.direction.rawValue))",
             "\(childIndent)kind: \(yamlScalar(message.kind.rawValue))",
+            "\(childIndent)author_name: \(yamlScalar(message.authorName))",
+            "\(childIndent)origin: \(yamlScalar(message.origin.rawValue))",
             "\(childIndent)text: \(yamlScalar(message.text))",
             "\(childIndent)duration_seconds: \(yamlNumber(message.durationSeconds))",
             "\(childIndent)timestamp: \(yamlScalar(message.timestamp.map(debugCaptureTimestamp)))",

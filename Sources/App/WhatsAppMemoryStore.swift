@@ -163,6 +163,21 @@ final class WhatsAppMemoryStore: ObservableObject {
         )
     }
 
+    func pendingIncomingCount(chatId: String) -> Int {
+        guard let state = chatStatesById[chatId] else {
+            return 0
+        }
+        return state.messages.filter { $0.direction == .incoming && !$0.isHandled }.count
+    }
+
+    func markAllIncomingMessagesHandled(chatId: String? = nil) {
+        let now = Date()
+        let targets = unreadMessages(chatId: chatId).filter { $0.direction == .incoming }
+        let ids = Set(targets.map(\.id))
+        guard !ids.isEmpty else { return }
+        updateMessages(messageIds: ids, handledAt: now, chatId: chatId)
+    }
+
     func recentMessages(chatId: String, limit: Int) -> [Message] {
         guard let state = chatStatesById[chatId] else {
             return []
@@ -296,12 +311,60 @@ final class WhatsAppMemoryStore: ObservableObject {
     }
 
     private func normalizeChatState(_ state: ChatState, persistedAt: Date) -> ChatState {
+        let sendPrefix = MCPSendPrefixRepository.shared.load()
+        let assistantName = sendPrefix.assistantName
+        let assistantSignature = sendPrefix.signature
+
         let messages = state.messages.map { message in
             let ingestedAt = message.ingestedAt ?? persistedAt
             let handledAt = message.handledAt ?? (message.direction == .outgoing ? persistedAt : nil)
-            return message.replacing(ingestedAt: ingestedAt, handledAt: handledAt)
+
+            var normalized = message.replacing(ingestedAt: ingestedAt, handledAt: handledAt)
+            if normalized.direction == .outgoing, normalized.origin == .unknown {
+                normalized = normalized.replacing(origin: inferOutgoingOrigin(
+                    message: normalized,
+                    assistantName: assistantName,
+                    assistantSignature: assistantSignature
+                ))
+            }
+            return normalized
         }
         return state.replacing(messages: messages)
+    }
+
+    private func inferOutgoingOrigin(message: Message, assistantName: String, assistantSignature: String) -> MessageOrigin {
+        let trimmedAssistantName = assistantName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedSignature = assistantSignature.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedAssistantName.isEmpty || !trimmedSignature.isEmpty else {
+            return .unknown
+        }
+
+        let raw = (message.text ?? message.rawAccessibilityText)
+            .normalizedAXText
+            .replacingOccurrences(of: "\u{00A0}", with: " ")
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let normalized = raw.lowercased()
+
+        var looksLikeAssistant = false
+        if !trimmedAssistantName.isEmpty {
+            let expectedPrefix = "\(trimmedAssistantName):".normalizedAXText
+                .replacingOccurrences(of: "\u{00A0}", with: " ")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+            looksLikeAssistant = looksLikeAssistant || normalized.hasPrefix(expectedPrefix)
+        }
+        if !trimmedSignature.isEmpty {
+            let expectedSignature = trimmedSignature.normalizedAXText
+                .replacingOccurrences(of: "\u{00A0}", with: " ")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+            looksLikeAssistant = looksLikeAssistant || normalized.hasSuffix(expectedSignature)
+        }
+
+        return looksLikeAssistant ? .assistant : .human
     }
 
     private func mergeMessages(existing: [Message], incoming: [Message], persistedAt: Date) -> [Message] {
@@ -341,7 +404,19 @@ final class WhatsAppMemoryStore: ObservableObject {
             }
         }()
 
+        let mergedAuthorName = existing.authorName ?? incoming.authorName
+        let mergedOrigin: MessageOrigin = {
+            switch (existing.origin, incoming.origin) {
+            case (.unknown, let newOrigin):
+                return newOrigin
+            default:
+                return existing.origin
+            }
+        }()
+
         return existing.replacing(
+            authorName: mergedAuthorName,
+            origin: mergedOrigin,
             text: incoming.text ?? existing.text,
             durationSeconds: incoming.durationSeconds ?? existing.durationSeconds,
             timestamp: incoming.timestamp ?? existing.timestamp,

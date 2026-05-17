@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 private let defaultWhatsAppDebugDirectory = URL(fileURLWithPath: "/tmp/AssistantMCPServer", isDirectory: true)
@@ -19,6 +20,25 @@ final class WhatsAppDebugCaptureService {
         self.parser = parser
         self.debugDirectory = debugDirectory
         self.log = log
+    }
+
+    func capturesDirectoryURL() -> URL {
+        debugDirectory.appendingPathComponent("captures", isDirectory: true)
+    }
+
+    func revealCapturesDirectoryInFinder() {
+        do {
+            let capturesDirectory = capturesDirectoryURL()
+            try FileManager.default.createDirectory(at: capturesDirectory, withIntermediateDirectories: true)
+
+            if NSWorkspace.shared.open(capturesDirectory) {
+                return
+            }
+
+            NSWorkspace.shared.activateFileViewerSelecting([capturesDirectory])
+        } catch {
+            log("Failed to reveal captures directory: \(error.localizedDescription)", .warning)
+        }
     }
 
     func captureSnapshot(maxDepth: Int = 14) -> WhatsAppSnapshot? {
@@ -45,7 +65,7 @@ final class WhatsAppDebugCaptureService {
         let screenState = parser.parse(snapshot: snapshot, messageLimit: messageLimit)
 
         do {
-            let capturesDirectory = debugDirectory.appendingPathComponent("captures", isDirectory: true)
+            let capturesDirectory = capturesDirectoryURL()
             try FileManager.default.createDirectory(at: capturesDirectory, withIntermediateDirectories: true)
 
             let timestamp = Self.debugCaptureTimestamp(Date())

@@ -151,6 +151,14 @@ The server currently registers these tools:
 - Subject entries already include optional `gmailThreadId` and `calendarEventId` fields for future cross-app linking.
 - Outgoing WhatsApp messages can be prefixed and suffixed through the settings screen.
 
+### WhatsApp debug captures
+
+The Debug Tree screen has a `Save Capture` button that writes a YAML file to:
+
+- `/tmp/AssistantMCPServer/captures`
+
+Use `Open Captures Folder` on that same screen to reveal the folder in Finder.
+
 ## Development Requirements
 
 - macOS 14.0 or newer

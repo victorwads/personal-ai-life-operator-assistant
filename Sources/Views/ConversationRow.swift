@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ConversationRow: View {
     let conversation: ConversationSummary
+    let pendingIncomingCount: Int
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
@@ -23,6 +24,16 @@ struct ConversationRow: View {
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background(Capsule().fill(.green))
+                }
+
+                if pendingIncomingCount > 0 {
+                    Text("\(pendingIncomingCount)")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.orange)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(.orange.opacity(0.18)))
+                        .help("Pending assistant handling")
                 }
 
                 Spacer()
@@ -78,7 +89,8 @@ struct ConversationRow: View {
             lastMessageDirection: .outgoing,
             lastMessageStatus: .read,
             isTyping: false
-        )
+        ),
+        pendingIncomingCount: 2
     )
     .padding()
     .frame(width: 420)

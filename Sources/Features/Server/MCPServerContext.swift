@@ -114,6 +114,8 @@ extension MCPServerContext {
             "id": .string(message.id),
             "direction": .string(message.direction.mcpValue),
             "kind": .string(message.kind.rawValue),
+            "authorName": .nonEmptyString(message.authorName),
+            "origin": .string(message.origin.rawValue),
             "text": .nonEmptyString(message.text),
             "durationSeconds": .optionalNumber(message.durationSeconds),
             "timestamp": .from(date: message.timestamp),

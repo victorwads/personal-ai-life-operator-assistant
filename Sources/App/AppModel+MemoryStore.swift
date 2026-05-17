@@ -6,6 +6,14 @@ extension AppModel {
         memoryStore.selectConversation(id: conversation.id)
     }
 
+    func pendingIncomingCount(chatId: String) -> Int {
+        memoryStore.pendingIncomingCount(chatId: chatId)
+    }
+
+    func markAllIncomingMessagesHandled(chatId: String? = nil) {
+        memoryStore.markAllIncomingMessagesHandled(chatId: chatId)
+    }
+
     func markMessageAsUnhandled(_ message: Message) {
         guard message.direction == .incoming else {
             return

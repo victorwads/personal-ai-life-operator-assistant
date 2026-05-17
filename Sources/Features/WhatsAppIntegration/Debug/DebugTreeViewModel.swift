@@ -110,6 +110,14 @@ final class DebugTreeViewModel: ObservableObject {
         )
     }
 
+    func revealCapturesDirectoryInFinder() {
+        captureService.revealCapturesDirectoryInFinder()
+    }
+
+    var capturesDirectoryPath: String {
+        captureService.capturesDirectoryURL().path
+    }
+
     func selectedAttributes(at path: [Int]) async throws -> [(String, String)] {
         try await accessibility.readAllAttributes(at: path)
             .map { ($0.key, $0.value) }

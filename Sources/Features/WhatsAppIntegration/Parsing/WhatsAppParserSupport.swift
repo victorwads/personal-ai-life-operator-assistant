@@ -155,6 +155,40 @@ enum WhatsAppParserSupport {
             || lowercased.contains("received in")
     }
 
+    static func messageAuthorName(from tokens: [String], combinedLowercased: String) -> String? {
+        if let name = firstMatchName(in: tokens, prefixLowercased: "received from ") {
+            return name
+        }
+        if let name = firstMatchName(in: tokens, prefixLowercased: "message from ") {
+            return name
+        }
+        if combinedLowercased.contains("mensagem de") || combinedLowercased.contains("mensagem de ") {
+            if let name = firstMatchName(in: tokens, prefixLowercased: "mensagem de ") {
+                return name
+            }
+        }
+        return nil
+    }
+
+    private static func firstMatchName(in tokens: [String], prefixLowercased: String) -> String? {
+        for token in tokens {
+            let normalized = token.normalizedAXText.trimmingCharacters(in: .whitespacesAndNewlines)
+            let lower = normalized.lowercased()
+            guard let range = lower.range(of: prefixLowercased) else { continue }
+
+            let name = normalized[range.upperBound...]
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "."))
+
+            let cleaned = String(name)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .replacingOccurrences(of: "\u{00A0}", with: " ")
+
+            return cleaned.isEmpty ? nil : cleaned
+        }
+        return nil
+    }
+
     static func stableId(for value: String) -> String {
         let scalars = value.unicodeScalars.map(\.value)
         let hash = scalars.reduce(UInt64(14_695_981_039_346_656_037)) { partial, scalar in

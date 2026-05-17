@@ -107,18 +107,10 @@ struct DebugTreeScreen: View {
             .disabled(model.focusPath.isEmpty)
 
             Button {
-                copyToPasteboard(model.displayPath(model.focusPath))
+                model.revealCapturesDirectoryInFinder()
             } label: {
-                Label("Copy Focus Path", systemImage: "doc.on.doc")
+                Label("Open Captures Folder", systemImage: "folder")
             }
-            .disabled(model.snapshot == nil)
-
-            Button {
-                copyToPasteboard(model.displayPath(model.selectedNodePath ?? []))
-            } label: {
-                Label("Copy Selected Path", systemImage: "doc.on.doc")
-            }
-            .disabled(model.selectedNodePath == nil)
 
             TextField("Capture name", text: $captureNameDraft)
                 .textFieldStyle(.roundedBorder)
@@ -134,6 +126,11 @@ struct DebugTreeScreen: View {
             Spacer()
 
             Text("focus: \(model.displayPath(model.focusPath))")
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
+
+            Text("captures: \(model.capturesDirectoryPath)")
                 .font(.system(.caption, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
@@ -338,11 +335,6 @@ struct DebugTreeScreen: View {
             .replacingOccurrences(of: "\n", with: " ↵ ")
             .replacingOccurrences(of: "\r", with: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private func copyToPasteboard(_ text: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
     }
 
     private func loadAttributes(for path: [Int]) {

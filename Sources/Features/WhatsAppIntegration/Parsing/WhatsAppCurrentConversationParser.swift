@@ -71,6 +71,7 @@ struct WhatsAppCurrentConversationParser {
                 chatId: chatId,
                 direction: parsedMessage.direction,
                 kind: parsedMessage.kind,
+                authorName: parsedMessage.authorName,
                 text: rawText,
                 durationSeconds: nil,
                 timestamp: nil,
@@ -94,15 +95,17 @@ struct WhatsAppCurrentConversationParser {
 
         return text.contains("Sent to")
             || text.contains("Received from")
+            || text.contains("Message from")
+            || text.contains("Received in")
             || text.contains("Voice message")
             || text.contains("Your message")
             || text.contains("message,")
     }
 
-    private func parseMessageDescription(_ description: String?) -> (text: String?, direction: MessageDirection, kind: MessageKind, status: MessageStatus, timestampText: String?) {
+    private func parseMessageDescription(_ description: String?) -> (text: String?, direction: MessageDirection, kind: MessageKind, status: MessageStatus, timestampText: String?, authorName: String?) {
         let tokens = WhatsAppParserSupport.axTokens(description)
         guard let first = tokens.first else {
-            return (nil, .unknown, .unknown, .unknown, nil)
+            return (nil, .unknown, .unknown, .unknown, nil, nil)
         }
 
         let combined = tokens.joined(separator: " ").lowercased()
@@ -111,15 +114,21 @@ struct WhatsAppCurrentConversationParser {
         let status = WhatsAppParserSupport.messageStatus(in: combined)
         let metadataIndex = tokens.firstIndex(where: WhatsAppParserSupport.isMessageMetadata(_:)) ?? tokens.count
         let timestampText = WhatsAppParserSupport.messageTimestampText(in: Array(tokens[metadataIndex..<tokens.count]))
+        let authorName = WhatsAppParserSupport.messageAuthorName(from: tokens, combinedLowercased: combined)
 
         if first.lowercased().contains("voice message") {
-            return ("Voice message", direction, .voice, status, timestampText)
+            return ("Voice message", direction, .voice, status, timestampText, authorName)
         }
 
-        let messageStart = first.lowercased().contains("your message") || first.lowercased() == "message" ? 1 : 0
+        let firstLowercased = first.lowercased()
+        let messageStart = firstLowercased.contains("your message")
+            || firstLowercased == "message"
+            || firstLowercased.contains("message from")
+            || firstLowercased.contains("mensagem de")
+            ? 1 : 0
         let messageTokens = messageStart < metadataIndex ? Array(tokens[messageStart..<metadataIndex]) : []
         let messageText = messageTokens.joined(separator: ", ").trimmingCharacters(in: .whitespacesAndNewlines)
 
-        return (messageText.isEmpty ? first : messageText, direction, kind, status, timestampText)
+        return (messageText.isEmpty ? first : messageText, direction, kind, status, timestampText, authorName)
     }
 }

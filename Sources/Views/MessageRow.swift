@@ -10,9 +10,9 @@ struct MessageRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
-                Text(message.direction.rawValue)
+                Text(authorLabel)
                     .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(message.direction == .incoming ? .secondary : .primary)
 
                 Text(message.kind.rawValue)
                     .font(.caption2)
@@ -23,6 +23,10 @@ struct MessageRow: View {
                     .foregroundStyle(.secondary)
 
                 statusChip
+
+                if message.direction == .outgoing {
+                    originChip
+                }
 
                 Spacer()
 
@@ -96,12 +100,38 @@ struct MessageRow: View {
         message.direction == .incoming && !message.isHandled
     }
 
+    private var authorLabel: String {
+        switch message.direction {
+        case .incoming:
+            return message.authorName ?? "Incoming"
+        case .outgoing:
+            return "You"
+        case .unknown:
+            return "Unknown"
+        }
+    }
+
     private var timestampLabel: String? {
         if let timestamp = message.timestamp {
             return timestamp.formatted(date: .abbreviated, time: .shortened)
         }
 
         return message.whatsappTimestampText
+    }
+
+    @ViewBuilder
+    private var originChip: some View {
+        let label: String = {
+            switch message.origin {
+            case .assistant: "assistant"
+            case .human: "human"
+            case .unknown: "unknown"
+            }
+        }()
+
+        Text(label)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(message.origin == .assistant ? Color.blue : Color.secondary)
     }
 
     private var backgroundColor: Color {
@@ -120,6 +150,8 @@ struct MessageRow: View {
             chatId: "chat-preview",
             direction: .incoming,
             kind: .text,
+            authorName: "Leonardo Eloy",
+            origin: .unknown,
             text: "Olá! Isso é um preview.",
             durationSeconds: nil,
             timestamp: Date(),

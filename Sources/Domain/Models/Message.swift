@@ -22,11 +22,24 @@ enum MessageStatus: String, Codable, Equatable {
     case unknown
 }
 
+enum MessageOrigin: String, Codable, Equatable {
+    /// Sent by the MCP assistant (i.e. through `send_message`).
+    case assistant
+    /// Sent by a human (the user) on this machine/account.
+    case human
+    /// Unknown or not inferred.
+    case unknown
+}
+
 struct Message: Identifiable, Codable, Equatable {
     let id: String
     let chatId: String
     let direction: MessageDirection
     let kind: MessageKind
+    /// Parsed sender name when available (primarily for incoming group messages).
+    let authorName: String?
+    /// Best-effort origin for outgoing messages (assistant vs human).
+    let origin: MessageOrigin
     let text: String?
     let durationSeconds: Double?
     let timestamp: Date?
@@ -41,6 +54,8 @@ struct Message: Identifiable, Codable, Equatable {
         chatId: String,
         direction: MessageDirection,
         kind: MessageKind,
+        authorName: String? = nil,
+        origin: MessageOrigin = .unknown,
         text: String?,
         durationSeconds: Double?,
         timestamp: Date?,
@@ -54,6 +69,8 @@ struct Message: Identifiable, Codable, Equatable {
         self.chatId = chatId
         self.direction = direction
         self.kind = kind
+        self.authorName = authorName
+        self.origin = origin
         self.text = text
         self.durationSeconds = durationSeconds
         self.timestamp = timestamp
@@ -62,6 +79,41 @@ struct Message: Identifiable, Codable, Equatable {
         self.whatsappTimestampText = whatsappTimestampText
         self.ingestedAt = ingestedAt
         self.handledAt = handledAt
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case chatId
+        case direction
+        case kind
+        case authorName
+        case origin
+        case text
+        case durationSeconds
+        case timestamp
+        case status
+        case rawAccessibilityText
+        case whatsappTimestampText
+        case ingestedAt
+        case handledAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        chatId = try container.decode(String.self, forKey: .chatId)
+        direction = try container.decode(MessageDirection.self, forKey: .direction)
+        kind = try container.decode(MessageKind.self, forKey: .kind)
+        authorName = try container.decodeIfPresent(String.self, forKey: .authorName)
+        origin = (try? container.decode(MessageOrigin.self, forKey: .origin)) ?? .unknown
+        text = try container.decodeIfPresent(String.self, forKey: .text)
+        durationSeconds = try container.decodeIfPresent(Double.self, forKey: .durationSeconds)
+        timestamp = try container.decodeIfPresent(Date.self, forKey: .timestamp)
+        status = (try? container.decode(MessageStatus.self, forKey: .status)) ?? .unknown
+        rawAccessibilityText = (try? container.decode(String.self, forKey: .rawAccessibilityText)) ?? ""
+        whatsappTimestampText = try container.decodeIfPresent(String.self, forKey: .whatsappTimestampText)
+        ingestedAt = try container.decodeIfPresent(Date.self, forKey: .ingestedAt)
+        handledAt = try container.decodeIfPresent(Date.self, forKey: .handledAt)
     }
 
     var isHandled: Bool {
@@ -87,6 +139,8 @@ extension Message {
 
     func replacing(
         id: String? = nil,
+        authorName: String?? = nil,
+        origin: MessageOrigin? = nil,
         text: String? = nil,
         durationSeconds: Double?? = nil,
         timestamp: Date?? = nil,
@@ -101,6 +155,8 @@ extension Message {
             chatId: chatId,
             direction: direction,
             kind: kind,
+            authorName: authorName ?? self.authorName,
+            origin: origin ?? self.origin,
             text: text ?? self.text,
             durationSeconds: durationSeconds ?? self.durationSeconds,
             timestamp: timestamp ?? self.timestamp,
