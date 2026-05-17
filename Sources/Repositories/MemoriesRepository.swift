@@ -17,6 +17,12 @@ enum MemoriesRepositoryError: LocalizedError {
 actor MemoriesRepository {
     static let shared = MemoriesRepository()
 
+    struct SaveResult: Equatable {
+        let entry: MemoryEntry
+        let created: Bool
+        let updated: Bool
+    }
+
     private let defaults: UserDefaults
     private let storageKey = "memories.v1"
 
@@ -29,7 +35,7 @@ actor MemoriesRepository {
             .sorted { $0.updatedAt > $1.updatedAt }
     }
 
-    func create(key: String?, content: String?, tags: [String]?) throws -> MemoryEntry {
+    func save(key: String?, content: String?, tags: [String]?) throws -> SaveResult {
         let trimmedKey = (key ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmedKey.isEmpty {
             throw MemoriesRepositoryError.missingParameter("key")
@@ -42,17 +48,41 @@ actor MemoriesRepository {
 
         var all = loadAll()
         let now = Date()
+        let normalizedTags = normalizedTags(tags)
+
+        let matchingIndexes = all.indices.filter { all[$0].key == trimmedKey }
+        if let firstIndex = matchingIndexes.first {
+            let existing = all[firstIndex]
+            let mergedTags = Array(Set(existing.tags + normalizedTags)).sorted()
+            let updatedEntry = MemoryEntry(
+                id: existing.id,
+                key: trimmedKey,
+                content: trimmedContent,
+                tags: mergedTags,
+                createdAt: existing.createdAt,
+                updatedAt: now
+            )
+            all[firstIndex] = updatedEntry
+
+            for duplicateIndex in matchingIndexes.dropFirst().sorted(by: >) {
+                all.remove(at: duplicateIndex)
+            }
+
+            persistAll(all)
+            return SaveResult(entry: updatedEntry, created: false, updated: true)
+        }
+
         let entry = MemoryEntry(
             id: UUID(),
             key: trimmedKey,
             content: trimmedContent,
-            tags: (tags ?? []).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty },
+            tags: normalizedTags,
             createdAt: now,
             updatedAt: now
         )
         all.append(entry)
         persistAll(all)
-        return entry
+        return SaveResult(entry: entry, created: true, updated: false)
     }
 
     func delete(id: UUID?) throws -> Bool {
@@ -99,5 +129,16 @@ actor MemoriesRepository {
         }
         defaults.set(data, forKey: storageKey)
         NotificationCenter.default.post(name: .memoriesRepositoryDidChange, object: nil)
+    }
+
+    private func normalizedTags(_ tags: [String]?) -> [String] {
+        Array(
+            Set(
+                (tags ?? [])
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { !$0.isEmpty }
+            )
+        )
+        .sorted()
     }
 }

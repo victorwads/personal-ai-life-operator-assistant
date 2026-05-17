@@ -104,6 +104,7 @@ The server currently registers these tools:
 
 - `create_memory`
 - `get_memory`
+- `list_memories`
 - `get_memories_by_tag`
 - `delete_memory`
 
@@ -127,8 +128,10 @@ The server currently registers these tools:
 - `send_message` accepts a `chatId` plus a `messages` array.
 - `wait_for_chat_message` waits for unread messages in a specific chat or a client prompt.
 - `wait_for_event` waits for any unread WhatsApp messages or a client prompt.
+- `create_memory` behaves like save/upsert by `key`: it updates an existing memory instead of creating duplicates.
+- `list_memories` is the primary way to review durable context, standing instructions, and recurring preferences.
 - `get_memories_by_tag` returns all memories when `tag` is omitted.
-- `get_memory` looks up by `key`.
+- `get_memory` looks up by exact `key`.
 - Subject entries already include optional `gmailThreadId` and `calendarEventId` fields for future cross-app linking.
 - Outgoing WhatsApp messages can be prefixed and suffixed through the settings screen.
 
