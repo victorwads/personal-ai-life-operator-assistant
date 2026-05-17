@@ -34,7 +34,7 @@ struct SpeakToClientTool: MCPToolHandler {
         let rate = arguments.number(for: "rate").map(Float.init) ?? context.speechRate()
 
         if isQuestionLike(text) {
-            let warning = "Warning: speak_to_client received question-like text and routed it through ask_to_client semantics. Use ask_to_client for questions, decisions, permissions, or clarification."
+            let warning = "Warning: speak_to_client received question-like text (contains '?') and routed it through ask_to_client semantics. Use speak_to_client for statements and ask_to_client for questions to ensure proper handling."
             context.appendLog(warning, level: .warning)
             let askEvent = await context.clientVoiceEventsRepository.appendAsk(prompt: text)
             await context.refreshPendingClientAskCount()
