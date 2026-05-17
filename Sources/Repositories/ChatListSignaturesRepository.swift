@@ -7,7 +7,7 @@ final class ChatListSignaturesRepository {
     private let defaults: UserDefaults
     private let storageKey = "chatListSignatures.v1"
 
-    private init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
     }
 

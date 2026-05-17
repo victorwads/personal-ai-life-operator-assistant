@@ -2,7 +2,7 @@ import Foundation
 
 extension AppModel {
     static var preview: AppModel {
-        let model = AppModel(startupMode: .preview)
+        let model = AppModel(profile: .default, profileIndex: 0, basePort: 8080, startupMode: .preview)
         model.seedPreviewData()
         return model
     }

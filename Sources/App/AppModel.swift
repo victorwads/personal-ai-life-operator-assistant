@@ -11,6 +11,11 @@ final class AppModel: ObservableObject {
         case preview
     }
 
+    let profile: AppProfile
+    let profileIndex: Int
+    private let profileDefaults: UserDefaults
+    let primaryWhatsAppWebAccountId: UUID?
+
     @Published var logs: [LogEntry] = []
     @Published var serverCalls: [MCPServerCallEntry] = []
     @Published var accessibilityTrusted = false
@@ -65,7 +70,7 @@ final class AppModel: ObservableObject {
             self?.appendLog(message, level: level)
         }
     )
-    let clientPromptWaitRepository = ClientPromptWaitRepository.shared
+    let clientPromptWaitRepository: ClientPromptWaitRepository
     lazy var whatsappMessageSendCoordinator = WhatsAppMessageSendCoordinator(
         accessibility: accessibility,
         accessibilityScheduler: accessibilityScheduler,
@@ -108,7 +113,7 @@ final class AppModel: ObservableObject {
         }
     )
     let interactor = WhatsAppInteractor()
-    let memoryStore = WhatsAppMemoryStore.shared
+    let memoryStore: WhatsAppMemoryStore
     lazy var mcpServerCoordinator: MCPServerCoordinator = {
         let coordinator = MCPServerCoordinator(
             dependencies: MCPServerContext(
@@ -144,28 +149,83 @@ final class AppModel: ObservableObject {
     var listSignaturesById: [String: String] = [:]
     var cancellables: Set<AnyCancellable> = []
     var liveStatusTask: Task<Void, Never>?
-    let serverCallsRepository = ServerCallsRepository.shared
-    let nicknamesRepository = NicknamesRepository.shared
-    let memoriesRepository = MemoriesRepository.shared
-    let sensitiveDataRepository = SensitiveDataRepository.shared
-    let subjectsRepository = SubjectsRepository.shared
-    let whatsAppWebAccountsRepository = WhatsAppWebAccountsRepository.shared
-    let clientVoiceEventsRepository = ClientVoiceEventsRepository.shared
-    let chatHistoryRepository = ChatHistoryRepository.shared
+    let serverCallsRepository: ServerCallsRepository
+    let nicknamesRepository: NicknamesRepository
+    let memoriesRepository: MemoriesRepository
+    let sensitiveDataRepository: SensitiveDataRepository
+    let subjectsRepository: SubjectsRepository
+    let whatsAppWebAccountsRepository: WhatsAppWebAccountsRepository
+    let clientVoiceEventsRepository: ClientVoiceEventsRepository
+    let chatHistoryRepository: ChatHistoryRepository
+    let chatListSignaturesRepository: ChatListSignaturesRepository
+    let conversationAccessRepository: ConversationAccessRepository
     var chatHistoryListenerId: UUID?
     var chatHistoryPersistTask: Task<Void, Never>?
 
-    init(startupMode: StartupMode = .live) {
+    init(
+        profile: AppProfile = .default,
+        profileIndex: Int = 0,
+        basePort: Int = 8080,
+        primaryWhatsAppWebAccountId: UUID? = nil,
+        startupMode: StartupMode = .live
+    ) {
+        self.profile = profile
+        self.profileIndex = profileIndex
+        self.primaryWhatsAppWebAccountId = primaryWhatsAppWebAccountId
+        profileDefaults = ProfileDefaults.defaults(for: profile)
+
+        memoryStore = WhatsAppMemoryStore(sendPrefixRepository: MCPSendPrefixRepository(defaults: profileDefaults))
+        clientPromptWaitRepository = ClientPromptWaitRepository(defaults: profileDefaults)
+
+        serverCallsRepository = ServerCallsRepository(profileDirectoryName: profile.isDefault ? nil : profile.id)
+        nicknamesRepository = NicknamesRepository(defaults: profileDefaults)
+        memoriesRepository = MemoriesRepository(defaults: profileDefaults)
+        subjectsRepository = SubjectsRepository(defaults: profileDefaults)
+        // WhatsApp Web accounts define the "profiles" (windows). Keep accounts global so Settings can manage them.
+        whatsAppWebAccountsRepository = WhatsAppWebAccountsRepository(defaults: .standard)
+        clientVoiceEventsRepository = ClientVoiceEventsRepository(defaults: profileDefaults)
+        chatHistoryRepository = ChatHistoryRepository(defaults: profileDefaults)
+        chatListSignaturesRepository = ChatListSignaturesRepository(defaults: profileDefaults)
+        conversationAccessRepository = ConversationAccessRepository(defaults: profileDefaults)
+
+        let keychainService = "dev.wads.AssistantMCPServer" + (profile.isDefault ? "" : ".\(profile.id)")
+        sensitiveDataRepository = SensitiveDataRepository(
+            store: KeychainDataStore(service: keychainService, account: "sensitive-data")
+        )
+
         let shouldLoadPersistedSettings = startupMode == .live
-        voiceSettings = VoiceSettingsModel(loadPersistedValues: shouldLoadPersistedSettings)
-        handsFreeClientVoiceSettings = HandsFreeClientVoiceSettingsModel(loadPersistedValues: shouldLoadPersistedSettings)
-        inputLockSettings = InputLockSettingsModel(loadPersistedValues: shouldLoadPersistedSettings)
-        mcpSendPrefixSettings = MCPSendPrefixSettingsModel(loadPersistedValues: shouldLoadPersistedSettings)
-        whatsAppWebSettings = WhatsAppWebSettingsModel(loadPersistedValues: shouldLoadPersistedSettings)
-        whatsAppIntegrationSettings = WhatsAppIntegrationSettingsModel(loadPersistedValues: shouldLoadPersistedSettings)
+        voiceSettings = VoiceSettingsModel(
+            loadPersistedValues: shouldLoadPersistedSettings,
+            voiceSettingsRepository: VoiceSettingsRepository(defaults: profileDefaults),
+            experimentalSpeakSettingsRepository: ExperimentalSpeakSettingsRepository(defaults: profileDefaults)
+        )
+        handsFreeClientVoiceSettings = HandsFreeClientVoiceSettingsModel(
+            loadPersistedValues: shouldLoadPersistedSettings,
+            repository: HandsFreeClientVoiceSettingsRepository(defaults: profileDefaults)
+        )
+        inputLockSettings = InputLockSettingsModel(
+            loadPersistedValues: shouldLoadPersistedSettings,
+            repository: InputLockSettingsRepository(defaults: profileDefaults)
+        )
+        mcpSendPrefixSettings = MCPSendPrefixSettingsModel(
+            loadPersistedValues: shouldLoadPersistedSettings,
+            repository: MCPSendPrefixRepository(defaults: profileDefaults)
+        )
+        whatsAppWebSettings = WhatsAppWebSettingsModel(
+            loadPersistedValues: shouldLoadPersistedSettings,
+            repository: WhatsAppWebSettingsRepository(defaults: profileDefaults)
+        )
+        whatsAppIntegrationSettings = WhatsAppIntegrationSettingsModel(
+            loadPersistedValues: shouldLoadPersistedSettings,
+            repository: WhatsAppIntegrationSettingsRepository(defaults: profileDefaults)
+        )
         whatsAppWebSessionStore.setCustomUserAgent(whatsAppWebSettings.effectiveCustomUserAgent)
         whatsAppWebSessionStore.setInspectable(whatsAppWebSettings.isInspectable)
         whatsAppWebSessionStore.setPageZoom(whatsAppWebSettings.pageZoom)
+
+        let resolvedPort = basePort + max(0, profileIndex)
+        mcpServerPort = resolvedPort
+        mcpServerPortText = "\(resolvedPort)"
 
         voiceAssistant.onSpeakingStateChanged = { [weak self] isSpeaking in
             self?.speechSynthesizerSpeaking = isSpeaking

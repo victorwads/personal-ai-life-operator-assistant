@@ -7,7 +7,7 @@ final class InputLockSettingsRepository {
     private let defaults: UserDefaults
     private let storageKey = "experimentalInputLockEnabled"
 
-    private init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
     }
 

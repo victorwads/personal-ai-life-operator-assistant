@@ -4,6 +4,15 @@ import WebKit
 extension AppModel {
     func loadWhatsAppWebAccounts() async {
         let accounts = await whatsAppWebAccountsRepository.list()
+        if let primaryWhatsAppWebAccountId,
+           let match = accounts.first(where: { $0.id == primaryWhatsAppWebAccountId }) {
+            whatsAppWebAccounts = [match]
+            whatsAppWebSessionStore.warmSessions(for: [match])
+            selectedWhatsAppWebAccountId = match.id
+            restartWhatsAppWebBridgePolling()
+            return
+        }
+
         whatsAppWebAccounts = accounts
         whatsAppWebSessionStore.warmSessions(for: accounts)
         restartWhatsAppWebBridgePolling()

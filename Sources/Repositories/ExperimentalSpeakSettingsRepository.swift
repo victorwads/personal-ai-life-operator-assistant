@@ -7,7 +7,7 @@ final class ExperimentalSpeakSettingsRepository {
     private let defaults: UserDefaults
     private let storageKey = "experimentalSpeakApiEnabled"
 
-    private init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
     }
 

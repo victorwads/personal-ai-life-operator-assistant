@@ -7,7 +7,7 @@ final class WhatsAppIntegrationSettingsRepository {
     private let defaults: UserDefaults
     private let modeKey = "whatsApp.integrationMode"
 
-    private init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
     }
 
@@ -20,4 +20,3 @@ final class WhatsAppIntegrationSettingsRepository {
         defaults.set(mode.rawValue, forKey: modeKey)
     }
 }
-

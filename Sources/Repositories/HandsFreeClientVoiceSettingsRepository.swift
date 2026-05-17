@@ -9,7 +9,7 @@ final class HandsFreeClientVoiceSettingsRepository {
     private let enabledStorageKey = "handsFreeClientVoiceEnabled"
     private let debounceSecondsStorageKey = "handsFreeClientVoiceDebounceSeconds"
 
-    private init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
     }
 

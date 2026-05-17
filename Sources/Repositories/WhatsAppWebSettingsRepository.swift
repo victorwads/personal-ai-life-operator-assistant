@@ -12,7 +12,7 @@ final class WhatsAppWebSettingsRepository {
     private let messageSettleDelayKey = "whatsAppWeb.messageSettleDelayMilliseconds"
     private let pageZoomKey = "whatsAppWeb.pageZoom"
 
-    private init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
     }
 

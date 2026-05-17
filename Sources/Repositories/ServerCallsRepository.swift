@@ -16,7 +16,12 @@ actor ServerCallsRepository {
         return decoder
     }()
 
+    private let profileDirectoryName: String?
     private var cachedURL: URL?
+
+    init(profileDirectoryName: String? = nil) {
+        self.profileDirectoryName = profileDirectoryName
+    }
 
     func append(_ entry: MCPServerCallEntry) {
         do {
@@ -68,7 +73,11 @@ actor ServerCallsRepository {
             create: true
         )
 
-        let directory = appSupport.appendingPathComponent("AssistantMCPServer/Logs", isDirectory: true)
+        var baseDirectory = appSupport.appendingPathComponent("AssistantMCPServer", isDirectory: true)
+        if let profileDirectoryName, !profileDirectoryName.isEmpty {
+            baseDirectory = baseDirectory.appendingPathComponent("Profiles/\(profileDirectoryName)", isDirectory: true)
+        }
+        let directory = baseDirectory.appendingPathComponent("Logs", isDirectory: true)
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
 
         let url = directory.appendingPathComponent("server_calls.jsonl", isDirectory: false)
@@ -88,4 +97,3 @@ actor ServerCallsRepository {
         try handle.close()
     }
 }
-

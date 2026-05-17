@@ -31,6 +31,7 @@ xcodebuild \
   -project "$PROJECT_FILE" \
   -scheme "$SCHEME" \
   -configuration Debug \
+  -quiet \
   -derivedDataPath "$DERIVED_DATA_DIR" \
   CODE_SIGN_STYLE=Automatic \
   DEVELOPMENT_TEAM="$TEAM_ID" \

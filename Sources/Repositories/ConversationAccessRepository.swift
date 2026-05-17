@@ -11,7 +11,7 @@ final class ConversationAccessRepository {
     private let denyConversationNamesDefaultsKey = "denyConversationNames.v1"
     private let allowConversationNamesDefaultsKey = "allowConversationNames.v1"
 
-    private init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
     }
 

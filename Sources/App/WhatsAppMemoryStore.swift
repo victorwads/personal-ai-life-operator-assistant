@@ -13,16 +13,17 @@ struct WaitForMessageResult {
 
 @MainActor
 final class WhatsAppMemoryStore: ObservableObject {
-    static let shared = WhatsAppMemoryStore()
-
     @Published private(set) var conversations: [ConversationSummary] = []
     @Published private(set) var selectedConversationId: String?
     @Published private(set) var selectedChatState: ChatState?
 
     private var chatStatesById: [String: ChatState] = [:]
     private var listeners: [UUID: (WhatsAppMemoryStoreEvent) -> Void] = [:]
+    private let sendPrefixRepository: MCPSendPrefixRepository
 
-    private init() {}
+    init(sendPrefixRepository: MCPSendPrefixRepository = .shared) {
+        self.sendPrefixRepository = sendPrefixRepository
+    }
 
     func replaceAllChatStates(_ chatStatesById: [String: ChatState]) {
         self.chatStatesById = chatStatesById.mapValues { state in
@@ -311,7 +312,7 @@ final class WhatsAppMemoryStore: ObservableObject {
     }
 
     private func normalizeChatState(_ state: ChatState, persistedAt: Date) -> ChatState {
-        let sendPrefix = MCPSendPrefixRepository.shared.load()
+        let sendPrefix = sendPrefixRepository.load()
         let assistantName = sendPrefix.assistantName
         let assistantSignature = sendPrefix.signature
 

@@ -3,7 +3,7 @@ import Foundation
 
 extension AppModel {
     func loadConversationAccessSettings() {
-        let loaded = ConversationAccessRepository.shared.load()
+        let loaded = conversationAccessRepository.load()
         conversationAccessMode = loaded.mode
         denyConversationNames = loaded.deny
         allowConversationNames = loaded.allow
@@ -12,7 +12,7 @@ extension AppModel {
             .dropFirst()
             .sink { [weak self] value in
                 guard let self else { return }
-                ConversationAccessRepository.shared.save(
+                conversationAccessRepository.save(
                     mode: value,
                     deny: self.denyConversationNames,
                     allow: self.allowConversationNames
@@ -24,7 +24,7 @@ extension AppModel {
             .dropFirst()
             .sink { [weak self] value in
                 guard let self else { return }
-                ConversationAccessRepository.shared.save(
+                conversationAccessRepository.save(
                     mode: self.conversationAccessMode,
                     deny: value,
                     allow: self.allowConversationNames
@@ -36,7 +36,7 @@ extension AppModel {
             .dropFirst()
             .sink { [weak self] value in
                 guard let self else { return }
-                ConversationAccessRepository.shared.save(
+                conversationAccessRepository.save(
                     mode: self.conversationAccessMode,
                     deny: self.denyConversationNames,
                     allow: value

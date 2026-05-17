@@ -9,7 +9,7 @@ final class MCPSendPrefixRepository {
     private let assistantNameKey = "mcpSendMessageAssistantName"
     private let signatureKey = "mcpSendMessageSignature"
 
-    private init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
     }
 

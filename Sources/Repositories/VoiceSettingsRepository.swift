@@ -12,7 +12,7 @@ final class VoiceSettingsRepository {
     private let speechRateDefaultsKey = "speechRate"
     private let recognitionLocaleIdentifierDefaultsKey = "recognitionLocaleIdentifier"
 
-    private init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
     }
 

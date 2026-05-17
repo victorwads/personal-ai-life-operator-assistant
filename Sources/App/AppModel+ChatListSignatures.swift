@@ -3,7 +3,7 @@ import Foundation
 extension AppModel {
     func loadChatListSignatures() {
         do {
-            if let payload = try ChatListSignaturesRepository.shared.load() {
+            if let payload = try chatListSignaturesRepository.load() {
                 listSignaturesById = payload.signaturesByChatId
                 appendLog("Loaded \(listSignaturesById.count) persisted chat signatures.")
             } else {
@@ -23,7 +23,7 @@ extension AppModel {
         )
 
         do {
-            try ChatListSignaturesRepository.shared.save(payload)
+            try chatListSignaturesRepository.save(payload)
         } catch {
             appendLog("Failed to persist chat signatures: \(error.localizedDescription)", level: .warning)
         }

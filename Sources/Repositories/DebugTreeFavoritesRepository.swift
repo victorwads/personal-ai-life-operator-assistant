@@ -7,7 +7,7 @@ final class DebugTreeFavoritesRepository {
     private let defaults: UserDefaults
     private let storageKey = "debugTreeFavoritesV1"
 
-    private init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
     }
 

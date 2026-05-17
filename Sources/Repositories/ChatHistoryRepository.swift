@@ -7,7 +7,7 @@ final class ChatHistoryRepository {
     private let defaults: UserDefaults
     private let storageKey = "chatHistory.v1"
 
-    private init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
     }
 
@@ -27,4 +27,3 @@ final class ChatHistoryRepository {
         defaults.removeObject(forKey: storageKey)
     }
 }
-
