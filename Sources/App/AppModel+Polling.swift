@@ -6,8 +6,22 @@ extension AppModel {
 
         switch mode {
         case .web:
+            if selectedWhatsAppWebAccountId == nil {
+                if let primaryWhatsAppWebAccountId,
+                   whatsAppWebAccounts.contains(where: { $0.id == primaryWhatsAppWebAccountId }) {
+                    selectedWhatsAppWebAccountId = primaryWhatsAppWebAccountId
+                } else {
+                    selectedWhatsAppWebAccountId = whatsAppWebAccounts.first?.id
+                }
+            }
+
             guard let accountId = selectedWhatsAppWebAccountId else {
-                appendLog("WhatsApp Web polling enabled but no account is selected.", level: .warning)
+                let count = whatsAppWebAccounts.count
+                if count == 0 {
+                    appendLog("WhatsApp Web polling waiting for accounts to load.", level: .info)
+                } else {
+                    appendLog("WhatsApp Web polling enabled but no account is selected (accounts=\(count)).", level: .warning)
+                }
                 return
             }
             let provider = WebProvider(
@@ -147,16 +161,17 @@ extension AppModel {
 
     func openConversationAndCapture(_ targetConversation: ConversationSummary) async throws -> WhatsAppSnapshot {
         let targetNameKey = WhatsAppParserSupport.chatNameComparisonKey(targetConversation.name)
+        let targetName = targetConversation.name
         for attempt in 1...3 {
             let baselineSnapshot = try accessibility.captureWhatsAppSnapshot(maxDepth: 14)
             let baselineState = parser.parse(snapshot: baselineSnapshot, messageLimit: 10)
 
-            if WhatsAppParserSupport.chatNameComparisonKey(baselineState.selectedChatName) == targetNameKey {
+            if WhatsAppParserSupport.chatNamesMatch(targetName, baselineState.selectedChatName) {
                 return baselineSnapshot
             }
 
             let liveConversation = baselineState.conversations.first {
-                $0.id == targetConversation.id || WhatsAppParserSupport.chatNameComparisonKey($0.name) == targetNameKey
+                $0.id == targetConversation.id || WhatsAppParserSupport.chatNameComparisonKey($0.name) == targetNameKey || WhatsAppParserSupport.chatNamesMatch(targetName, $0.name)
             } ?? targetConversation
 
             try interactor.selectConversation(liveConversation, using: accessibility)
@@ -164,7 +179,7 @@ extension AppModel {
 
             let updatedSnapshot = try accessibility.captureWhatsAppSnapshot(maxDepth: 14)
             let updatedState = parser.parse(snapshot: updatedSnapshot, messageLimit: 10)
-            if WhatsAppParserSupport.chatNameComparisonKey(updatedState.selectedChatName) == targetNameKey {
+            if WhatsAppParserSupport.chatNamesMatch(targetConversation.name, updatedState.selectedChatName) {
                 return updatedSnapshot
             }
 

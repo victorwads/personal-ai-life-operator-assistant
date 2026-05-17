@@ -1,6 +1,37 @@
 import Foundation
 
 enum WhatsAppParserSupport {
+    struct ChatTitleMatch: Equatable {
+        enum Method: String {
+            case exactKey
+            case keyContains
+            case wordOverlap
+            case none
+        }
+
+        let expectedTitle: String
+        let actualTitle: String
+        let expectedKey: String
+        let actualKey: String
+        let isMatch: Bool
+        let method: Method
+
+        var didNormalizeOrTruncate: Bool {
+            guard isMatch else { return false }
+            if method != .exactKey { return true }
+            return expectedTitle != actualTitle
+        }
+
+        var methodLabel: String { method.rawValue }
+
+        func flowLabel(_ flow: String?) -> String {
+            guard let flow = flow?.trimmingCharacters(in: .whitespacesAndNewlines), !flow.isEmpty else {
+                return "unknown"
+            }
+            return flow
+        }
+    }
+
     static func normalizedUniqueTexts(_ values: [String]) -> [String] {
         var seen = Set<String>()
         return values.compactMap { value in
@@ -197,6 +228,12 @@ enum WhatsAppParserSupport {
         return String(hash, radix: 16)
     }
 
+    static func canonicalChatId(for title: String?) -> String {
+        let title = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let key = chatNameComparisonKey(title)
+        return stableId(for: key.isEmpty ? title : key)
+    }
+
     static func chatNameComparisonKey(_ value: String?) -> String {
         guard let value else {
             return ""
@@ -213,6 +250,78 @@ enum WhatsAppParserSupport {
             .map(String.init)
             .joined()
     }
+
+    static func chatNamesMatch(_ expected: String?, _ actual: String?) -> Bool {
+        chatTitleMatch(expected: expected, actual: actual).isMatch
+    }
+
+    static func chatTitleMatch(expected: String?, actual: String?) -> ChatTitleMatch {
+        let expectedTitle = expected?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let actualTitle = actual?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let expectedKey = chatNameComparisonKey(expectedTitle)
+        let actualKey = chatNameComparisonKey(actualTitle)
+
+        if !expectedKey.isEmpty, !actualKey.isEmpty {
+            if expectedKey == actualKey {
+                return ChatTitleMatch(
+                    expectedTitle: expectedTitle,
+                    actualTitle: actualTitle,
+                    expectedKey: expectedKey,
+                    actualKey: actualKey,
+                    isMatch: true,
+                    method: .exactKey
+                )
+            }
+
+            if expectedKey.contains(actualKey) || actualKey.contains(expectedKey) {
+                return ChatTitleMatch(
+                    expectedTitle: expectedTitle,
+                    actualTitle: actualTitle,
+                    expectedKey: expectedKey,
+                    actualKey: actualKey,
+                    isMatch: true,
+                    method: .keyContains
+                )
+            }
+        }
+
+        if !expectedTitle.isEmpty, !actualTitle.isEmpty {
+            let expectedWords = selectionWords(for: expectedTitle)
+            let actualWords = selectionWords(for: actualTitle)
+            if !expectedWords.isEmpty, !actualWords.isEmpty {
+                let common = Set(expectedWords).intersection(actualWords)
+                if common.count >= min(expectedWords.count, actualWords.count, 2) {
+                    return ChatTitleMatch(
+                        expectedTitle: expectedTitle,
+                        actualTitle: actualTitle,
+                        expectedKey: expectedKey,
+                        actualKey: actualKey,
+                        isMatch: true,
+                        method: .wordOverlap
+                    )
+                }
+            }
+        }
+
+        return ChatTitleMatch(
+            expectedTitle: expectedTitle,
+            actualTitle: actualTitle.isEmpty ? "nil" : actualTitle,
+            expectedKey: expectedKey,
+            actualKey: actualKey,
+            isMatch: false,
+            method: .none
+        )
+    }
+
+    private static func selectionWords(for value: String) -> [String] {
+        value
+            .normalizedAXText
+            .folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: .current)
+            .lowercased()
+            .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+            .map(String.init)
+            .filter { !$0.isEmpty }
+    }
 }
 
 extension String {
@@ -221,5 +330,9 @@ extension String {
             .replacingOccurrences(of: "\u{200F}", with: "")
             .replacingOccurrences(of: "\u{202A}", with: "")
             .replacingOccurrences(of: "\u{202C}", with: "")
+            .replacingOccurrences(of: "\u{200D}", with: "") // zero-width joiner
+            .replacingOccurrences(of: "\u{2060}", with: "") // word joiner
+            .replacingOccurrences(of: "\u{FE0E}", with: "") // variation selector-15
+            .replacingOccurrences(of: "\u{FE0F}", with: "") // variation selector-16
     }
 }

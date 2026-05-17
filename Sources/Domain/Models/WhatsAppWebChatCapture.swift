@@ -12,5 +12,6 @@ struct WhatsAppWebChatCapture: Codable, Equatable {
 
     let flow: WhatsAppWebFlow
     let selectedChatTitle: String?
+    let composeDraftText: String?
     let messages: [CapturedMessage]
 }

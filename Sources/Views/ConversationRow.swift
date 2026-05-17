@@ -45,6 +45,12 @@ struct ConversationRow: View {
                 }
             }
 
+            Text("ID: \(conversation.id)")
+                .font(.caption2.monospaced())
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .textSelection(.enabled)
+
             HStack(spacing: 4) {
                 if conversation.lastMessageDirection == .outgoing {
                     Image(systemName: statusIcon)

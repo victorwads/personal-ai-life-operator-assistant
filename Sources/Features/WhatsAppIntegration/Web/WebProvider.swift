@@ -42,8 +42,9 @@ private struct WebParser: WhatsAppConversationParser {
         let items = try await bridge.listChatTitles(from: webView, limit: 50)
 
         return items.map { item in
-            ConversationSummary(
-                id: "web:\(accountId.uuidString):\(item.title)",
+            let chatId = WhatsAppParserSupport.canonicalChatId(for: item.title)
+            return ConversationSummary(
+                id: chatId,
                 accessibilityPath: [],
                 name: item.title,
                 unreadCount: item.unreadCount ?? 0,
@@ -58,15 +59,15 @@ private struct WebParser: WhatsAppConversationParser {
         }
     }
 
-    func readMessages(limit: Int) async throws -> (selectedChatName: String?, messages: [Message], composeFocused: Bool, canSendText: Bool) {
+    func readMessages(limit: Int) async throws -> (selectedChatName: String?, flow: String?, messages: [Message], composeFocused: Bool, canSendText: Bool) {
         guard let account = accounts().first(where: { $0.id == accountId }) else {
-            return (nil, [], false, false)
+            return (nil, nil, [], false, false)
         }
         let webView = sessionStore.webView(for: account)
         let capture = try await captureSettledSelectedChat(from: webView, limit: limit)
 
         let title = capture.selectedChatTitle
-        let chatId = title.map { "web:\(accountId.uuidString):\($0)" } ?? "web:\(accountId.uuidString):unknown"
+        let chatId = WhatsAppParserSupport.canonicalChatId(for: title)
         let messages: [Message] = capture.messages.map { captured in
             let normalizedText = captured.text.trimmingCharacters(in: .whitespacesAndNewlines)
             let ts = captured.timestampText?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -99,7 +100,7 @@ private struct WebParser: WhatsAppConversationParser {
             )
         }
 
-        return (title, messages, capture.flow == .chatSelected, capture.flow == .chatSelected)
+        return (title, capture.flow.rawValue, messages, capture.flow == .chatSelected, capture.flow == .chatSelected)
     }
 
     private func captureSettledSelectedChat(from webView: WKWebView, limit: Int) async throws -> WhatsAppWebChatCapture {
@@ -133,7 +134,7 @@ private struct WebInteractor: WhatsAppConversationInteractor {
             return
         }
         let webView = sessionStore.webView(for: account)
-        let targetKey = WhatsAppParserSupport.chatNameComparisonKey(conversation.name)
+        let expectedTitle = conversation.name
 
         var lastSnapshot: WhatsAppWebPageSnapshot?
 
@@ -145,8 +146,9 @@ private struct WebInteractor: WhatsAppConversationInteractor {
             while Date().timeIntervalSince(start) < 2.0 {
                 let snapshot = try await bridge.captureSnapshot(from: webView)
                 lastSnapshot = snapshot
-                let currentKey = WhatsAppParserSupport.chatNameComparisonKey(snapshot.selectedChatTitle)
-                if snapshot.flow == .chatSelected, currentKey == targetKey {
+                let currentTitle = snapshot.selectedChatTitle
+                let match = WhatsAppParserSupport.chatTitleMatch(expected: expectedTitle, actual: currentTitle)
+                if snapshot.flow == .chatSelected, match.isMatch {
                     return
                 }
                 try await Task.sleep(for: .milliseconds(150))
@@ -157,8 +159,9 @@ private struct WebInteractor: WhatsAppConversationInteractor {
 
         let lastFlow = lastSnapshot?.flow.rawValue ?? "nil"
         let lastTitle = lastSnapshot?.selectedChatTitle ?? "nil"
+        let lastMatch = WhatsAppParserSupport.chatTitleMatch(expected: expectedTitle, actual: lastTitle == "nil" ? nil : lastTitle)
         throw WhatsAppWebBridgeError.elementNotFound(
-            "WebInteractor.openConversation(title='\(conversation.name)') could not confirm chat selection after retries. lastFlow=\(lastFlow) lastTitle=\(lastTitle)"
+            "WebInteractor.openConversation(title='\(expectedTitle)') could not confirm chat selection after retries. expectedTitle='\(lastMatch.expectedTitle)' actualTitle='\(lastMatch.actualTitle)' expectedKey=\(lastMatch.expectedKey) actualKey=\(lastMatch.actualKey) lastFlow=\(lastFlow)"
         )
     }
 }

@@ -26,12 +26,43 @@ final class WhatsAppMemoryStore: ObservableObject {
     }
 
     func replaceAllChatStates(_ chatStatesById: [String: ChatState]) {
-        self.chatStatesById = chatStatesById.mapValues { state in
-            normalizeChatState(state, persistedAt: Date())
+        let persistedAt = Date()
+        var normalizedStatesById: [String: ChatState] = [:]
+        var normalizedConversations: [ConversationSummary] = []
+
+        for state in chatStatesById.values {
+            let canonicalChatId = WhatsAppParserSupport.canonicalChatId(for: state.chat.name)
+            let normalizedChat = state.chat.replacing(id: canonicalChatId)
+            let normalizedState = normalizeChatState(state.replacing(chat: normalizedChat), persistedAt: persistedAt)
+            normalizedStatesById[canonicalChatId] = normalizedState
+            normalizedConversations.append(normalizedChat)
+        }
+
+        self.chatStatesById = normalizedStatesById
+        self.conversations = normalizedConversations.sorted { left, right in
+            if left.isPinned != right.isPinned {
+                return left.isPinned && !right.isPinned
+            }
+            if left.unreadCount != right.unreadCount {
+                return left.unreadCount > right.unreadCount
+            }
+            if left.lastMessageAtText != right.lastMessageAtText {
+                return (left.lastMessageAtText ?? "").localizedStandardCompare(right.lastMessageAtText ?? "") == .orderedDescending
+            }
+            return left.name.localizedStandardCompare(right.name) == .orderedAscending
         }
 
         if let selectedConversationId, let cached = self.chatStatesById[selectedConversationId] {
             selectedChatState = cached
+        } else if let selectedConversationId, let conversation = self.conversations.first(where: { $0.id == selectedConversationId }) {
+            selectedChatState = ChatState(
+                chat: conversation,
+                messages: [],
+                composeFocused: false,
+                canSendText: false
+            )
+        } else {
+            selectedChatState = nil
         }
     }
 

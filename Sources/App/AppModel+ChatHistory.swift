@@ -6,8 +6,13 @@ extension AppModel {
             guard let payload = try chatHistoryRepository.load() else {
                 return
             }
-            memoryStore.replaceAllChatStates(payload.chatStatesByChatId)
-            appendLog("Loaded persisted chat history for \(payload.chatStatesByChatId.count) chats.")
+            let migratedPayload = migratePersistedChatHistory(payload)
+            memoryStore.replaceAllChatStates(migratedPayload.chatStatesByChatId)
+            appendLog("Loaded persisted chat history for \(migratedPayload.chatStatesByChatId.count) chats.")
+            if migratedPayload != payload {
+                try chatHistoryRepository.save(migratedPayload)
+                appendLog("Migrated persisted chat history to canonical chat IDs.")
+            }
         } catch {
             appendLog("Failed to load persisted chat history: \(error.localizedDescription)", level: .warning)
         }
@@ -46,5 +51,21 @@ extension AppModel {
             appendLog("Failed to persist chat history: \(error.localizedDescription)", level: .warning)
         }
     }
-}
 
+    private func migratePersistedChatHistory(_ payload: PersistedChatHistory) -> PersistedChatHistory {
+        var normalizedStatesByChatId: [String: ChatState] = [:]
+
+        for state in payload.chatStatesByChatId.values {
+            let canonicalChatId = WhatsAppParserSupport.canonicalChatId(for: state.chat.name)
+            let normalizedChat = state.chat.replacing(id: canonicalChatId)
+            let normalizedState = state.replacing(chat: normalizedChat)
+            normalizedStatesByChatId[canonicalChatId] = normalizedState
+        }
+
+        return PersistedChatHistory(
+            version: payload.version,
+            updatedAt: payload.updatedAt,
+            chatStatesByChatId: normalizedStatesByChatId
+        )
+    }
+}

@@ -112,11 +112,40 @@ struct WhatsAppWebScreen: View {
 private struct WhatsAppWebView: NSViewRepresentable {
     let webView: WKWebView
 
-    func makeNSView(context: Context) -> WKWebView {
-        webView
+    func makeNSView(context: Context) -> NSView {
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+
+        webView.translatesAutoresizingMaskIntoConstraints = false
+        webView.setFrameSize(Self.fixedViewportSize)
+        webView.setContentHuggingPriority(.required, for: .horizontal)
+        webView.setContentHuggingPriority(.required, for: .vertical)
+        webView.setContentCompressionResistancePriority(.required, for: .horizontal)
+        webView.setContentCompressionResistancePriority(.required, for: .vertical)
+
+        container.addSubview(webView)
+        NSLayoutConstraint.activate([
+            webView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            webView.topAnchor.constraint(equalTo: container.topAnchor),
+            webView.widthAnchor.constraint(equalToConstant: Self.fixedViewportSize.width),
+            webView.heightAnchor.constraint(equalToConstant: Self.fixedViewportSize.height)
+        ])
+
+        return container
     }
 
-    func updateNSView(_ webView: WKWebView, context: Context) {}
+    func updateNSView(_ container: NSView, context: Context) {
+        let targetSize = Self.fixedViewportSize
+        if let embeddedWebView = container.subviews.compactMap({ $0 as? WKWebView }).first {
+            if embeddedWebView.frame.size != targetSize {
+                embeddedWebView.setFrameSize(targetSize)
+            }
+        }
+    }
+
+    static var fixedViewportSize: NSSize {
+        NSSize(width: 1920, height: 1080)
+    }
 }
 
 #Preview {

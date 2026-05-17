@@ -13,6 +13,22 @@ struct ConversationSummary: Identifiable, Codable, Equatable {
     let lastMessageStatus: MessageStatus
     let isTyping: Bool
 
+    func replacing(id: String) -> ConversationSummary {
+        ConversationSummary(
+            id: id,
+            accessibilityPath: accessibilityPath,
+            name: name,
+            unreadCount: unreadCount,
+            isPinned: isPinned,
+            isSelected: isSelected,
+            lastMessagePreview: lastMessagePreview,
+            lastMessageAtText: lastMessageAtText,
+            lastMessageDirection: lastMessageDirection,
+            lastMessageStatus: lastMessageStatus,
+            isTyping: isTyping
+        )
+    }
+
     var listSignature: String {
         [
             name,

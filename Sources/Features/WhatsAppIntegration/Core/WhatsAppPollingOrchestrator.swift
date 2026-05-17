@@ -46,13 +46,33 @@ final class WhatsAppPollingOrchestrator {
 
             do {
                 try await provider.interactor.openConversation(conversation)
-                let read = try await provider.parser.readMessages(limit: messageLimit)
-                let expectedKey = WhatsAppParserSupport.chatNameComparisonKey(conversation.name)
-                let actualKey = WhatsAppParserSupport.chatNameComparisonKey(read.selectedChatName)
-                if actualKey != expectedKey {
-                    appendLog("Selection mismatch: expected \(conversation.name) but parsed \(read.selectedChatName ?? "unknown"). Skipping ingest.", .warning)
+                var read = try await provider.parser.readMessages(limit: messageLimit)
+
+                if provider.kind == .web, let flow = read.flow, flow != "chatSelected" {
+                    appendLog(
+                        "WhatsApp Web chat '\(conversation.name)' header observed but flow='\(flow)'; waiting DOM settle before ingest.",
+                        .info
+                    )
+                    try await Task.sleep(for: .milliseconds(350))
+                    read = try await provider.parser.readMessages(limit: messageLimit)
+                }
+
+                let match = WhatsAppParserSupport.chatTitleMatch(expected: conversation.name, actual: read.selectedChatName)
+                if !match.isMatch {
+                    appendLog(
+                        "Selection mismatch (\(provider.kind.rawValue)): expected '\(match.expectedTitle)' but parsed '\(match.actualTitle)'. expectedKey=\(match.expectedKey) actualKey=\(match.actualKey) flow=\(match.flowLabel(read.flow)). Skipping ingest.",
+                        .warning
+                    )
                     continue
                 }
+
+                if match.didNormalizeOrTruncate {
+                    appendLog(
+                        "Selection confirmed (\(provider.kind.rawValue)): expected '\(match.expectedTitle)' matched '\(match.actualTitle)' via \(match.methodLabel). expectedKey=\(match.expectedKey) actualKey=\(match.actualKey) flow=\(match.flowLabel(read.flow)).",
+                        .info
+                    )
+                }
+
                 let chatState = ChatState(
                     chat: conversation,
                     messages: read.messages,

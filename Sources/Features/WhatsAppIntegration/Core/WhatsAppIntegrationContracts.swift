@@ -8,7 +8,7 @@ protocol WhatsAppConversationInteractor {
 @MainActor
 protocol WhatsAppConversationParser {
     func listConversations() async throws -> [ConversationSummary]
-    func readMessages(limit: Int) async throws -> (selectedChatName: String?, messages: [Message], composeFocused: Bool, canSendText: Bool)
+    func readMessages(limit: Int) async throws -> (selectedChatName: String?, flow: String?, messages: [Message], composeFocused: Bool, canSendText: Bool)
 }
 
 @MainActor

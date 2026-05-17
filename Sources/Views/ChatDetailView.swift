@@ -77,6 +77,11 @@ struct ChatDetailView: View {
                 Text(chatState.chat.name)
                     .font(.title3.weight(.semibold))
 
+                Text("ID: \(chatState.chat.id)")
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+
                 Text("\(chatState.messages.count) recent messages")
                     .font(.caption)
                     .foregroundStyle(.secondary)

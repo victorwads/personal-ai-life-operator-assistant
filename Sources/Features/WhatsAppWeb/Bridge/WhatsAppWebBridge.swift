@@ -123,7 +123,12 @@ final class WhatsAppWebBridge {
         let inserted: Bool
         let composerSelector: String?
         let currentText: String?
+        let composeDraftText: String?
+        let observedOutgoingText: String?
         let selectedChatTitle: String?
+        let sendButtonFound: Bool?
+        let sendButtonClicked: Bool?
+        let activeElementTag: String?
     }
 
     func sendMessage(from webView: WKWebView, text: String) async throws -> MessageSendResult {
@@ -278,10 +283,17 @@ final class WhatsAppWebBridge {
           statusTestId = t;
         }
 
-        return { direction, authorName, text, timestampText, statusTestId };
+      return { direction, authorName, text, timestampText, statusTestId };
       }).filter((m) => m.text.length > 0);
 
-      return JSON.stringify({ flow, selectedChatTitle, messages });
+      const composeCandidate =
+        main.querySelector('[data-testid="conversation-compose-box-input"] [contenteditable="true"]') ||
+        main.querySelector('[contenteditable="true"][data-tab]') ||
+        main.querySelector('[contenteditable="true"][role="textbox"]') ||
+        null;
+      const composeDraftText = pickText(composeCandidate?.innerText || composeCandidate?.textContent || '') || null;
+
+      return JSON.stringify({ flow, selectedChatTitle, composeDraftText, messages });
     })();
     """
 
@@ -484,7 +496,13 @@ final class WhatsAppWebBridge {
       const text = __MESSAGE__;
 
       const composerCandidates = [
+        // Prefer the actual editable input if present.
+        main.querySelector('[data-testid="conversation-compose-box-input"] [contenteditable="true"]'),
+        main.querySelector('[data-testid="conversation-compose-box-input"] [role="textbox"]'),
+        main.querySelector('[data-testid="conversation-compose-box-input"]'),
         main.querySelector('[data-testid="conversation-panel-wrapper"] [data-lexical-editor]'),
+        main.querySelector('[data-testid="conversation-panel-wrapper"] [contenteditable="true"][role="textbox"]'),
+        main.querySelector('[data-testid="conversation-panel-wrapper"] [contenteditable="true"][data-tab]'),
         main.querySelector('[data-testid="conversation-panel-wrapper"] [contenteditable="true"]'),
         main.querySelector('[data-testid="conversation-panel-wrapper"] [role="textbox"]'),
         main.querySelector('[data-tab="8"] [data-lexical-editor]'),
@@ -520,8 +538,12 @@ final class WhatsAppWebBridge {
       try { composer.focus?.(); } catch {}
       try { composer.scrollIntoView?.({ block: 'center', inline: 'center' }); } catch {}
 
+      // WhatsApp Web sometimes focuses a nested editable element (Lexical) instead of the wrapper we selected.
+      const active = document.activeElement;
+      const target = (active && (active.isContentEditable || active.getAttribute?.('role') === 'textbox')) ? active : composer;
+
       try {
-        range.selectNodeContents(composer);
+        range.selectNodeContents(target);
         selection?.removeAllRanges?.();
         selection?.addRange?.(range);
         document.execCommand('delete');
@@ -529,18 +551,84 @@ final class WhatsAppWebBridge {
 
       let inserted = false;
       try {
+        // Some WA Web builds ignore `delete` for Lexical editors; force-clear any leftover DOM text.
+        try { target.textContent = ''; } catch {}
+        try { target.innerHTML = ''; } catch {}
+        try { document.execCommand('selectAll', false, null); } catch {}
+        try { document.execCommand('delete', false, null); } catch {}
         inserted = document.execCommand('insertText', false, text);
       } catch {}
 
       if (!inserted) {
         try {
-          composer.textContent = text;
-          composer.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, data: text, inputType: 'insertText' }));
-          inserted = pickText(composer.innerText || composer.textContent || '') === pickText(text);
+          target.textContent = text;
+          target.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, data: text, inputType: 'insertText' }));
+          inserted = pickText(target.innerText || target.textContent || '') === pickText(text);
         } catch {}
       }
 
-      const currentText = pickText(composer.innerText || composer.textContent || '') || null;
+      if (!inserted) {
+        // Try insertHTML as a last resort (helps when `insertText` is blocked).
+        try {
+          const html = String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\\n/g, '<br>');
+          inserted = document.execCommand('insertHTML', false, html);
+        } catch {}
+      }
+
+      const readComposerText = () => {
+        const direct = pickText(target.innerText || target.textContent || '');
+        if (direct) return direct;
+        // Lexical editors often keep text inside nested spans; join their textContent.
+        try {
+          const spans = Array.from(target.querySelectorAll('span'));
+          const joined = pickText(spans.map(s => s.textContent || '').join(' '));
+          if (joined) return joined.replace(/\\s+/g, ' ').trim();
+        } catch {}
+        // Fallback: traverse text nodes.
+        try {
+          const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT);
+          let out = '';
+          let node;
+          while ((node = walker.nextNode())) out += (node.nodeValue || '') + ' ';
+          const walked = pickText(out);
+          if (walked) return walked.replace(/\\s+/g, ' ').trim();
+        } catch {}
+        return '';
+      };
+
+      const currentText = readComposerText() || null;
+
+      const composeCandidate =
+        main.querySelector('[data-testid="conversation-compose-box-input"] [contenteditable="true"]') ||
+        main.querySelector('[contenteditable="true"][data-tab]') ||
+        main.querySelector('[contenteditable="true"][role="textbox"]') ||
+        null;
+      const composeDraftText = pickText(composeCandidate?.innerText || composeCandidate?.textContent || '') || null;
+
+      const norm = (v) => pickText(String(v || '')).replace(/\\s+/g, ' ').toLowerCase();
+      const confirmed = norm(composeDraftText) === norm(text);
+      if (!confirmed) {
+        return JSON.stringify({
+          result: "partial",
+          composerFound: true,
+          inserted,
+          composerSelector,
+          currentText,
+          composeDraftText,
+          observedOutgoingText: null,
+          sendButtonFound: false,
+          sendButtonClicked: false,
+          activeElementTag: (document.activeElement && document.activeElement.tagName) ? document.activeElement.tagName : null,
+          selectedChatTitle: pickText(
+            document.querySelector('[data-testid="conversation-info-header-chat-title"]')?.textContent ||
+            document.querySelector('[data-testid="conversation-info-header"] [title]')?.getAttribute('title') ||
+            null
+          ) || null
+        });
+      }
+
+      // If we can't confirm the composer content, still proceed to Enter, but we will only return "ok"
+      // if we observe the outgoing bubble containing the intended text.
       const keyEventInit = {
         bubbles: true,
         cancelable: true,
@@ -551,9 +639,31 @@ final class WhatsAppWebBridge {
         which: 13
       };
 
-      try { composer.dispatchEvent(new KeyboardEvent('keydown', keyEventInit)); } catch {}
-      try { composer.dispatchEvent(new KeyboardEvent('keypress', keyEventInit)); } catch {}
-      try { composer.dispatchEvent(new KeyboardEvent('keyup', keyEventInit)); } catch {}
+      try { target.focus?.(); } catch {}
+      try { target.dispatchEvent(new KeyboardEvent('keydown', keyEventInit)); } catch {}
+      try { target.dispatchEvent(new KeyboardEvent('keypress', keyEventInit)); } catch {}
+      try { target.dispatchEvent(new KeyboardEvent('keyup', keyEventInit)); } catch {}
+
+      // Fallback: click the send button (covers cases where Enter inserts a newline due to user settings).
+      let sendButtonFound = false;
+      let sendButtonClicked = false;
+      try {
+        const root = document;
+        const sendButton =
+          root.querySelector('[data-testid="compose-btn-send"]') ||
+          root.querySelector('[data-testid="send"]') ||
+          root.querySelector('button span[data-icon="send"]')?.closest('button') ||
+          root.querySelector('button[aria-label*="Send"]') ||
+          root.querySelector('button[aria-label*="Enviar"]') ||
+          root.querySelector('button[title*="Send"]') ||
+          root.querySelector('button[title*="Enviar"]') ||
+          null;
+        sendButtonFound = !!sendButton;
+        if (sendButton) {
+          sendButton.click?.();
+          sendButtonClicked = true;
+        }
+      } catch {}
 
       return JSON.stringify({
         result: inserted ? "ok" : "partial",
@@ -561,6 +671,11 @@ final class WhatsAppWebBridge {
         inserted,
         composerSelector,
         currentText,
+        composeDraftText,
+        observedOutgoingText: null,
+        sendButtonFound,
+        sendButtonClicked,
+        activeElementTag: (document.activeElement && document.activeElement.tagName) ? document.activeElement.tagName : null,
         selectedChatTitle: pickText(
           document.querySelector('[data-testid="conversation-info-header-chat-title"]')?.textContent ||
           document.querySelector('[data-testid="conversation-info-header"] [title]')?.getAttribute('title') ||

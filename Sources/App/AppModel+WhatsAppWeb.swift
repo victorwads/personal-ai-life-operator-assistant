@@ -180,7 +180,7 @@ extension AppModel {
         chatTitle: String,
         capture: WhatsAppWebChatCapture
     ) -> ConversationSummary {
-        let chatId = "web:\(accountId.uuidString):\(chatTitle)"
+        let chatId = WhatsAppParserSupport.canonicalChatId(for: chatTitle)
         let lastMessage = capture.messages.last
         let lastMessageStatus: MessageStatus = {
             switch lastMessage?.statusTestId {
@@ -213,7 +213,7 @@ extension AppModel {
         conversation: ConversationSummary,
         capture: WhatsAppWebChatCapture
     ) -> ChatState {
-        let chatId = "web:\(accountId.uuidString):\(conversation.name)"
+        let chatId = conversation.id
         let messages: [Message] = capture.messages.map { captured in
             let normalizedText = captured.text.trimmingCharacters(in: .whitespacesAndNewlines)
             let ts = captured.timestampText?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""

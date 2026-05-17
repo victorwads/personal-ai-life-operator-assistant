@@ -28,10 +28,10 @@ private struct DesktopAXParser: WhatsAppConversationParser {
         return screenState.conversations
     }
 
-    func readMessages(limit: Int) async throws -> (selectedChatName: String?, messages: [Message], composeFocused: Bool, canSendText: Bool) {
+    func readMessages(limit: Int) async throws -> (selectedChatName: String?, flow: String?, messages: [Message], composeFocused: Bool, canSendText: Bool) {
         let snapshot = try accessibility.captureWhatsAppSnapshot(maxDepth: 14)
         let screenState = parser.parse(snapshot: snapshot, messageLimit: limit)
-        return (screenState.selectedChatName, screenState.messages, screenState.composeFocused, screenState.canSendText)
+        return (screenState.selectedChatName, "desktopAX", screenState.messages, screenState.composeFocused, screenState.canSendText)
     }
 }
 
@@ -42,17 +42,17 @@ private struct DesktopAXInteractor: WhatsAppConversationInteractor {
     let parser: WhatsAppAppParser
 
     func openConversation(_ conversation: ConversationSummary) async throws {
-        let targetNameKey = WhatsAppParserSupport.chatNameComparisonKey(conversation.name)
+        let expectedTitle = conversation.name
 
         for _ in 1...3 {
             let baselineSnapshot = try accessibility.captureWhatsAppSnapshot(maxDepth: 14)
             let baselineState = parser.parse(snapshot: baselineSnapshot, messageLimit: 1)
-            if WhatsAppParserSupport.chatNameComparisonKey(baselineState.selectedChatName) == targetNameKey {
+            if WhatsAppParserSupport.chatNamesMatch(expectedTitle, baselineState.selectedChatName) {
                 return
             }
 
             let liveConversation = baselineState.conversations.first {
-                $0.id == conversation.id || WhatsAppParserSupport.chatNameComparisonKey($0.name) == targetNameKey
+                $0.id == conversation.id || WhatsAppParserSupport.chatNamesMatch(expectedTitle, $0.name)
             } ?? conversation
 
             try interactor.selectConversation(liveConversation, using: accessibility)
@@ -62,4 +62,3 @@ private struct DesktopAXInteractor: WhatsAppConversationInteractor {
         throw AccessibilityError.actionFailed(-1)
     }
 }
-
