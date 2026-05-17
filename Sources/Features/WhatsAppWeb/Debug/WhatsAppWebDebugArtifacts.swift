@@ -13,6 +13,7 @@ enum WhatsAppWebDebugArtifacts {
         lines.append("  url: \(yamlScalar(snapshot.url))")
         lines.append("  title: \(yamlScalar(snapshot.title))")
         lines.append("  document_ready_state: \(yamlScalar(snapshot.documentReadyState))")
+        lines.append("  flow: \(yamlScalar(snapshot.flow.rawValue))")
         lines.append("  is_logged_in: \(yamlBool(snapshot.isLoggedIn))")
         lines.append("  has_qr_canvas: \(yamlBool(snapshot.hasQrCanvas))")
         lines.append("  chat_row_count: \(snapshot.chatRowCount)")

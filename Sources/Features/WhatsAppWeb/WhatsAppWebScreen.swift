@@ -71,7 +71,7 @@ struct WhatsAppWebScreen: View {
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.secondary)
 
-                        Text("State: \(snapshot.documentReadyState) • Logged in: \(snapshot.isLoggedIn ? "yes" : "no") • Chats: \(snapshot.chatRowCount) • Unread markers: \(snapshot.unreadBadgeCount)")
+                        Text("State: \(snapshot.documentReadyState) • Flow: \(snapshot.flow.rawValue) • Logged in: \(snapshot.isLoggedIn ? "yes" : "no") • Chats: \(snapshot.chatRowCount) • Unread markers: \(snapshot.unreadBadgeCount)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 

@@ -11,5 +11,6 @@ struct WhatsAppWebPageSnapshot: Codable, Equatable {
     let selectedChatTitle: String?
     let composePlaceholder: String?
     let bodyTextSample: String
+    let flow: WhatsAppWebFlow
     let capturedAt: Date
 }
