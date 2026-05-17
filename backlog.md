@@ -44,6 +44,23 @@ Isso controla melhor o modo de uso entre automação e interação manual, além
 
 ---
 
+## 4) Configuração de seletores via YAML com auto-update
+
+**Descrição**  
+Externalizar os seletores e IDs usados no parse do WhatsApp Web para um arquivo `YAML` versionado. Esse arquivo deve ser bundlado no app como padrão, mas o runtime pode baixar uma versão mais recente via uma URL configurável nas Settings. Se a URL estiver vazia, o app usa apenas o `YAML` embutido e não tenta atualizar.
+
+**Regras desejadas**  
+- O `YAML` precisa carregar metadados como data da versão e versão do schema.
+- Enquanto a versão do schema for compatível, o app pode atualizar só o `YAML` sem exigir atualização do binário.
+- Se o schema mudar, a atualização precisa ser feita no app nativo.
+- Toda a lógica de parsing atual do WhatsApp Web deve deixar de depender de IDs hardcoded espalhados no código e passar a consultar essa configuração centralizada.
+- O `YAML` deve permitir múltiplas alternativas por seletor, para cobrir mudanças de DOM/HTML sem quebrar o fluxo.
+
+**Por que isso entra no backlog**  
+Isso reduz o acoplamento com o HTML atual do WhatsApp Web e facilita manter o app funcionando quando a interface mudar, sem precisar lançar uma nova versão para toda alteração pequena de seletor.
+
+---
+
 Exemplo de prompts finais:
-- Execute as alterações do item `## X) Xxxxx Xxx Xxxxx Xxxxx`do arquivo `backlog.md`.
+- Execute as alterações do item `## X) Xxxxx Xxx Xxxxx Xxxxx` do arquivo `backlog.md`.
 - Pode remover do backlog e comitar as alterações e o backlog inteiro. (após permissão explicita para remover do backlog)
