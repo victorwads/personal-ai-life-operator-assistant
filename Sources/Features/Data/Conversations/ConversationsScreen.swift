@@ -70,6 +70,12 @@ struct ConversationsScreen: View {
 
                     appModel.toggleConversationAccess(conversationName)
                 },
+                onMarkMessageUnhandled: { message in
+                    appModel.markMessageAsUnhandled(message)
+                },
+                onMarkMessageAndFollowingUnhandled: { message in
+                    appModel.markMessageAndFollowingAsUnhandled(message)
+                },
                 onSend: {
                     Task {
                         await sendSelectedChatMessage()

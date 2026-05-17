@@ -56,7 +56,8 @@ extension AppModel {
                     durationSeconds: nil,
                     timestamp: Date().addingTimeInterval(-3600),
                     status: .delivered,
-                    rawAccessibilityText: "Bom dia!"
+                    rawAccessibilityText: "Bom dia!",
+                    handledAt: Date().addingTimeInterval(-3550)
                 ),
                 Message(
                     id: "m2",
@@ -106,4 +107,3 @@ extension AppModel {
         mcpServerPortText = "8080"
     }
 }
-

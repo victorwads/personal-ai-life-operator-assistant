@@ -6,6 +6,22 @@ extension AppModel {
         memoryStore.selectConversation(id: conversation.id)
     }
 
+    func markMessageAsUnhandled(_ message: Message) {
+        guard message.direction == .incoming else {
+            return
+        }
+
+        memoryStore.markMessagesUnhandled(messageIds: [message.id], chatId: message.chatId)
+    }
+
+    func markMessageAndFollowingAsUnhandled(_ message: Message) {
+        guard message.direction == .incoming else {
+            return
+        }
+
+        memoryStore.markMessageAndFollowingAsUnhandled(messageId: message.id, chatId: message.chatId)
+    }
+
     func resetWhatsAppIntegrationState() {
         memoryStore.resetAll()
         listSignaturesById = [:]

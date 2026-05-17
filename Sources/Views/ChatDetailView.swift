@@ -7,6 +7,8 @@ struct ChatDetailView: View {
     let isBlocked: Bool
     let accessMode: ConversationAccessMode
     let onToggleBlocked: () -> Void
+    let onMarkMessageUnhandled: (Message) -> Void
+    let onMarkMessageAndFollowingUnhandled: (Message) -> Void
     let onSend: () -> Void
 
     var body: some View {
@@ -17,8 +19,16 @@ struct ChatDetailView: View {
                     Divider()
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 10) {
-                            ForEach(chatState.messages) { message in
-                                MessageRow(message: message)
+                            ForEach(Array(chatState.messages.reversed())) { message in
+                                MessageRow(
+                                    message: message,
+                                    onMarkAsUnhandled: {
+                                        onMarkMessageUnhandled(message)
+                                    },
+                                    onMarkAsUnhandledAndFollowing: {
+                                        onMarkMessageAndFollowingUnhandled(message)
+                                    }
+                                )
                             }
                         }
                         .padding(14)
@@ -62,6 +72,12 @@ struct ChatDetailView: View {
                 Text("\(chatState.messages.count) recent messages")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
+                if unhandledIncomingCount > 0 {
+                    Text("\(unhandledIncomingCount) aguardando assistente")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
             }
 
             Spacer()
@@ -97,6 +113,10 @@ struct ChatDetailView: View {
             return isBlocked ? "checkmark.circle" : "minus.circle"
         }
     }
+
+    private var unhandledIncomingCount: Int {
+        chatState?.messages.filter { $0.direction == .incoming && !$0.isHandled }.count ?? 0
+    }
 }
 
 #Preview("Loaded") {
@@ -107,6 +127,8 @@ struct ChatDetailView: View {
         isBlocked: false,
         accessMode: .allowAllExceptDeny,
         onToggleBlocked: {},
+        onMarkMessageUnhandled: { _ in },
+        onMarkMessageAndFollowingUnhandled: { _ in },
         onSend: {}
     )
     .frame(width: 700, height: 520)
@@ -120,6 +142,8 @@ struct ChatDetailView: View {
         isBlocked: false,
         accessMode: .allowAllExceptDeny,
         onToggleBlocked: {},
+        onMarkMessageUnhandled: { _ in },
+        onMarkMessageAndFollowingUnhandled: { _ in },
         onSend: {}
     )
     .frame(width: 700, height: 520)
