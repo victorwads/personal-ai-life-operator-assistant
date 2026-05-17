@@ -1,14 +1,40 @@
 import SwiftUI
 
+enum StatusBadgeState {
+    case online
+    case offline
+    case paused
+
+    var indicatorColor: Color {
+        switch self {
+        case .online:
+            return .green
+        case .offline:
+            return .red
+        case .paused:
+            return .yellow
+        }
+    }
+
+    var backgroundColor: Color {
+        switch self {
+        case .paused:
+            return Color.yellow.opacity(0.14)
+        case .online, .offline:
+            return Color(nsColor: .controlBackgroundColor)
+        }
+    }
+}
+
 struct StatusBadge: View {
     let title: String
-    let isOnline: Bool
+    let state: StatusBadgeState
     let help: String?
 
     var body: some View {
         HStack(spacing: 8) {
             Circle()
-                .fill(isOnline ? Color.green : Color.red)
+                .fill(state.indicatorColor)
                 .frame(width: 8, height: 8)
 
             Text(title)
@@ -16,7 +42,7 @@ struct StatusBadge: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(state.backgroundColor)
         .clipShape(Capsule())
         .help(help ?? "")
     }
@@ -48,12 +74,17 @@ struct SpeechStatusBadge: View {
 }
 
 #Preview("Online") {
-    StatusBadge(title: "OK", isOnline: true, help: "All good")
+    StatusBadge(title: "OK", state: .online, help: "All good")
         .padding()
 }
 
 #Preview("Offline") {
-    StatusBadge(title: "Microphone", isOnline: false, help: "Click to open settings")
+    StatusBadge(title: "Microphone", state: .offline, help: "Click to open settings")
+        .padding()
+}
+
+#Preview("Paused") {
+    StatusBadge(title: "WhatsApp paused", state: .paused, help: "Polling is paused")
         .padding()
 }
 

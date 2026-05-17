@@ -14,7 +14,7 @@ struct MicrophonePermissionBadge: View {
             } label: {
                 StatusBadge(
                     title: "Voice",
-                    isOnline: false,
+                    state: .offline,
                     help: "Microphone and Speech Recognition permissions are required for voice answers. Click to request them."
                 )
             }

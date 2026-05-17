@@ -27,3 +27,23 @@ Adicionar a capacidade de arquivar uma conversa específica para manter o conjun
 É uma melhoria útil para controle de contexto e limpeza da lista de conversas, com uma implementação relativamente direta em comparação com o fluxo de busca/resolução de chat.
 
 ---
+
+## 3) Bloqueio e desbloqueio da WebView
+
+**Descrição**  
+Adicionar um ícone de bloqueio/desbloqueio ao lado do título do WhatsApp para controlar a interação com a WebView. No modo bloqueado, a WebView fica travada para o usuário, com viewport fixo em `1080p` e mantendo `80%` de escala. No modo desbloqueado, a WebView volta a usar o tamanho disponível da janela, também com `80%` de escala.
+
+**Comportamento desejado**  
+- Mostrar um ícone de bloqueado/desbloqueado ao lado do título.
+- Quando bloqueado, impedir interação do usuário com a WebView.
+- Quando desbloqueado, permitir interação normal e ajustar o viewport ao tamanho da janela.
+- Exibir um helper/tooltip avisando que ao desbloquear o pooling de mensagens vai parar.
+
+**Por que isso entra no backlog**  
+Isso controla melhor o modo de uso entre automação e interação manual, além de recuperar um comportamento que já existia na primeira versão.
+
+---
+
+Exemplo de prompts finais:
+- Execute as alterações do item `## X) Xxxxx Xxx Xxxxx Xxxxx`do arquivo `backlog.md`.
+- Pode remover do backlog e comitar as alterações e o backlog inteiro. (após permissão explicita para remover do backlog)

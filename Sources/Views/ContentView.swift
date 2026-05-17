@@ -239,6 +239,7 @@ struct ContentView: View {
 
             BridgeStatusBadge(
                 integrationMode: appModel.whatsAppIntegrationSettings.mode,
+                isPolling: appModel.isPolling,
                 accessibilityTrusted: appModel.accessibilityTrusted,
                 whatsappRunning: appModel.whatsappRunning,
                 webSnapshot: appModel.selectedWhatsAppWebPageSnapshot,
