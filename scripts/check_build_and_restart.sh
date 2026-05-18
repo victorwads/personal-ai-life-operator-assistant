@@ -15,6 +15,9 @@ BUILD_TMP_DIR="/private/tmp/AssistantMCPServer"
 mkdir -p "$BUILD_TMP_DIR"
 export TMPDIR="$BUILD_TMP_DIR"
 
+echo "Sanitizing Swift file endings..."
+"$REPO_DIR/scripts/sanitize_file_endings.sh"
+
 TEAM_ID="${DEVELOPMENT_TEAM:-}"
 if [ -z "${TEAM_ID}" ] && [ -f "$DEVELOPMENT_TEAM_FILE" ]; then
   TEAM_ID="$(cat "$DEVELOPMENT_TEAM_FILE" | tr -d '[:space:]')"
