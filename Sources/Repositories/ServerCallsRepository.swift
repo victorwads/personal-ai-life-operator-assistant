@@ -73,16 +73,36 @@ actor ServerCallsRepository {
             create: true
         )
 
-        var baseDirectory = appSupport.appendingPathComponent("AssistantMCPServer", isDirectory: true)
-        if let profileDirectoryName, !profileDirectoryName.isEmpty {
-            baseDirectory = baseDirectory.appendingPathComponent("Profiles/\(profileDirectoryName)", isDirectory: true)
-        }
-        let directory = baseDirectory.appendingPathComponent("Logs", isDirectory: true)
+        let baseDirectory = appSupport.appendingPathComponent("AssistantMCPServer", isDirectory: true)
+        let profileDirectory = baseDirectory.appendingPathComponent("Profiles/\(sanitizedProfileDirectoryName)", isDirectory: true)
+        let directory = profileDirectory.appendingPathComponent("Logs", isDirectory: true)
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
 
         let url = directory.appendingPathComponent("server_calls.jsonl", isDirectory: false)
         cachedURL = url
+
+        try migrateLegacyLogIfNeeded(targetURL: url, baseDirectory: baseDirectory)
         return url
+    }
+
+    private var sanitizedProfileDirectoryName: String {
+        let trimmed = (profileDirectoryName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return "profile-1"
+        }
+        return trimmed
+    }
+
+    private func migrateLegacyLogIfNeeded(targetURL: URL, baseDirectory: URL) throws {
+        let fileManager = FileManager.default
+        guard !fileManager.fileExists(atPath: targetURL.path) else { return }
+
+        let legacyDirectory = baseDirectory.appendingPathComponent("Logs", isDirectory: true)
+        let legacyURL = legacyDirectory.appendingPathComponent("server_calls.jsonl", isDirectory: false)
+        guard fileManager.fileExists(atPath: legacyURL.path) else { return }
+
+        // Copy (not move) so rollback is always possible by inspecting the legacy file.
+        try fileManager.copyItem(at: legacyURL, to: targetURL)
     }
 
     private func appendLine(data: Data, to url: URL) throws {

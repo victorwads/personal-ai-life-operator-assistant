@@ -175,12 +175,13 @@ final class AppModel: ObservableObject {
         self.profileIndex = profileIndex
         self.startupMode = startupMode
         self.primaryWhatsAppWebAccountId = primaryWhatsAppWebAccountId
-        profileDefaults = ProfileDefaults.defaults(for: profile)
+        let resolvedProfileDefaults = ProfileDefaults.defaults(for: profile)
+        profileDefaults = resolvedProfileDefaults
 
         memoryStore = WhatsAppMemoryStore(sendPrefixRepository: MCPSendPrefixRepository(defaults: profileDefaults))
         clientPromptWaitRepository = ClientPromptWaitRepository(defaults: profileDefaults)
 
-        serverCallsRepository = ServerCallsRepository(profileDirectoryName: profile.isDefault ? nil : profile.id)
+        serverCallsRepository = ServerCallsRepository(profileDirectoryName: profile.isDefault ? "profile-1" : profile.id)
         nicknamesRepository = NicknamesRepository(defaults: profileDefaults)
         memoriesRepository = MemoriesRepository(defaults: profileDefaults)
         subjectsRepository = SubjectsRepository(defaults: profileDefaults)
