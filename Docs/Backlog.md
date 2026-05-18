@@ -1,8 +1,8 @@
 # Backlog (WhatsApp Assistant)
 
-Arquivo em: `/Users/DevData/victorwads/GitRepos/Personal/AssistantMCPServer/backlog.md`
+Arquivo em: [Docs/Backlog.md](./Backlog.md)
 
-Instrução: antes de qualquer commit relacionado a itens deste backlog, validar que o build está funcionando usando `scripts/check_build_and_restart.sh`.
+Instrução: antes de qualquer commit relacionado a itens deste backlog, validar que o build está funcionando usando [scripts/check_build_and_restart.sh](../scripts/check_build_and_restart.sh).
 
 Legenda de valor:
 - `V5 - Altíssimo`: bug crítico ou valor muito alto para o cliente
@@ -35,7 +35,7 @@ Score de Execução:
 Este arquivo reúne ideias e melhorias para retomarmos depois. Cada item fica separado por uma linha `---`.
 
 Exemplo de prompts para manutenção:
-- Execute as alterações do item `## X) Xxxxx Xxx Xxxxx Xxxxx` do arquivo `backlog.md`.
+- Execute as alterações do item `## X) Xxxxx Xxx Xxxxx Xxxxx` do arquivo [Docs/Backlog.md](./Backlog.md).
 - Pode remover do backlog e comitar as alterações e o backlog inteiro. (após permissão explicita para remover do backlog)
 
 ---
@@ -289,9 +289,9 @@ Criar uma suíte de testes automatizados em Swift para validar o fluxo real da a
 - Cada fluxo de integração existente ou nova criado no projeto deve ter cobertura de teste automatizado correspondente. ex.: listagem de chats, leitura de mensagens, envio de mensagens, arquivamento, pesquisa de chat, etc.
 
 **Notas técnicas**  
-- O melhor encaixe é evoluir o `scripts/check_build_and_restart.sh`, porque ele já centraliza gerar o projeto, buildar e reiniciar o app; esse fluxo pode passar a opcionalmente executar a suíte de integração logo após o restart.
-- Se os testes não ficarem acoplados ao script, o `README` precisa explicar com clareza como rodá-los e em que momento eles entram no processo de manutenção.
-- O prompt de implementação deve deixar explícito que, ao concluir essa feature, o `README` precisa ser atualizado para refletir o novo fluxo.
+- O melhor encaixe é evoluir [scripts/check_build_and_restart.sh](../scripts/check_build_and_restart.sh), porque ele já centraliza gerar o projeto, buildar e reiniciar o app; esse fluxo pode passar a opcionalmente executar a suíte de integração logo após o restart.
+- Se os testes não ficarem acoplados ao script, o [README.md](../README.md) precisa explicar com clareza como rodá-los e em que momento eles entram no processo de manutenção.
+- O prompt de implementação deve deixar explícito que, ao concluir essa feature, o [README.md](../README.md) precisa ser atualizado para refletir o novo fluxo.
 - Antes de codar, confirmar os nomes reais de targets, alvos de teste e arquivos envolvidos, porque essa estrutura pode ter mudado desde o planejamento.
 
 **Regra de desenvolvimento desejada**  
