@@ -8,92 +8,31 @@ struct MessageRow: View {
     let onMarkAsHandledAndFollowing: (() -> Void)?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
-                Text(authorLabel)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(message.direction == .incoming ? .secondary : .primary)
-                    .help(authorHelp)
-
-                Text(message.kind.rawValue)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .help("Message kind (text/voice/image/etc). For WhatsApp Web we currently map most items as text.")
-
-                Text(message.status.rawValue)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .help("Delivery status (sent/delivered/read). WhatsApp Web parsing still treats most as unknown.")
-
-                statusChip
-
-                if message.direction == .outgoing {
-                    originChip
-                }
-
-                Spacer()
-
-                if let timestampLabel {
-                    Text(timestampLabel)
-                        .font(.caption2.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
+        HStack {
+            if isOutgoingBubble {
+                Spacer(minLength: 40)
             }
 
-            Text(message.text ?? message.rawAccessibilityText)
-                .font(.body)
-                .textSelection(.enabled)
+            bubbleContent
+                .frame(maxWidth: bubbleMaxWidth, alignment: .leading)
 
-            if shouldShowMarkUnhandledMenu {
-                HStack {
-                    Spacer()
-
-                    Menu("Desler") {
-                        Button("Desler so esta") {
-                            onMarkAsUnhandled?()
-                        }
-
-                        Button("Desler esta e seguintes") {
-                            onMarkAsUnhandledAndFollowing?()
-                        }
-                    }
-                    .menuStyle(.borderlessButton)
-                    .controlSize(.small)
-                    .help("Recoloca esta mensagem, ou ela e as seguintes, na fila dos waits do assistente.")
-                }
-            }
-
-            if shouldShowMarkHandledMenu {
-                HStack {
-                    Spacer()
-
-                    Menu("Mark as read") {
-                        Button("Mark this as read") {
-                            onMarkAsHandled?()
-                        }
-
-                        Button("Mark this and following as read") {
-                            onMarkAsHandledAndFollowing?()
-                        }
-                    }
-                    .menuStyle(.borderlessButton)
-                    .controlSize(.small)
-                    .help("Marks this message, or this message and the following ones, as read by the assistant.")
-                }
+            if !isOutgoingBubble {
+                Spacer(minLength: 40)
             }
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(backgroundColor)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .frame(maxWidth: .infinity)
     }
 
     @ViewBuilder
     private var statusChip: some View {
-        Text(message.isHandled ? "handled" : "pending")
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(message.isHandled ? Color.secondary : Color.orange)
-            .help("pending = the assistant has not marked this incoming message as read/handled yet. handled = already consumed by a wait/tool or manually marked.")
+        HStack(spacing: 4) {
+            Image(systemName: message.isHandled ? "checkmark.circle.fill" : "clock.fill")
+                .font(.caption2.weight(.semibold))
+            Text(message.isHandled ? "handled" : "pending")
+                .font(.caption2.weight(.semibold))
+        }
+        .foregroundStyle(message.isHandled ? Color.secondary : Color.orange)
+        .help("pending = the assistant has not marked this incoming message as read/handled yet. handled = already consumed by a wait/tool or manually marked.")
     }
 
     private var shouldShowMarkUnhandledMenu: Bool {
@@ -155,10 +94,175 @@ struct MessageRow: View {
 
     private var backgroundColor: Color {
         if message.direction == .incoming && !message.isHandled {
-            return .orange.opacity(0.10)
+            return .orange.opacity(0.12)
+        }
+
+        if message.direction == .outgoing {
+            return .green.opacity(0.14)
+        }
+
+        if message.direction == .incoming {
+            return .blue.opacity(0.10)
         }
 
         return Color(nsColor: .controlBackgroundColor)
+    }
+
+    private var isOutgoingBubble: Bool {
+        message.direction == .outgoing
+    }
+
+    private var bubbleMaxWidth: CGFloat {
+        520
+    }
+
+    private var bubbleContent: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: headerIcon)
+                        .font(.caption.weight(.semibold))
+
+                    Text(authorLabel)
+                        .font(.caption.weight(.semibold))
+                        .help(authorHelp)
+                }
+                .foregroundStyle(message.direction == .incoming ? .secondary : .primary)
+
+                Spacer()
+
+                if let timestampLabel {
+                    Text(timestampLabel)
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Text(message.text ?? message.rawAccessibilityText)
+                .font(.body)
+                .textSelection(.enabled)
+
+            HStack(alignment: .bottom, spacing: 10) {
+                HStack(spacing: 6) {
+                    labeledChip(title: message.kind.rawValue, systemImage: kindIcon)
+                        .help("Message kind (text/voice/image/etc). For WhatsApp Web we currently map most items as text.")
+
+                    labeledChip(title: message.status.rawValue, systemImage: statusIcon)
+                        .help("Delivery status (sent/delivered/read). WhatsApp Web parsing still treats most as unknown.")
+
+                    statusChip
+
+                    if message.direction == .outgoing {
+                        originChip
+                    }
+                }
+
+                Spacer()
+
+                if shouldShowMarkUnhandledMenu {
+                    Menu("Desler") {
+                        Button("Desler so esta") {
+                            onMarkAsUnhandled?()
+                        }
+
+                        Button("Desler esta e seguintes") {
+                            onMarkAsUnhandledAndFollowing?()
+                        }
+                    }
+                    .menuStyle(.borderlessButton)
+                    .controlSize(.small)
+                    .help("Recoloca esta mensagem, ou ela e as seguintes, na fila dos waits do assistente.")
+                }
+
+                if shouldShowMarkHandledMenu {
+                    Menu("Mark as read") {
+                        Button("Mark this as read") {
+                            onMarkAsHandled?()
+                        }
+
+                        Button("Mark this and following as read") {
+                            onMarkAsHandledAndFollowing?()
+                        }
+                    }
+                    .menuStyle(.borderlessButton)
+                    .controlSize(.small)
+                    .help("Marks this message, or this message and the following ones, as read by the assistant.")
+                }
+            }
+        }
+        .padding(12)
+        .background(backgroundColor, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(borderColor)
+        )
+    }
+
+    private func labeledChip(title: String, systemImage: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: systemImage)
+                .font(.caption2.weight(.semibold))
+            Text(title)
+                .font(.caption2.weight(.semibold))
+        }
+        .foregroundStyle(.secondary)
+    }
+
+    private var headerIcon: String {
+        switch message.direction {
+        case .incoming:
+            return "person.crop.circle.fill"
+        case .outgoing:
+            return "person.crop.circle.badge.checkmark"
+        case .unknown:
+            return "questionmark.circle.fill"
+        }
+    }
+
+    private var kindIcon: String {
+        switch message.kind {
+        case .text:
+            return "text.justify"
+        case .voice:
+            return "waveform"
+        case .image:
+            return "photo"
+        case .document:
+            return "doc"
+        case .deleted:
+            return "trash"
+        case .unknown:
+            return "questionmark.circle"
+        }
+    }
+
+    private var statusIcon: String {
+        switch message.status {
+        case .sent:
+            return "paperplane"
+        case .delivered:
+            return "tray.and.arrow.down"
+        case .read:
+            return "checkmark.seal"
+        case .unknown:
+            return "questionmark.circle"
+        }
+    }
+
+    private var borderColor: Color {
+        if message.direction == .incoming && !message.isHandled {
+            return .orange.opacity(0.30)
+        }
+
+        if message.direction == .outgoing {
+            return .green.opacity(0.28)
+        }
+
+        if message.direction == .incoming {
+            return .blue.opacity(0.22)
+        }
+
+        return .secondary.opacity(0.18)
     }
 }
 
