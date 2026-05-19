@@ -16,11 +16,34 @@ struct WhatsAppWebScreen: View {
     @ViewBuilder
     private var detail: some View {
         if let account = appModel.selectedWhatsAppWebAccount {
+            let isIntegrationPolling = appModel.isPolling
             VStack(spacing: 0) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(account.name)
-                            .font(.headline)
+                        HStack(spacing: 8) {
+                            Text(account.name)
+                                .font(.headline)
+
+                            Button {
+                                if appModel.isPolling {
+                                    appModel.stopPolling()
+                                } else {
+                                    appModel.startPolling()
+                                }
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: isIntegrationPolling ? "lock.fill" : "lock.open")
+                                    Text(isIntegrationPolling ? "Unlock (stop integration)" : "Lock (resume integration)")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.borderless)
+                            .help(isIntegrationPolling
+                                  ? "Unlock: stops polling and switches to a flexible viewport for manual interaction."
+                                  : "Lock: resumes polling and switches back to the fixed viewport for inspection.")
+                        }
                         Text("https://web.whatsapp.com")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -68,7 +91,11 @@ struct WhatsAppWebScreen: View {
 
                 Divider()
 
-                WhatsAppWebView(webView: appModel.whatsAppWebSessionStore.webView(for: account))
+                WhatsAppWebView(
+                    webView: appModel.whatsAppWebSessionStore.webView(for: account),
+                    mode: isIntegrationPolling ? .bridgePolling : .interactive,
+                    pollingPageZoom: appModel.whatsAppWebSettings.pageZoom
+                )
                     .id(account.id)
 
                 if let snapshot = appModel.selectedWhatsAppWebPageSnapshot {
@@ -110,41 +137,118 @@ struct WhatsAppWebScreen: View {
 }
 
 private struct WhatsAppWebView: NSViewRepresentable {
+    enum Mode: Equatable {
+        case bridgePolling
+        case interactive
+    }
+
     let webView: WKWebView
+    let mode: Mode
+    let pollingPageZoom: Double
 
     func makeNSView(context: Context) -> NSView {
-        let container = NSView()
-        container.translatesAutoresizingMaskIntoConstraints = false
-
-        webView.translatesAutoresizingMaskIntoConstraints = false
-        webView.setFrameSize(Self.fixedViewportSize)
-        webView.setContentHuggingPriority(.required, for: .horizontal)
-        webView.setContentHuggingPriority(.required, for: .vertical)
-        webView.setContentCompressionResistancePriority(.required, for: .horizontal)
-        webView.setContentCompressionResistancePriority(.required, for: .vertical)
-
-        container.addSubview(webView)
-        NSLayoutConstraint.activate([
-            webView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            webView.topAnchor.constraint(equalTo: container.topAnchor),
-            webView.widthAnchor.constraint(equalToConstant: Self.fixedViewportSize.width),
-            webView.heightAnchor.constraint(equalToConstant: Self.fixedViewportSize.height)
-        ])
-
+        let container = WhatsAppWebFitContainer(
+            webView: webView,
+            fixedViewportSize: Self.fixedViewportSize,
+            mode: mode,
+            pollingPageZoom: pollingPageZoom
+        )
         return container
     }
 
     func updateNSView(_ container: NSView, context: Context) {
-        let targetSize = Self.fixedViewportSize
-        if let embeddedWebView = container.subviews.compactMap({ $0 as? WKWebView }).first {
-            if embeddedWebView.frame.size != targetSize {
-                embeddedWebView.setFrameSize(targetSize)
-            }
-        }
+        (container as? WhatsAppWebFitContainer)?.fixedViewportSize = Self.fixedViewportSize
+        (container as? WhatsAppWebFitContainer)?.mode = mode
+        (container as? WhatsAppWebFitContainer)?.pollingPageZoom = pollingPageZoom
+        container.needsLayout = true
     }
 
     static var fixedViewportSize: NSSize {
+        // 1080p logical viewport works well for stable parsing and consistent element geometry.
         NSSize(width: 1920, height: 1080)
+    }
+}
+
+private final class WhatsAppWebFitContainer: NSView {
+    private let webView: WKWebView
+    var fixedViewportSize: NSSize {
+        didSet {
+            needsLayout = true
+        }
+    }
+    var mode: WhatsAppWebView.Mode {
+        didSet {
+            needsLayout = true
+        }
+    }
+    var pollingPageZoom: Double {
+        didSet {
+            needsLayout = true
+        }
+    }
+
+    init(
+        webView: WKWebView,
+        fixedViewportSize: NSSize,
+        mode: WhatsAppWebView.Mode,
+        pollingPageZoom: Double
+    ) {
+        self.webView = webView
+        self.fixedViewportSize = fixedViewportSize
+        self.mode = mode
+        self.pollingPageZoom = pollingPageZoom
+        super.init(frame: .zero)
+
+        translatesAutoresizingMaskIntoConstraints = false
+        wantsLayer = true
+        layer?.masksToBounds = true
+
+        webView.translatesAutoresizingMaskIntoConstraints = true
+        webView.wantsLayer = true
+        webView.setFrameSize(fixedViewportSize)
+
+        addSubview(webView)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func layout() {
+        super.layout()
+
+        let availableSize = bounds.size
+        guard availableSize.width > 0, availableSize.height > 0 else { return }
+        guard fixedViewportSize.width > 0, fixedViewportSize.height > 0 else { return }
+
+        switch mode {
+        case .bridgePolling:
+            // Keep the logical viewport fixed (stable for automation/parsing),
+            // but scale the rendered view so it fits the available area.
+            webView.pageZoom = min(max(pollingPageZoom, 0.25), 2.0)
+
+            let scaleX = availableSize.width / fixedViewportSize.width
+            let scaleY = availableSize.height / fixedViewportSize.height
+            let scale = max(min(min(scaleX, scaleY), 1.0), 0.05)
+
+            webView.frame = NSRect(origin: .zero, size: fixedViewportSize)
+
+            if let layer = webView.layer {
+                layer.anchorPoint = CGPoint(x: 0, y: 1)
+                layer.position = CGPoint(x: 0, y: bounds.height)
+                layer.setAffineTransform(CGAffineTransform(scaleX: scale, y: scale))
+            }
+        case .interactive:
+            // Let the view fill the container for manual interaction.
+            webView.pageZoom = 1.0
+            webView.frame = bounds
+            if let layer = webView.layer {
+                layer.anchorPoint = CGPoint(x: 0, y: 0)
+                layer.position = CGPoint(x: 0, y: 0)
+                layer.setAffineTransform(.identity)
+            }
+        }
     }
 }
 
