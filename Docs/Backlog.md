@@ -311,6 +311,18 @@ Hoje o fluxo ainda depende de o cliente abrir o LM Studio manualmente, carregar 
 **Por que isso entra no backlog**  
 Isso remove a necessidade de operar o LM Studio manualmente para subir ou parar o agente, e funciona como uma camada de controle simples, isolada e praticamente sem risco sobre o código atual.
 
+**Notas técnicas (Timeout, Wait Tools e Continuidade)**  
+- A API do LM Studio não suporta configurar timeout por tool call/MCP via request. Na prática, tool calls blocking (ex.: `wait_for_*`, `ask_to_client`) podem estourar timeout no LM Studio mesmo que o runtime continue trabalhando.
+- Estratégia operacional do app macOS: manter o assistente "vivo". Se uma sessão SSE encerrar por timeout/erro, o app deve iniciar uma nova sessão quando houver trabalho para fazer.
+- Continuidade de contexto: o agente pode iniciar sessões novas do zero, porque ele sempre reconsulta o estado importante via tools (ex.: subjects/memories ativas). Isso simplifica recovery após timeouts.
+- Cenário `wait_for_*` (timeout esperado):
+  - O app deve tratar timeout como "sessão morreu" e acordar o assistente quando o estado local de espera terminar.
+  - Para prompts manuais do cliente (ex.: badge de "assistant waiting"), o input de start da próxima sessão deve carregar o prompt, no formato:
+    - `Start your job:\nclient_asking: <message>`
+- Risco atual importante: a tool `wait_for_chat_message` usa `consumeUnreadMessages(...)`, que marca mensagens como handled imediatamente. Se a tool call estourar timeout no LM Studio antes do assistente processar, existe risco de "perder" mensagens (ficam handled sem processamento garantido).
+  - Para robustez, o ideal é separar "peek/list unread" de "ack/mark handled" e só marcar handled após confirmação de processamento (ou por uma tool não-blocking que não sofre timeout).
+- Caso complexo: `ask_to_client` pode estourar timeout enquanto o cliente fala/escreve a resposta. Nesse caso, o agente não pode perder o contexto. Isso provavelmente exige uma estratégia de "async tool" (retornar rapidamente um id/estado e permitir polling) ou recovery controlado pelo runtime.
+
 ---
 
 ## 13) Contrato de humanização pós-tool

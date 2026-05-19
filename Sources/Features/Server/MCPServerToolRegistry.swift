@@ -10,7 +10,6 @@ enum MCPServerToolRegistry {
         ListChatsBySearchTool.self,
         ListRecentMessagesTool.self,
         SendMessageTool.self,
-        WaitForMessageTool.self,
         WaitNextEventTool.self,
         SpeakToClientTool.self,
         AskToClientTool.self,

@@ -24,6 +24,14 @@ struct WaitForChatMessageTool: MCPToolHandler {
             return .failure(MCPServerError.missingParameter("chatId"))
         }
 
+        let conversation = await MainActor.run { context.memoryStore.conversation(for: chatId) }
+        if let conversation {
+            let isBlocked = await MainActor.run { context.isBlocked(conversation.name) }
+            if isBlocked {
+                return .failure(MCPServerError.invalidRequest)
+            }
+        }
+
         let waitId = await context.beginClientPromptWait()
         defer {
             Task { await context.endClientPromptWait(id: waitId) }
