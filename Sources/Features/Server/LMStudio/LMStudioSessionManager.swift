@@ -26,6 +26,7 @@ final class LMStudioSessionManager: ObservableObject {
     private var logHandler: ((String, LogLevel) -> Void)?
     private var lastMCPServerURL: URL?
     private var didUserPause = false
+    private var plainTextRepairAttempts = 0
     // Append-only timeline: never auto-trim. Keep this as a reference in case we
     // ever want to reintroduce a soft cap for memory reasons.
     // private let maxTimelineEvents = 1000
@@ -299,6 +300,7 @@ final class LMStudioSessionManager: ObservableObject {
     }
 
     private func startSession(mcpServerURL: URL) async {
+        plainTextRepairAttempts = 0
         guard !apiBaseURLText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             let message = "LM Studio base URL is empty."
             sessionState = .failed(message: message)
@@ -362,30 +364,104 @@ final class LMStudioSessionManager: ObservableObject {
             )
 
             appendLog("Starting a fresh LM Studio session with model \(trimmedModelKey) using MCP bridge \(mcpServerLabel).")
+            startStreamingTask(requestBody: requestBody, sessionID: sessionID)
+    }
 
-            let apiClient = apiClient
-            let baseURLText = apiBaseURLText
-            let apiToken = self.apiToken
-            sessionTask = Task { [weak self] in
-                do {
-                    let result = try await apiClient.streamChat(
-                        baseURLText: baseURLText,
-                        apiToken: apiToken,
-                        requestBody: requestBody,
-                        debugHandler: { [weak self] message in
-                            await self?.appendDebugEvent(message, sessionID: sessionID)
-                        },
-                        eventHandler: { [weak self] event in
-                            await self?.handle(event: event, sessionID: sessionID)
-                        }
-                    )
-                    await self?.finishSession(result: result, sessionID: sessionID)
-                } catch is CancellationError {
-                    await self?.handleCancellation(sessionID: sessionID)
-                } catch {
-                    await self?.handleFailure(error, sessionID: sessionID)
-                }
+    private func continueSession(mcpServerURL: URL, previousResponseID: String, lastPlainText: String) async {
+        guard !didUserPause else { return }
+        guard !apiBaseURLText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+
+        plainTextRepairAttempts += 1
+        if plainTextRepairAttempts > 3 {
+            let message = "Model keeps returning plain text after corrections. Aborting after \(plainTextRepairAttempts - 1) attempts."
+            sessionState = .failed(message: message)
+            lastErrorMessage = message
+            appendLog(message, level: .error)
+            timeline.append(
+                LMStudioEventRecord(
+                    type: "plain_text.repair.aborted",
+                    title: "Plain text repair aborted",
+                    detail: message,
+                    severity: .error
+                )
+            )
+            return
+        }
+
+        let trimmedModelKey = selectedModelKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedModelKey.isEmpty else { return }
+
+        sessionState = .starting
+        let sessionID = UUID()
+        activeSessionID = sessionID
+        lastMCPServerURL = mcpServerURL
+        restartTask?.cancel()
+        restartTask = nil
+        activeModelInstanceID = nil
+        liveReasoningText = ""
+        liveMessageText = ""
+        lastErrorMessage = nil
+        activityPhase = .idle
+
+        let mcpServerLabel = Self.mcpServerLabel(for: mcpServerURL)
+        let correction = Self.plainTextCorrectionPrompt(lastPlainText: lastPlainText, attempt: plainTextRepairAttempts)
+
+        timeline.append(
+            LMStudioEventRecord(
+                type: "plain_text.repair.start",
+                title: "Plain text repair",
+                detail: "attempt=\(plainTextRepairAttempts)",
+                severity: .warning
+            )
+        )
+        appendLog("Continuing LM Studio chat with previous_response_id \(previousResponseID) to repair plain text (attempt \(plainTextRepairAttempts)).", level: .warning)
+
+        let requestBody = LMStudioChatRequestBody(
+            model: trimmedModelKey,
+            input: correction,
+            systemPrompt: nil,
+            integrations: [
+                LMStudioEphemeralMCPIntegration(
+                    serverLabel: mcpServerLabel,
+                    serverURL: mcpServerURL.absoluteString,
+                    allowedTools: nil,
+                    headers: nil,
+                    timeout: nil // (was: mcpTimeoutMs)
+                )
+            ],
+            stream: true,
+            store: nil,
+            previousResponseID: previousResponseID,
+            contextLength: nil
+        )
+
+        startStreamingTask(requestBody: requestBody, sessionID: sessionID)
+    }
+
+    private func startStreamingTask(requestBody: LMStudioChatRequestBody, sessionID: UUID) {
+        let apiClient = apiClient
+        let baseURLText = apiBaseURLText
+        let apiToken = self.apiToken
+        sessionTask = Task { [weak self] in
+            do {
+                let result = try await apiClient.streamChat(
+                    baseURLText: baseURLText,
+                    apiToken: apiToken,
+                    requestBody: requestBody,
+                    debugHandler: { [weak self] message in
+                        await self?.appendDebugEvent(message, sessionID: sessionID)
+                    },
+                    eventHandler: { [weak self] event in
+                        await self?.handle(event: event, sessionID: sessionID)
+                    }
+                )
+                await self?.finishSession(result: result, sessionID: sessionID)
+            } catch is CancellationError {
+                await self?.handleCancellation(sessionID: sessionID)
+            } catch {
+                await self?.handleFailure(error, sessionID: sessionID)
             }
+        }
     }
 
     private func handle(event: LMStudioEventRecord, sessionID: UUID) async {
@@ -459,13 +535,34 @@ final class LMStudioSessionManager: ObservableObject {
         activityPhase = .idle
         activeModelInstanceID = result.modelInstanceID
         activeResponseID = result.responseID
-        if !result.finalText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        let trimmedFinalText = result.finalText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedFinalText.isEmpty {
             lastCompletedText = result.finalText
         }
         if let responseID = result.responseID {
             appendLog("LM Studio session completed with response_id \(responseID).")
         } else {
             appendLog("LM Studio session completed.")
+        }
+
+        // If the assistant replied with plain text, continue the same conversation and
+        // force it to restate the content via tool calls (do not lose context).
+        if
+            !trimmedFinalText.isEmpty,
+            !didUserPause,
+            let lastMCPServerURL,
+            let responseID = result.responseID
+        {
+            restartTask?.cancel()
+            restartTask = Task { [weak self] in
+                try? await Task.sleep(for: .milliseconds(350))
+                await self?.continueSession(
+                    mcpServerURL: lastMCPServerURL,
+                    previousResponseID: responseID,
+                    lastPlainText: trimmedFinalText
+                )
+            }
+            return
         }
 
         // If auto-run is enabled, the agent prompt is expected to run "forever". If the
@@ -523,6 +620,25 @@ final class LMStudioSessionManager: ObservableObject {
             portSuffix = "default"
         }
         return "assistant_whatsapp_\(portSuffix)"
+    }
+
+    private static func plainTextCorrectionPrompt(lastPlainText: String, attempt: Int) -> String {
+        // Keep the message short and explicit; this runs inside the same chat context.
+        // The goal is to make the assistant redo the content as tool calls only (no assistant "message" output).
+        let clipped = String(lastPlainText.prefix(2500))
+        return """
+        ERROR: You responded using a normal assistant message (plain text output). That is not allowed in this runtime.
+        You MUST respond using tool calls only. Do not emit any assistant message content.
+
+        Repeat your last response using only tool calls.
+        If you need to communicate to the user in natural language, do it via tool calls like `speak_to_client` (statements) or `ask_to_client` (questions).
+        Attempt: \(attempt)
+
+        Your last plain text response was:
+        ---
+        \(clipped)
+        ---
+        """
     }
 }
 
