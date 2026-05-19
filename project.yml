@@ -14,6 +14,9 @@ packages:
   swift-sdk:
     url: https://github.com/modelcontextprotocol/swift-sdk.git
     from: 0.12.1
+  yams:
+    url: https://github.com/jpsim/Yams.git
+    from: 5.1.3
 schemes:
   AssistantMCPServer:
     build:
@@ -33,9 +36,12 @@ targets:
       - path: "Sources/Assets.xcassets"
       - path: "plugins/lmstudio/Assistant System prompt-ptBR.md"
       - path: "plugins/lmstudio/Assistant System prompt.md"
+      - path: "Resources/whatsapp_web_selectors.yaml"
     dependencies:
       - package: swift-sdk
         product: MCP
+      - package: yams
+        product: Yams
     settings:
       base:
         INFOPLIST_FILE: Sources/Info.plist

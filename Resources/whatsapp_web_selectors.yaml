@@ -1,0 +1,259 @@
+schema_version: 1
+version: "2026-05-19"
+generated_from:
+  file: "Sources/Features/WhatsAppWeb/Bridge/WhatsAppWebBridge.swift"
+  note: "Current hardcoded selectors/rules migrated into the generic finder structure (selectors may be wrong)."
+
+flows:
+  login_qr:
+    type: flow
+    text_includes_any:
+      - "Scan to log in"
+      - "Scan the QR code"
+    requires_any:
+      - type: element
+        selectors:
+          - "canvas"
+        match:
+          kind: "count_gt"
+          value: 0
+
+  downloading:
+    type: flow
+    text_includes_any:
+      - "mensagens estão sendo baixadas"
+      - "messages are being downloaded"
+
+  chat_list:
+    type: flow
+    requires_any:
+      - type: element
+        selectors:
+          - "[data-testid=\"chat-list\"]"
+
+  chat_selected:
+    type: flow
+    requires_any:
+      - type: element
+        selectors:
+          - "[data-testid=\"conversation-panel-wrapper\"]"
+
+web:
+  main_root:
+    type: element
+    selectors:
+      - "#main"
+    fallback:
+      kind: "document"
+
+  header_title:
+    type: element
+    selectors:
+      - "[data-testid=\"conversation-info-header-chat-title\"]"
+      - "[data-testid=\"conversation-info-header\"] [title]"
+
+  chat_list_root:
+    type: element
+    selectors:
+      - "[data-testid=\"chat-list\"]"
+      - "#pane-side"
+    fallback:
+      kind: "document"
+    extract:
+      chat_items:
+        type: elements
+        selectors:
+          - "[data-testid^=\"list-item-\"]"
+          - "div[role=\"row\"]"
+          - "div[role=\"listitem\"]"
+        extract:
+          title:
+            type: text
+            selectors:
+              - "[data-testid=\"cell-frame-title\"] [title]"
+              - "[title]"
+            value_from:
+              - "attribute:title"
+              - "textContent"
+            fallback_text_from_parent:
+              from:
+                - "attribute:aria-label"
+                - "textContent"
+              split_by: "\\n"
+              use_line_index: 0
+
+          time_text:
+            type: text
+            selectors:
+              - "[data-testid=\"cell-frame-primary-detail\"]"
+            value_from:
+              - "textContent"
+            fallback_text_from_parent_lines:
+              scan_first_n_lines: 6
+              looks_like_time:
+                - regex: "^\\d{1,2}:\\d{2}$"
+                - regex: "^(ontem|yesterday)$"
+                  flags: "i"
+                - regex: "^(hoje|today)$"
+                  flags: "i"
+
+          preview:
+            type: text
+            selectors:
+              - "[data-testid=\"cell-frame-secondary\"] [title]"
+              - "[data-testid=\"cell-frame-secondary\"]"
+            value_from:
+              - "attribute:title"
+              - "textContent"
+            fallback_text_from_parent_lines:
+              rule: "first non-empty line after title that is not time"
+
+          unread_badge:
+            type: element
+            selectors:
+              - "[data-testid=\"icon-unread-count\"]"
+              - "[aria-label*=\"unread\"]"
+            extract:
+              unread_count:
+                type: number
+                value_from:
+                  - "textContent:int"
+                fallback_number: 1
+
+  open_chat:
+    type: element
+    selectors:
+      - "[data-testid=\"chat-list\"]"
+      - "#pane-side"
+    fallback:
+      kind: "document"
+    extract:
+      rows:
+        type: elements
+        selectors:
+          - "[data-testid^=\"list-item-\"]"
+          - "div[role=\"row\"]"
+          - "div[role=\"listitem\"]"
+        extract:
+          direct_title:
+            type: text
+            selectors:
+              - "[data-testid=\"cell-frame-title\"] [title]"
+              - "[title]"
+            value_from:
+              - "attribute:title"
+              - "textContent"
+
+  current_chat:
+    type: element
+    selectors:
+      - "[data-testid=\"conversation-panel-wrapper\"]"
+    extract:
+      title:
+        type: text
+        selectors:
+          - "[data-testid=\"conversation-info-header-chat-title\"]"
+          - "[data-testid=\"conversation-info-header\"] [title]"
+          - "header [title]"
+        value_from:
+          - "attribute:title"
+          - "textContent"
+
+      panel_body:
+        type: element
+        selectors:
+          - "[data-testid=\"conversation-panel-body\"]"
+        fallback:
+          kind: "ref"
+          ref: "web.main_root"
+        extract:
+          messages:
+            type: elements
+            selectors:
+              - "[data-testid=\"msg-container\"]"
+            extract:
+              text:
+                type: text
+                selectors:
+                  - "[data-testid=\"selectable-text\"]"
+                value_from:
+                  - "textContent"
+                fallback_text_from_parent:
+                  from:
+                    - "textContent"
+              meta_timestamp_text:
+                type: text
+                selectors:
+                  - "[data-testid=\"msg-meta\"]"
+                  - "span[aria-label][role=\"img\"]"
+                  - "span[aria-label]"
+                value_from:
+                  - "attribute:aria-label"
+                  - "innerText"
+              author_name:
+                type: text
+                selectors:
+                  - "[data-testid=\"author\"]"
+                value_from:
+                  - "attribute:title"
+                  - "textContent"
+              status_test_id:
+                type: text
+                selectors:
+                  - "[data-testid^=\"msg-\"][data-icon]"
+                  - "[data-testid^=\"msg-\"]"
+                value_from:
+                  - "attribute:data-testid"
+
+      composer:
+        type: element
+        selectors:
+          - "[data-testid=\"conversation-compose-box-input\"] [contenteditable=\"true\"]"
+          - "[data-testid=\"conversation-compose-box-input\"] [role=\"textbox\"]"
+          - "[data-testid=\"conversation-compose-box-input\"]"
+          - "[data-testid=\"conversation-panel-wrapper\"] [data-lexical-editor]"
+          - "[data-testid=\"conversation-panel-wrapper\"] [contenteditable=\"true\"][role=\"textbox\"]"
+          - "[data-testid=\"conversation-panel-wrapper\"] [contenteditable=\"true\"][data-tab]"
+          - "[data-testid=\"conversation-panel-wrapper\"] [contenteditable=\"true\"]"
+          - "[data-testid=\"conversation-panel-wrapper\"] [role=\"textbox\"]"
+          - "[data-tab=\"8\"] [data-lexical-editor]"
+          - "[data-tab=\"8\"] [contenteditable=\"true\"]"
+          - "[data-tab=\"8\"] [role=\"textbox\"]"
+          - "[data-tab=\"8\"]"
+
+      send_button:
+        type: element
+        selectors:
+          - "[data-testid=\"compose-btn-send\"]"
+          - "[data-testid=\"send\"]"
+          - "button span[data-icon=\"send\"]"
+          - "button[aria-label*=\"Send\"]"
+          - "button[aria-label*=\"Enviar\"]"
+          - "button[title*=\"Send\"]"
+          - "button[title*=\"Enviar\"]"
+
+  debug_dom:
+    type: element
+    selectors:
+      - "document"
+    extract:
+      chat_list_html:
+        type: html
+        selectors:
+          - "[data-testid=\"chat-list\"]"
+        clip_max_chars: 20000
+      conversation_panel_wrapper_html:
+        type: html
+        selectors:
+          - "[data-testid=\"conversation-panel-wrapper\"]"
+        clip_max_chars: 20000
+      conversation_header_title_html:
+        type: html
+        selectors:
+          - "[data-testid=\"conversation-info-header-chat-title\"]"
+        clip_max_chars: 20000
+      conversation_panel_body_html:
+        type: html
+        selectors:
+          - "[data-testid=\"conversation-panel-body\"]"
+        clip_max_chars: 20000

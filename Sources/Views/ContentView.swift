@@ -16,6 +16,7 @@ struct ContentView: View {
         case whatsAppWebAccount(UUID)
         case integrationLogs
         case integrationDebug
+        case integrationYAMLTree
         case serverLogs
         case lmStudio
         case serverTools
@@ -32,6 +33,7 @@ struct ContentView: View {
             case .whatsAppWebAccount(let id): "whatsAppWebAccount:\(id.uuidString)"
             case .integrationLogs: "integrationLogs"
             case .integrationDebug: "integrationDebug"
+            case .integrationYAMLTree: "integrationYAMLTree"
             case .serverLogs: "serverLogs"
             case .lmStudio: "lmStudio"
             case .serverTools: "serverTools"
@@ -50,6 +52,7 @@ struct ContentView: View {
             case .whatsAppWebAccount: "WebView"
             case .integrationLogs: "Logs"
             case .integrationDebug: "Debug"
+            case .integrationYAMLTree: "YML Tree"
             case .serverLogs: "Logs"
             case .lmStudio: "LM Studio"
             case .serverTools: "Tools"
@@ -68,6 +71,7 @@ struct ContentView: View {
             case .whatsAppWebAccount: "globe"
             case .integrationLogs: "list.bullet.rectangle"
             case .integrationDebug: "point.3.connected.trianglepath.dotted"
+            case .integrationYAMLTree: "doc.badge.gearshape"
             case .serverLogs: "server.rack"
             case .lmStudio: "cpu"
             case .serverTools: "wrench.and.screwdriver"
@@ -94,6 +98,7 @@ struct ContentView: View {
                     }
                     sidebarItem(.integrationLogs)
                     sidebarItem(.integrationDebug)
+                    sidebarItem(.integrationYAMLTree)
                 }
 
                 Section("Server") {
@@ -160,6 +165,8 @@ struct ContentView: View {
                     captureService: appModel.whatsAppDebugService,
                     accessibility: appModel.accessibility
                 )
+            case .integrationYAMLTree:
+                WhatsAppWebYAMLTreeTesterScreen()
             case .serverLogs:
                 ServerLogsScreen()
             case .lmStudio:
