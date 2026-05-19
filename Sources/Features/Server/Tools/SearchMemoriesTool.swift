@@ -3,6 +3,7 @@ import Foundation
 struct SearchMemoriesTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "search_memories",
+        icon: "magnifyingglass",
         description: "Searches memories by textual similarity and returns the best matches. Use this when you know a word, phrase, or rough description but not the exact memory key.",
         inputSchema: [
             "type": .string("object"),

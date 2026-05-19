@@ -3,6 +3,7 @@ import Foundation
 struct SpeakToClientTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "speak_to_client",
+        icon: "speaker.wave.2",
         description: "Speaks a message out loud to the client using text-to-speech. If the text is question-like, it is treated as an ask-and-wait flow.",
         inputSchema: [
             "type": .string("object"),

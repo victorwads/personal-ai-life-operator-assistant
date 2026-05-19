@@ -3,6 +3,7 @@ import Foundation
 struct ListChatsBySearchTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "list_chats_by_search",
+        icon: "magnifyingglass",
         description: "Lists mapped WhatsApp chats by search term and returns the best matches.",
         inputSchema: [
             "type": .string("object"),

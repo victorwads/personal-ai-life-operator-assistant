@@ -3,6 +3,7 @@ import Foundation
 struct SaveNicknameTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "save_nickname",
+        icon: "tag",
         description: "Saves a nickname alias for a person or contact. The nickname and originalName are required. chatId is optional and only links the alias to a specific WhatsApp chat when available.",
         inputSchema: [
             "type": .string("object"),

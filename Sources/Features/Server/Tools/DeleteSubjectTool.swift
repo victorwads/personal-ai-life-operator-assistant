@@ -3,6 +3,7 @@ import Foundation
 struct CancelSubjectTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "cancel_subject",
+        icon: "xmark.circle",
         description: "Marks a subject as canceled by id and reason.",
         inputSchema: [
             "type": .string("object"),

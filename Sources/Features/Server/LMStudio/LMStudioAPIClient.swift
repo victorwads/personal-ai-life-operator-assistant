@@ -400,20 +400,21 @@ final class LMStudioAPIClient: @unchecked Sendable {
             return LMStudioEventRecord(
                 timestamp: timestamp,
                 type: eventName,
-                title: "Tool call",
-                detail: tool,
+                title: tool,
+                toolName: tool,
                 severity: .tool
             )
 
         case "tool_call.arguments":
             let tool = payload["tool"] as? String ?? "tool"
             let arguments = payload["arguments"] ?? [:]
-            let detail = Self.describeJSONValue(arguments)
+            let detail = Self.prettyPrintedJSONString(from: arguments) ?? Self.describeJSONValue(arguments)
             return LMStudioEventRecord(
                 timestamp: timestamp,
                 type: eventName,
-                title: "Tool arguments",
-                detail: [tool, detail].compactMap { $0 }.joined(separator: " • "),
+                title: tool,
+                detail: detail,
+                toolName: tool,
                 severity: .tool
             )
 
@@ -422,19 +423,23 @@ final class LMStudioAPIClient: @unchecked Sendable {
             return LMStudioEventRecord(
                 timestamp: timestamp,
                 type: eventName,
-                title: "Tool success",
-                detail: tool,
+                title: tool,
+                detail: "success",
+                toolName: tool,
                 severity: .success
             )
 
         case "tool_call.failure":
             let tool = payload["tool"] as? String ?? "tool"
-            let detail = payload["error"] as? String ?? Self.describeJSONValue(payload["output"])
+            let detail = payload["error"] as? String
+                ?? Self.prettyPrintedJSONString(from: payload["output"]) 
+                ?? Self.describeJSONValue(payload["output"])
             return LMStudioEventRecord(
                 timestamp: timestamp,
                 type: eventName,
-                title: "Tool failure",
-                detail: [tool, detail].compactMap { $0 }.joined(separator: " • "),
+                title: tool,
+                detail: detail,
+                toolName: tool,
                 severity: .error
             )
 
@@ -517,5 +522,14 @@ final class LMStudioAPIClient: @unchecked Sendable {
             return pieces.joined(separator: ", ")
         }
         return String(describing: value)
+    }
+
+    private static func prettyPrintedJSONString(from value: Any?) -> String? {
+        guard let value else { return nil }
+        guard JSONSerialization.isValidJSONObject(value) else { return nil }
+        guard let data = try? JSONSerialization.data(withJSONObject: value, options: [.prettyPrinted, .sortedKeys]) else {
+            return nil
+        }
+        return String(data: data, encoding: .utf8)
     }
 }

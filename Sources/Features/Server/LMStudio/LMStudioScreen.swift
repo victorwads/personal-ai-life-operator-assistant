@@ -305,6 +305,13 @@ struct LMStudioScreen: View {
                     .toggleStyle(.switch)
 
                 Spacer()
+
+                Button {
+                    lmStudio.clearTimeline()
+                } label: {
+                    Label("Clear", systemImage: "trash")
+                }
+                .buttonStyle(.bordered)
             }
 
             if lmStudio.timeline.isEmpty {
@@ -318,7 +325,7 @@ struct LMStudioScreen: View {
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 10) {
-                        ForEach(filteredTimeline.sorted(by: { $0.timestamp < $1.timestamp })) { entry in
+                        ForEach(filteredTimeline.sorted(by: { $0.timestamp > $1.timestamp })) { entry in
                             timelineRow(entry)
                         }
                     }
@@ -532,8 +539,12 @@ struct LMStudioScreen: View {
         }
     }
 
+    @ViewBuilder
     private func timelineRow(_ entry: LMStudioEventRecord) -> some View {
-        HStack(alignment: .top, spacing: 12) {
+        if entry.type.hasPrefix("tool_call.") {
+            toolTimelineRow(entry)
+        } else {
+            HStack(alignment: .top, spacing: 12) {
             ZStack {
                 Circle()
                     .fill(color(for: entry.severity).opacity(0.14))
@@ -573,6 +584,20 @@ struct LMStudioScreen: View {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(color(for: entry.severity).opacity(0.06))
         )
+        }
+    }
+
+    private func toolTimelineRow(_ entry: LMStudioEventRecord) -> some View {
+        ToolTimelineRow(
+            entry: entry,
+            iconName: toolIconName(for: entry.toolName)
+        )
+    }
+
+    private func toolIconName(for toolName: String?) -> String {
+        guard let toolName else { return "wrench.and.screwdriver" }
+        // Tool icons are defined in MCPToolDefinition; keep a lookup for fast timeline rendering.
+        return MCPServerToolRegistry.toolIconsByName[toolName] ?? "wrench.and.screwdriver"
     }
 
     private func icon(for severity: LMStudioEventSeverity) -> String {
@@ -630,6 +655,92 @@ struct LMStudioScreen: View {
             return .red
         case .tool:
             return .teal
+        }
+    }
+}
+
+private struct ToolTimelineRow: View {
+    let entry: LMStudioEventRecord
+    let iconName: String
+
+    @State private var isExpanded = false
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(Color.secondary.opacity(0.14))
+                    .frame(width: 30, height: 30)
+                Image(systemName: iconName)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(entry.toolName ?? entry.title)
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Text(entry.timestamp, format: .dateTime.hour().minute().second())
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
+                    Text(toolPhaseLabel)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(toolPhaseColor)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(toolPhaseColor.opacity(0.12), in: Capsule())
+                }
+
+                if let detail = entry.detail, !detail.isEmpty {
+                    DisclosureGroup("Details", isExpanded: $isExpanded) {
+                        ScrollView(.horizontal) {
+                            Text(detail)
+                                .font(.system(.caption, design: .monospaced))
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .padding(.top, 6)
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.secondary.opacity(0.06))
+        )
+    }
+
+    private var toolPhaseLabel: String {
+        switch entry.type {
+        case "tool_call.start":
+            return "start"
+        case "tool_call.arguments":
+            return "args"
+        case "tool_call.success":
+            return "ok"
+        case "tool_call.failure":
+            return "fail"
+        default:
+            return "tool"
+        }
+    }
+
+    private var toolPhaseColor: Color {
+        switch entry.type {
+        case "tool_call.success":
+            return .green
+        case "tool_call.failure":
+            return .red
+        default:
+            return .orange
         }
     }
 }

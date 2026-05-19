@@ -3,6 +3,7 @@ import Foundation
 struct ListUnreadChatsTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "list_unread_chats",
+        icon: "envelope.badge",
         description: "Lists mapped chats that have unread messages.",
         inputSchema: [
             "type": .string("object"),

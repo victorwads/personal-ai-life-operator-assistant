@@ -3,6 +3,7 @@ import Foundation
 struct GetMemoryTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "get_memory",
+        icon: "brain",
         description: "Fetches one saved memory by its exact `key`. Use this only when you already know the key you want.",
         inputSchema: [
             "type": .string("object"),

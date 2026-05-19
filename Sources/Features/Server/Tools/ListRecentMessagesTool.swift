@@ -3,6 +3,7 @@ import Foundation
 struct ListRecentMessagesTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "list_recent_messages",
+        icon: "clock",
         description: "Lists recent messages for a mapped chat.",
         inputSchema: [
             "type": .string("object"),

@@ -3,6 +3,7 @@ import Foundation
 struct GetAssistantNameTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "get_assistant_name",
+        icon: "person.crop.circle",
         description: "Returns the configured assistant name used to introduce the assistant and prefix outgoing WhatsApp messages.",
         inputSchema: [
             "type": .string("object"),

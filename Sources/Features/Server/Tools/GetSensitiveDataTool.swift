@@ -3,6 +3,7 @@ import Foundation
 struct GetSensitiveDataTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "get_sensitive_data",
+        icon: "lock",
         description: "Fetches one sensitive data entry by exact key or id. Use this only when you already know the specific record you need and the current chat is authorized to use it.",
         inputSchema: [
             "type": .string("object"),

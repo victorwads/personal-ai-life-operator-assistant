@@ -3,6 +3,7 @@ import Foundation
 struct DeleteNicknameTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "delete_nickname",
+        icon: "tag.slash",
         description: "Deletes a saved nickname by id.",
         inputSchema: [
             "type": .string("object"),

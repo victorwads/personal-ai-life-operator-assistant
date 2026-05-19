@@ -3,6 +3,7 @@ import Foundation
 struct UpdateSensitiveDataTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "update_sensitive_data",
+        icon: "pencil",
         description: "Updates an existing sensitive data entry by id or key. Use this to change the label, kind, value, or allowed chats without recreating the record.",
         inputSchema: [
             "type": .string("object"),

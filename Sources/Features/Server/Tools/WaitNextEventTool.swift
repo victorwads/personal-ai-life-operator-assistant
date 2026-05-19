@@ -3,6 +3,7 @@ import Foundation
 struct WaitNextEventTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "wait_for_event",
+        icon: "bell.badge",
         description: "Waits until any unread WhatsApp messages are available or the client provides a prompt. Returns lightweight chat identifiers for affected chats.",
         inputSchema: [
             "type": .string("object"),

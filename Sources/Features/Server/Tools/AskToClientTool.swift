@@ -3,6 +3,7 @@ import Foundation
 struct AskToClientTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "ask_to_client",
+        icon: "questionmark.bubble",
         description: "Asks the client out loud and waits for a client response.",
         inputSchema: [
             "type": .string("object"),

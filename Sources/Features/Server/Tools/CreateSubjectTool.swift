@@ -3,6 +3,7 @@ import Foundation
 struct CreateSubjectTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "create_subject",
+        icon: "folder.badge.plus",
         description: """
         Creates a new operational subject.
 

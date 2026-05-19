@@ -3,6 +3,7 @@ import Foundation
 struct DeleteSensitiveDataTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "delete_sensitive_data",
+        icon: "trash",
         description: "Deletes a sensitive data entry by id or key. Use this only when the data is wrong, obsolete, or should no longer be retained.",
         inputSchema: [
             "type": .string("object"),

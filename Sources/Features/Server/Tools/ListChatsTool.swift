@@ -3,6 +3,7 @@ import Foundation
 struct ListChatsTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "list_chats",
+        icon: "list.bullet",
         description: "Lists relevant chats from WhatsApp.",
         inputSchema: [
             "type": .string("object"),

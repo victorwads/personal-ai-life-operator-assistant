@@ -26,6 +26,7 @@ struct LMStudioEventRecord: Identifiable, Hashable, Sendable {
     let type: String
     let title: String
     let detail: String?
+    let toolName: String?
     let severity: LMStudioEventSeverity
     let progress: Double?
 
@@ -35,6 +36,7 @@ struct LMStudioEventRecord: Identifiable, Hashable, Sendable {
         type: String,
         title: String,
         detail: String? = nil,
+        toolName: String? = nil,
         severity: LMStudioEventSeverity = .neutral,
         progress: Double? = nil
     ) {
@@ -43,6 +45,7 @@ struct LMStudioEventRecord: Identifiable, Hashable, Sendable {
         self.type = type
         self.title = title
         self.detail = detail
+        self.toolName = toolName
         self.severity = severity
         self.progress = progress
     }
@@ -90,6 +93,9 @@ struct LMStudioEphemeralMCPIntegration: Encodable, Sendable {
     let serverURL: String
     let allowedTools: [String]?
     let headers: [String: String]?
+    let timeout: Int?
+    // NOTE: LM Studio currently ignores per-request MCP timeout overrides via API.
+    // Keep the field for compatibility if/when the server supports it.
 
     enum CodingKeys: String, CodingKey {
         case type
@@ -97,6 +103,7 @@ struct LMStudioEphemeralMCPIntegration: Encodable, Sendable {
         case serverURL = "server_url"
         case allowedTools = "allowed_tools"
         case headers
+        case timeout
     }
 }
 

@@ -34,6 +34,7 @@ struct MCPToolExampleParameter: Hashable, Sendable {
 
 struct MCPToolDefinition {
     let name: String
+    let icon: String
     let description: String
     let inputSchema: [String: JSONValue]
     let exampleParameters: [MCPToolExampleParameter]
@@ -42,6 +43,7 @@ struct MCPToolDefinition {
     var jsonValue: JSONValue {
         .object([
             "name": .string(name),
+            "icon": .string(icon),
             "description": .string(description),
             "inputSchema": .object(inputSchema),
             "exampleParameters": .array(exampleParameters.map(\.jsonValue)),

@@ -26,6 +26,12 @@ final class LMStudioSessionManager: ObservableObject {
     private var logHandler: ((String, LogLevel) -> Void)?
     private var lastMCPServerURL: URL?
     private var didUserPause = false
+    // Append-only timeline: never auto-trim. Keep this as a reference in case we
+    // ever want to reintroduce a soft cap for memory reasons.
+    // private let maxTimelineEvents = 1000
+    // LM Studio does not currently support a per-request MCP timeout override via API.
+    // Keep this here as a reference for a future server-side capability.
+    // private let mcpTimeoutMs = 600_000
 
     @Published var apiBaseURLText: String
     @Published var apiToken: String = ""
@@ -86,6 +92,10 @@ final class LMStudioSessionManager: ObservableObject {
                 }
             }
             .store(in: &cancellables)
+    }
+
+    func clearTimeline() {
+        timeline.removeAll()
     }
 
     var isSessionActive: Bool {
@@ -321,7 +331,14 @@ final class LMStudioSessionManager: ObservableObject {
             lastCompletedText = ""
             lastErrorMessage = nil
             activityPhase = .idle
-            timeline.removeAll(keepingCapacity: true)
+            timeline.append(
+                LMStudioEventRecord(
+                    type: "session.start",
+                    title: "Session started",
+                    detail: "model=\(trimmedModelKey)",
+                    severity: .neutral
+                )
+            )
 
             let systemPrompt = LMStudioPromptLoader.startupPromptText()
             let mcpServerLabel = Self.mcpServerLabel(for: mcpServerURL)
@@ -334,7 +351,8 @@ final class LMStudioSessionManager: ObservableObject {
                         serverLabel: mcpServerLabel,
                         serverURL: mcpServerURL.absoluteString,
                         allowedTools: nil,
-                        headers: nil
+                        headers: nil,
+                        timeout: nil // (was: mcpTimeoutMs)
                     )
                 ],
                 stream: true,
@@ -373,9 +391,6 @@ final class LMStudioSessionManager: ObservableObject {
     private func handle(event: LMStudioEventRecord, sessionID: UUID) async {
         guard activeSessionID == sessionID else { return }
         timeline.append(event)
-        if timeline.count > 200 {
-            timeline.removeFirst(timeline.count - 200)
-        }
 
         switch event.type {
         case "chat.start":
@@ -433,9 +448,6 @@ final class LMStudioSessionManager: ObservableObject {
                 severity: .neutral
             )
         )
-        if timeline.count > 200 {
-            timeline.removeFirst(timeline.count - 200)
-        }
         appendLog(message)
     }
 

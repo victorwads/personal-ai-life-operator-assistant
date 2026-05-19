@@ -3,6 +3,7 @@ import Foundation
 struct ResolveSubjectTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "resolve_subject",
+        icon: "checkmark.seal",
         description: "Marks a subject as resolved by id and reason.",
         inputSchema: [
             "type": .string("object"),

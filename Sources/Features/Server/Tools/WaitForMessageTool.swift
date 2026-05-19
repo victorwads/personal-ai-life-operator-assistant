@@ -3,6 +3,7 @@ import Foundation
 struct WaitForMessageTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "wait_for_chat_message",
+        icon: "hourglass",
         description: "Waits until unread messages appear for a specific WhatsApp chat or the client provides a prompt.",
         inputSchema: [
             "type": .string("object"),

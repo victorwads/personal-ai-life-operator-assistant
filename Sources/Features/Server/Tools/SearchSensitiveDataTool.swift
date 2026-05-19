@@ -3,6 +3,7 @@ import Foundation
 struct SearchSensitiveDataTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "search_sensitive_data",
+        icon: "magnifyingglass",
         description: "Searches sensitive data by textual similarity and returns the best matches. Use this when you know a label, type, or partial detail but not the exact key.",
         inputSchema: [
             "type": .string("object"),

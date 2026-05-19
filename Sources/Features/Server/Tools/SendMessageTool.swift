@@ -3,6 +3,7 @@ import Foundation
 struct SendMessageTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "send_message",
+        icon: "paperplane",
         description: "Sends a message to a mapped chat through Accessibility.",
         inputSchema: [
             "type": .string("object"),

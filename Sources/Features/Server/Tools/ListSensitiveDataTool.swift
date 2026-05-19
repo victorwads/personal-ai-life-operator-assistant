@@ -3,6 +3,7 @@ import Foundation
 struct ListSensitiveDataTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "list_sensitive_data",
+        icon: "lock",
         description: "Lists all saved sensitive data entries. Use this to review the full set of known sensitive values, allowed chats, and usage history metadata.",
         inputSchema: [
             "type": .string("object"),

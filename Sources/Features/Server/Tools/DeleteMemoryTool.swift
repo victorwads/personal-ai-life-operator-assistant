@@ -3,6 +3,7 @@ import Foundation
 struct DeleteMemoryTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "delete_memory",
+        icon: "trash",
         description: "Deletes a saved memory by `key` or `id`. Use this only when a memory is wrong, obsolete, duplicated, or should no longer guide future behavior.",
         inputSchema: [
             "type": .string("object"),

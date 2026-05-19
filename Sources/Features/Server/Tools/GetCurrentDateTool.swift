@@ -3,6 +3,7 @@ import Foundation
 struct GetCurrentDateTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "get_current_date",
+        icon: "calendar",
         description: "Returns today's local date and current timestamp so the assistant can reference the present day.",
         inputSchema: [
             "type": .string("object"),

@@ -47,4 +47,8 @@ enum MCPServerToolRegistry {
     static var toolDefinitions: [MCPToolDefinition] {
         tools.map { $0.definition }
     }
+
+    static var toolIconsByName: [String: String] {
+        Dictionary(uniqueKeysWithValues: toolDefinitions.map { ($0.name, $0.icon) })
+    }
 }

@@ -3,6 +3,7 @@ import Foundation
 struct ListNicknamesTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "list_nicknames",
+        icon: "tag",
         description: "Lists saved nicknames. With no arguments it returns every nickname. With a query, it returns matching nicknames by alias or original name, and falls back to the full list when nothing matches.",
         inputSchema: [
             "type": .string("object"),

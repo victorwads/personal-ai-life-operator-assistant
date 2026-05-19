@@ -3,6 +3,7 @@ import Foundation
 struct GetSubjectTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "get_subject",
+        icon: "folder",
         description: "Fetches a subject by id.",
         inputSchema: [
             "type": .string("object"),

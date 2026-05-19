@@ -3,6 +3,7 @@ import Foundation
 struct UpdateSubjectTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "update_subject",
+        icon: "pencil",
         description: """
         Updates an existing operational subject by id.
 

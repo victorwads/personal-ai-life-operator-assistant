@@ -90,6 +90,7 @@ struct ServerToolBrowserEntry: Identifiable, Sendable {
 
     var id: String { definition.name }
     var name: String { definition.name }
+    var icon: String { definition.icon }
     var description: String { definition.description }
     var group: ServerToolGroup { definition.browserGroup }
     var traits: [MCPToolTrait] { definition.traits }

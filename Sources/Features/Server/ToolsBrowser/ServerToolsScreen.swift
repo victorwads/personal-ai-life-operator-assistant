@@ -201,6 +201,8 @@ private struct ServerToolRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
+                Image(systemName: tool.icon)
+                    .foregroundStyle(.secondary)
                 Text(tool.name)
                     .font(.headline)
 
@@ -271,8 +273,13 @@ private struct ServerToolDetailPane: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(tool.name)
-                        .font(.title2.weight(.semibold))
+                    HStack(spacing: 10) {
+                        Image(systemName: tool.icon)
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                        Text(tool.name)
+                            .font(.title2.weight(.semibold))
+                    }
 
                     Text(tool.description)
                         .foregroundStyle(.secondary)

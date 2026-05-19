@@ -3,6 +3,7 @@ import Foundation
 struct SaveSensitiveDataTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "save_sensitive_data",
+        icon: "lock",
         description: "Creates or updates a sensitive data entry keyed by `key`. Use this for durable sensitive values such as CPF, birth date, health plan details, or other user data that may be reused later.",
         inputSchema: [
             "type": .string("object"),

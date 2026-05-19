@@ -3,6 +3,7 @@ import Foundation
 struct CreateMemoryTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "create_memory",
+        icon: "brain",
         description: """
         Creates or updates a long-term memory entry keyed by `key`.
 

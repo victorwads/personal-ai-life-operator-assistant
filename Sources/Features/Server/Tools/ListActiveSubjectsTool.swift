@@ -3,6 +3,7 @@ import Foundation
 struct ListActiveSubjectsTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "check_active_subjects",
+        icon: "folder",
         description: "Checks the currently active subjects that still need follow-up.",
         inputSchema: [
             "type": .string("object"),
