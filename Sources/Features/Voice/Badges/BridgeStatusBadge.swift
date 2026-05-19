@@ -3,6 +3,7 @@ import SwiftUI
 struct BridgeStatusBadge: View {
     let integrationMode: WhatsAppIntegrationMode
     let isPolling: Bool
+    let isBusy: Bool
     let accessibilityTrusted: Bool
     let whatsappRunning: Bool
     let webSnapshot: WhatsAppWebPageSnapshot?
@@ -40,6 +41,12 @@ struct BridgeStatusBadge: View {
                     .buttonStyle(.plain)
                 }
             }
+        } else if isBusy {
+            StatusBadge(
+                title: "WhatsApp busy",
+                state: .paused,
+                help: "Integration is performing an action. Polling will resume automatically."
+            )
         } else {
             Button(action: onStartPolling) {
                 HStack(spacing: 8) {
@@ -69,6 +76,7 @@ struct BridgeStatusBadge: View {
     BridgeStatusBadge(
         integrationMode: .desktopAX,
         isPolling: true,
+        isBusy: false,
         accessibilityTrusted: true,
         whatsappRunning: true,
         webSnapshot: nil,
@@ -82,6 +90,7 @@ struct BridgeStatusBadge: View {
     BridgeStatusBadge(
         integrationMode: .desktopAX,
         isPolling: true,
+        isBusy: false,
         accessibilityTrusted: true,
         whatsappRunning: false,
         webSnapshot: nil,
@@ -95,6 +104,7 @@ struct BridgeStatusBadge: View {
     BridgeStatusBadge(
         integrationMode: .desktopAX,
         isPolling: false,
+        isBusy: false,
         accessibilityTrusted: false,
         whatsappRunning: false,
         webSnapshot: nil,

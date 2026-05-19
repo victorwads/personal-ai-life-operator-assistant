@@ -119,6 +119,7 @@ final class AppModel: ObservableObject {
     )
     let interactor = WhatsAppInteractor()
     let memoryStore: WhatsAppMemoryStore
+    let lmStudio = LMStudioSessionManager()
     lazy var mcpServerCoordinator: MCPServerCoordinator = {
         let coordinator = MCPServerCoordinator(
             dependencies: MCPServerContext(
@@ -235,6 +236,10 @@ final class AppModel: ObservableObject {
 
         voiceAssistant.onSpeakingStateChanged = { [weak self] isSpeaking in
             self?.speechSynthesizerSpeaking = isSpeaking
+        }
+
+        lmStudio.setLogHandler { [weak self] message, level in
+            self?.appendLog(message, level: level)
         }
 
         switch startupMode {

@@ -2,6 +2,9 @@ import Foundation
 
 extension AppModel {
     func sendWhatsAppMessagesViaCurrentIntegration(_ texts: [String], to conversationId: String) async throws {
+        isSendingMessage = true
+        defer { isSendingMessage = false }
+
         let trimmedTexts = texts
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }

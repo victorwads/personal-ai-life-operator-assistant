@@ -9,6 +9,8 @@ extension AppModel {
         liveStatusTask?.cancel()
         liveStatusTask = nil
 
+        await lmStudio.pauseSession()
+
         if mcpServerRunning {
             await stopMCPServer()
         }

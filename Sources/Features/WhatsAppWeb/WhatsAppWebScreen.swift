@@ -16,7 +16,7 @@ struct WhatsAppWebScreen: View {
     @ViewBuilder
     private var detail: some View {
         if let account = appModel.selectedWhatsAppWebAccount {
-            let isIntegrationPolling = appModel.isPolling
+            let isIntegrationActive = appModel.isPolling || appModel.isSendingMessage
             VStack(spacing: 0) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
@@ -25,8 +25,8 @@ struct WhatsAppWebScreen: View {
                             .foregroundStyle(.secondary)
 
                         HStack(spacing: 6) {
-                            Image(systemName: isIntegrationPolling ? "lock.fill" : "lock.open")
-                            Text(isIntegrationPolling ? "Locked (integration running)" : "Unlocked (click the badge to resume integration)")
+                            Image(systemName: isIntegrationActive ? "lock.fill" : "lock.open")
+                            Text(isIntegrationActive ? "Locked (integration running)" : "Unlocked (click the badge to resume integration)")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -77,13 +77,13 @@ struct WhatsAppWebScreen: View {
                 ZStack {
                     WhatsAppWebView(
                         webView: appModel.whatsAppWebSessionStore.webView(for: account),
-                        mode: isIntegrationPolling ? .bridgePolling : .interactive,
+                        mode: isIntegrationActive ? .bridgePolling : .interactive,
                         pollingPageZoom: appModel.whatsAppWebSettings.pageZoom
                     )
                     .id(account.id)
-                    .allowsHitTesting(!isIntegrationPolling)
+                    .allowsHitTesting(!isIntegrationActive)
 
-                    if isIntegrationPolling {
+                    if isIntegrationActive {
                         Rectangle()
                             .fill(Color.black.opacity(0.35))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -105,6 +105,7 @@ struct WhatsAppWebScreen: View {
                                 Label("Stop Integration", systemImage: "pause.circle")
                             }
                             .buttonStyle(.borderedProminent)
+                            .disabled(appModel.isSendingMessage)
                         }
                         .padding(18)
                         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))

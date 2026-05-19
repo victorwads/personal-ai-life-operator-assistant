@@ -17,6 +17,7 @@ struct ContentView: View {
         case integrationLogs
         case integrationDebug
         case serverLogs
+        case lmStudio
         case serverTools
         case settings
 
@@ -32,6 +33,7 @@ struct ContentView: View {
             case .integrationLogs: "integrationLogs"
             case .integrationDebug: "integrationDebug"
             case .serverLogs: "serverLogs"
+            case .lmStudio: "lmStudio"
             case .serverTools: "serverTools"
             case .settings: "settings"
             }
@@ -49,6 +51,7 @@ struct ContentView: View {
             case .integrationLogs: "Logs"
             case .integrationDebug: "Debug"
             case .serverLogs: "Logs"
+            case .lmStudio: "LM Studio"
             case .serverTools: "Tools"
             case .settings: "Settings"
             }
@@ -66,6 +69,7 @@ struct ContentView: View {
             case .integrationLogs: "list.bullet.rectangle"
             case .integrationDebug: "point.3.connected.trianglepath.dotted"
             case .serverLogs: "server.rack"
+            case .lmStudio: "cpu"
             case .serverTools: "wrench.and.screwdriver"
             case .settings: "gearshape"
             }
@@ -94,6 +98,7 @@ struct ContentView: View {
 
                 Section("Server") {
                     sidebarItem(.serverLogs)
+                    sidebarItem(.lmStudio)
                     sidebarItem(.serverTools)
                 }
 
@@ -157,6 +162,11 @@ struct ContentView: View {
                 )
             case .serverLogs:
                 ServerLogsScreen()
+            case .lmStudio:
+                LMStudioScreen(
+                    lmStudio: appModel.lmStudio,
+                    mcpServerURL: appModel.mcpServerMCPURL
+                )
             case .serverTools:
                 ServerToolsScreen()
             }
@@ -240,6 +250,7 @@ struct ContentView: View {
             BridgeStatusBadge(
                 integrationMode: appModel.whatsAppIntegrationSettings.mode,
                 isPolling: appModel.isPolling,
+                isBusy: appModel.isSendingMessage,
                 accessibilityTrusted: appModel.accessibilityTrusted,
                 whatsappRunning: appModel.whatsappRunning,
                 webSnapshot: appModel.selectedWhatsAppWebPageSnapshot,

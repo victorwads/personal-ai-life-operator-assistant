@@ -47,6 +47,11 @@ extension AppModel {
             mcpServerRunning = true
             mcpServerStatusDescription = "Listening on localhost:\(port)"
             appendLog("MCP HTTP server listening on localhost:\(port).")
+            if let mcpURL = mcpServerMCPURL {
+                Task { [weak self] in
+                    await self?.lmStudio.handleMCPServerReady(mcpServerURL: mcpURL)
+                }
+            }
         case .failed(let message):
             mcpServerRunning = false
             mcpServerStatusDescription = "Failed: \(message)"
