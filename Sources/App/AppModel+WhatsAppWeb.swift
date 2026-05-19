@@ -8,18 +8,10 @@ extension AppModel {
            let match = accounts.first(where: { $0.id == primaryWhatsAppWebAccountId }) {
             whatsAppWebAccounts = [match]
             selectedWhatsAppWebAccountId = match.id
-            guard startupMode == .live else { return }
-            restartWhatsAppWebBridgePolling()
             return
         }
 
         whatsAppWebAccounts = accounts
-
-        guard startupMode == .live else {
-            return
-        }
-
-        restartWhatsAppWebBridgePolling()
 
         if let selectedWhatsAppWebAccountId,
            accounts.contains(where: { $0.id == selectedWhatsAppWebAccountId }) {
@@ -145,40 +137,6 @@ extension AppModel {
             appendLog("Updated current WhatsApp Web chat '\(conversation.name)' with \(chatState.messages.count) messages.")
         } catch {
             appendLog("Failed to update current WhatsApp Web chat for '\(account.name)': \(error.localizedDescription)", level: .error)
-        }
-    }
-
-    func restartWhatsAppWebBridgePolling() {
-        guard startupMode == .live else {
-            whatsAppWebBridgePollingTask?.cancel()
-            whatsAppWebBridgePollingTask = nil
-            return
-        }
-
-        whatsAppWebBridgePollingTask?.cancel()
-        whatsAppWebBridgePollingTask = nil
-
-        guard whatsAppWebSettings.bridgePollingEnabled, !whatsAppWebAccounts.isEmpty else {
-            return
-        }
-
-        let intervalSeconds = max(1.0, whatsAppWebSettings.bridgePollingIntervalSeconds)
-        whatsAppWebBridgePollingTask = Task { [weak self] in
-            guard let self else { return }
-
-            while !Task.isCancelled {
-                let accounts = self.whatsAppWebAccounts
-                for account in accounts {
-                    if Task.isCancelled { return }
-                    await self.captureWhatsAppWebSnapshot(for: account)
-                }
-
-                do {
-                    try await Task.sleep(for: .seconds(intervalSeconds))
-                } catch {
-                    return
-                }
-            }
         }
     }
 

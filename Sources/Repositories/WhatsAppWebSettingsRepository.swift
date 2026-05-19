@@ -7,8 +7,6 @@ final class WhatsAppWebSettingsRepository {
     private let defaults: UserDefaults
     private let userAgentKey = "whatsAppWeb.customUserAgent"
     private let inspectableKey = "whatsAppWeb.isInspectable"
-    private let bridgePollingEnabledKey = "whatsAppWeb.bridgePollingEnabled"
-    private let bridgePollingIntervalKey = "whatsAppWeb.bridgePollingIntervalSeconds"
     private let messageSettleDelayKey = "whatsAppWeb.messageSettleDelayMilliseconds"
     private let pageZoomKey = "whatsAppWeb.pageZoom"
 
@@ -38,29 +36,6 @@ final class WhatsAppWebSettingsRepository {
 
     func saveInspectable(_ value: Bool) {
         defaults.set(value, forKey: inspectableKey)
-    }
-
-    func loadBridgePollingEnabled(defaultValue: Bool) -> Bool {
-        if defaults.object(forKey: bridgePollingEnabledKey) == nil {
-            return defaultValue
-        }
-        return defaults.bool(forKey: bridgePollingEnabledKey)
-    }
-
-    func saveBridgePollingEnabled(_ value: Bool) {
-        defaults.set(value, forKey: bridgePollingEnabledKey)
-    }
-
-    func loadBridgePollingInterval(defaultValue: Double) -> Double {
-        if defaults.object(forKey: bridgePollingIntervalKey) == nil {
-            return defaultValue
-        }
-        let value = defaults.double(forKey: bridgePollingIntervalKey)
-        return value > 0 ? value : defaultValue
-    }
-
-    func saveBridgePollingInterval(_ value: Double) {
-        defaults.set(value, forKey: bridgePollingIntervalKey)
     }
 
     func loadMessageSettleDelay(defaultValue: Double) -> Double {

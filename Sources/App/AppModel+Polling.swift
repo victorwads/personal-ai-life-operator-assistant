@@ -1,4 +1,5 @@
 import Foundation
+import WebKit
 
 extension AppModel {
     func refreshConversations() async {
@@ -23,6 +24,16 @@ extension AppModel {
                     appendLog("WhatsApp Web polling enabled but no account is selected (accounts=\(count)).", level: .warning)
                 }
                 return
+            }
+
+            if let account = whatsAppWebAccounts.first(where: { $0.id == accountId }) {
+                let webView = whatsAppWebSessionStore.webView(for: account)
+                do {
+                    let snapshot = try await whatsAppWebBridge.captureSnapshot(from: webView)
+                    whatsAppWebPageSnapshotsByAccountId[account.id] = snapshot
+                } catch {
+                    appendLog("WhatsApp Web snapshot failed: \(error.localizedDescription)", level: .warning)
+                }
             }
             let provider = WebProvider(
                 accountId: accountId,

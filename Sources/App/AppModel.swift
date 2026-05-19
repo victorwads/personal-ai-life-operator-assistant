@@ -149,7 +149,6 @@ final class AppModel: ObservableObject {
     }()
     let voiceAssistant = VoiceAssistant()
     var pollingTask: Task<Void, Never>?
-    var whatsAppWebBridgePollingTask: Task<Void, Never>?
     var permissionMonitorTask: Task<Void, Never>?
     var listSignaturesById: [String: String] = [:]
     var cancellables: Set<AnyCancellable> = []
@@ -329,22 +328,6 @@ final class AppModel: ObservableObject {
             .receive(on: RunLoop.main)
             .sink { [weak self] value in
                 self?.whatsAppWebSessionStore.setInspectable(value)
-            }
-            .store(in: &cancellables)
-
-        whatsAppWebSettings.$bridgePollingEnabled
-            .dropFirst()
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.restartWhatsAppWebBridgePolling()
-            }
-            .store(in: &cancellables)
-
-        whatsAppWebSettings.$bridgePollingIntervalSeconds
-            .dropFirst()
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.restartWhatsAppWebBridgePolling()
             }
             .store(in: &cancellables)
 
