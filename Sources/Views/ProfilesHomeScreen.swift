@@ -18,10 +18,12 @@ struct ProfilesHomeScreen: View {
                             emptyState
                         } else {
                             ForEach(Array(appModel.whatsAppWebAccounts.enumerated()), id: \.element.id) { index, account in
+                                let profileId = profileId(for: account)
                                 ProfileRow(
                                     account: account,
                                     port: appModel.mcpServerPort + index,
-                                    isRunning: profileWindowManager.isProfileRunning(profileId: profileId(for: account)),
+                                    isRunning: profileWindowManager.isProfileRunning(profileId: profileId),
+                                    isWindowVisible: profileWindowManager.isProfileWindowVisible(profileId: profileId),
                                     onToggleAutoStart: { isOn in
                                         Task {
                                             await appModel.updateWhatsAppWebAccountAutoStart(id: account.id, isAutoStart: isOn)
@@ -82,10 +84,19 @@ struct ProfilesHomeScreen: View {
             .frame(maxWidth: 980, alignment: .topLeading)
         }
         .navigationTitle("Assistant MCP")
+        .background(
+            WindowAccessor { window in
+                profileWindowManager.registerHomeWindow(window)
+            }
+        )
         .task {
             guard !didBootstrap else { return }
             didBootstrap = true
             await appModel.loadWhatsAppWebAccounts()
+            profileWindowManager.restoreVisibleProfileWindows(
+                accounts: appModel.whatsAppWebAccounts,
+                basePort: appModel.mcpServerPort
+            )
             await bootstrapAutoStartIfNeeded()
         }
     }
@@ -122,18 +133,24 @@ struct ProfilesHomeScreen: View {
     private func toggleProfile(account: WhatsAppWebAccount, index: Int) async {
         let profile = AppProfile.forWhatsAppWebAccount(account, isDefault: false)
         if profileWindowManager.isProfileRunning(profileId: profile.id) {
-            await profileWindowManager.stopMainWindow(profileId: profile.id)
+            if profileWindowManager.isProfileWindowVisible(profileId: profile.id) {
+                await profileWindowManager.stopMainWindow(profileId: profile.id)
+            } else {
+                profileWindowManager.revealMainWindow(profileId: profile.id)
+            }
             return
         }
 
-        let model = AppModel(
+        profileWindowManager.showMainWindow(
             profile: profile,
-            profileIndex: index,
-            basePort: appModel.mcpServerPort,
-            primaryWhatsAppWebAccountId: account.id,
-            startupMode: .live
+            appModel: AppModel(
+                profile: profile,
+                profileIndex: index,
+                basePort: appModel.mcpServerPort,
+                primaryWhatsAppWebAccountId: account.id,
+                startupMode: .live
+            )
         )
-        profileWindowManager.showMainWindow(profile: profile, appModel: model)
     }
 
     @MainActor
@@ -185,6 +202,7 @@ private struct ProfileRow: View {
     let account: WhatsAppWebAccount
     let port: Int
     let isRunning: Bool
+    let isWindowVisible: Bool
     let onToggleAutoStart: (Bool) -> Void
     let onStartStop: () -> Void
     let onDelete: () -> Void
@@ -199,17 +217,17 @@ private struct ProfileRow: View {
                     .foregroundStyle(Color.accentColor)
             }
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(account.name)
-                    .font(.headline)
-                HStack(spacing: 6) {
-                    Text("MCP port \(port)")
-                    Text("•")
-                    Text(isRunning ? "Running" : "Stopped")
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(account.name)
+                        .font(.headline)
+                    HStack(spacing: 6) {
+                        Text("MCP port \(port)")
+                        Text("•")
+                        Text(statusText)
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
 
             Spacer(minLength: 12)
 
@@ -224,7 +242,7 @@ private struct ProfileRow: View {
             Button {
                 onStartStop()
             } label: {
-                Label(isRunning ? "Stop" : "Start", systemImage: isRunning ? "stop.fill" : "play.fill")
+                Label(actionTitle, systemImage: actionIcon)
             }
             .buttonStyle(.borderedProminent)
 
@@ -238,6 +256,27 @@ private struct ProfileRow: View {
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 12)
+    }
+
+    private var statusText: String {
+        if isRunning {
+            return isWindowVisible ? "Running" : "Running in background"
+        }
+        return "Stopped"
+    }
+
+    private var actionTitle: String {
+        if isRunning {
+            return isWindowVisible ? "Stop" : "Open"
+        }
+        return "Start"
+    }
+
+    private var actionIcon: String {
+        if isRunning {
+            return isWindowVisible ? "stop.fill" : "eye"
+        }
+        return "play.fill"
     }
 }
 

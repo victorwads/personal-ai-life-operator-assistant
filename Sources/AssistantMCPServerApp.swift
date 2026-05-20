@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct AssistantMCPServerApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var appModel: AppModel
 
     init() {
@@ -23,5 +24,8 @@ struct AssistantMCPServerApp: App {
                 .frame(minWidth: 980, minHeight: 680)
         }
         .windowStyle(.titleBar)
+        .commands {
+            AssistantMCPServerCommands()
+        }
     }
 }

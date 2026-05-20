@@ -416,38 +416,6 @@ Isso evita que o usuário fique preso fora da interface de profiles e deixa o ap
 
 ---
 
-## 16) Modo desenvolvedor para esconder ferramentas de debug
-
-Valor: `V3 - Médio`
-Risco de Desenvolvimento: `R3 - Médio`
-Risco da Feature: `R2 - Baixo`
-Score de Execução: `0.46`
-
-**Descrição**  
-Adicionar uma configuração global nas `Settings` chamada `Modo desenvolvedor`, com valor padrão desligado. Quando esse modo estiver off, a aplicação deve esconder itens de debug e ferramentas internas que não fazem parte da experiência normal de uso. Quando estiver on, esses itens voltam a aparecer.
-
-**Dependências**  
-- `Nenhuma`
-
-**Comportamento desejado**  
-- Criar um toggle de `Modo desenvolvedor` nas configurações.
-- Deixar o `Modo desenvolvedor` desativado por padrão.
-- Em `WhatsApp Integration`, ocultar `Logs`, `Debug` e `YAML Tree` quando o modo estiver off, deixando visíveis apenas `Chat` e `WebView`.
-- Em `Server`, ocultar `Logs` quando o modo estiver off, deixando visíveis apenas `Tools` e `LM Studio`.
-- Dentro da `WebView`, ocultar a área de snapshot/debug, incluindo `Capture`, `Refresh Snapshot`, `Update Chat`, `Save Snapshot` e `Open Capture Folders`.
-- Reforçar que esses controles são de debugging e inspeção interna, não parte do fluxo normal de uso.
-
-**Notas técnicas**  
-- Esse item provavelmente pede uma camada central de feature flag/configuração para decidir visibilidade de menus e seções.
-- A decisão de ocultar deve acontecer no nível da navegação ou composição da UI, não apenas desabilitando botões.
-- O estado precisa ser persistido nas settings do app para sobreviver a reinícios.
-- As telas e menus existentes devem ler essa flag de forma consistente, para não mostrar debug em um lugar e esconder em outro.
-
-**Por que isso entra no backlog**  
-Isso limpa a interface principal para uso normal, reduz ruído visual e separa bem o que é operação do que é manutenção/instrumentação interna.
-
----
-
 ## 17) i18n no app e idiomas iniciais
 
 Valor: `V4 - Alto`
