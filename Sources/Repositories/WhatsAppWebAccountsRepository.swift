@@ -71,6 +71,22 @@ actor WhatsAppWebAccountsRepository {
         return accounts[index]
     }
 
+    func updateName(id: UUID, name: String?) throws -> WhatsAppWebAccount? {
+        let trimmedName = (name ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            throw WhatsAppWebAccountsRepositoryError.missingParameter("name")
+        }
+
+        var accounts = loadAll()
+        guard let index = accounts.firstIndex(where: { $0.id == id }) else {
+            return nil
+        }
+
+        accounts[index].name = trimmedName
+        persistAll(accounts)
+        return accounts[index]
+    }
+
     private func loadAll() -> [WhatsAppWebAccount] {
         guard let data = defaults.data(forKey: storageKey) else {
             return []

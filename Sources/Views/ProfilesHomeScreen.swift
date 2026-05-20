@@ -24,6 +24,11 @@ struct ProfilesHomeScreen: View {
                                     port: appModel.mcpServerPort + index,
                                     isRunning: profileWindowManager.isProfileRunning(profileId: profileId),
                                     isWindowVisible: profileWindowManager.isProfileWindowVisible(profileId: profileId),
+                                    onRename: { newName in
+                                        Task {
+                                            await appModel.updateWhatsAppWebAccountName(id: account.id, name: newName)
+                                        }
+                                    },
                                     onToggleAutoStart: { isOn in
                                         Task {
                                             await appModel.updateWhatsAppWebAccountAutoStart(id: account.id, isAutoStart: isOn)
@@ -203,9 +208,14 @@ private struct ProfileRow: View {
     let port: Int
     let isRunning: Bool
     let isWindowVisible: Bool
+    let onRename: (String) -> Void
     let onToggleAutoStart: (Bool) -> Void
     let onStartStop: () -> Void
     let onDelete: () -> Void
+
+    @FocusState private var isNameFocused: Bool
+    @State private var isEditingName = false
+    @State private var draftName = ""
 
     var body: some View {
         HStack(spacing: 14) {
@@ -217,17 +227,34 @@ private struct ProfileRow: View {
                     .foregroundStyle(Color.accentColor)
             }
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(account.name)
-                        .font(.headline)
-                    HStack(spacing: 6) {
-                        Text("MCP port \(port)")
-                        Text("•")
-                        Text(statusText)
+            VStack(alignment: .leading, spacing: 4) {
+                Group {
+                    if isEditingName {
+                        TextField("", text: $draftName)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.headline)
+                            .focused($isNameFocused)
+                            .onSubmit {
+                                commitRename()
+                            }
+                    } else {
+                        Text(account.name)
+                            .font(.headline)
+                            .onTapGesture(count: 2) {
+                                beginRenaming()
+                            }
+                            .help("Double click to rename")
                     }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
                 }
+
+                HStack(spacing: 6) {
+                    Text("MCP port \(port)")
+                    Text("•")
+                    Text(statusText)
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
 
             Spacer(minLength: 12)
 
@@ -256,6 +283,32 @@ private struct ProfileRow: View {
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 12)
+        .onChange(of: isNameFocused) { focused in
+            if !focused, isEditingName {
+                commitRename()
+            }
+        }
+    }
+
+    private func beginRenaming() {
+        draftName = account.name
+        isEditingName = true
+        isNameFocused = true
+    }
+
+    private func commitRename() {
+        guard isEditingName else { return }
+        isEditingName = false
+        isNameFocused = false
+
+        let trimmed = draftName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != account.name else {
+            draftName = ""
+            return
+        }
+
+        draftName = ""
+        onRename(trimmed)
     }
 
     private var statusText: String {

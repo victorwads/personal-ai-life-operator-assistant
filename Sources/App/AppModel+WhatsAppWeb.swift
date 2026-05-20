@@ -50,6 +50,29 @@ extension AppModel {
         appendLog("Updated auto start for '\(updated.name)' to \(updated.isAutoStart ? "on" : "off").")
     }
 
+    func updateWhatsAppWebAccountName(id: UUID, name: String) async {
+        do {
+            guard let updated = try await whatsAppWebAccountsRepository.updateName(id: id, name: name) else {
+                appendLog("Could not update WhatsApp Web account name.", level: .warning)
+                return
+            }
+
+            if let index = whatsAppWebAccounts.firstIndex(where: { $0.id == updated.id }) {
+                whatsAppWebAccounts[index] = updated
+                whatsAppWebAccounts.sort { lhs, rhs in
+                    if lhs.createdAt != rhs.createdAt {
+                        return lhs.createdAt < rhs.createdAt
+                    }
+                    return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+                }
+            }
+
+            appendLog("Renamed WhatsApp Web account to '\(updated.name)'.")
+        } catch {
+            appendLog("Failed to rename WhatsApp Web account: \(error.localizedDescription)", level: .error)
+        }
+    }
+
     func deleteWhatsAppWebAccount(id: UUID) async {
         let deleted = await whatsAppWebAccountsRepository.delete(id: id)
         guard deleted else {
