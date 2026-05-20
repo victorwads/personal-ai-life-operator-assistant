@@ -18,7 +18,7 @@ struct AssistantMCPServerApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        Window("Profiles", id: "profiles") {
             ProfilesHomeScreen()
                 .environmentObject(appModel)
                 .frame(minWidth: 980, minHeight: 680)
