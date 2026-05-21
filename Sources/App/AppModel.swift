@@ -48,6 +48,7 @@ final class AppModel: ObservableObject {
     @Published var whatsAppWebAccounts: [WhatsAppWebAccount] = []
     @Published var selectedWhatsAppWebAccountId: UUID?
     @Published var whatsAppWebPageSnapshotsByAccountId: [UUID: WhatsAppWebPageSnapshot] = [:]
+    @Published var detachedWhatsAppWebAccountIds: Set<UUID> = []
 
     let voiceSettings: VoiceSettingsModel
     let handsFreeClientVoiceSettings: HandsFreeClientVoiceSettingsModel
@@ -168,6 +169,7 @@ final class AppModel: ObservableObject {
     let whatsAppPollingStateRepository: WhatsAppPollingStateRepository
     var chatHistoryListenerId: UUID?
     var chatHistoryPersistTask: Task<Void, Never>?
+    var whatsAppWebDetachedWindowControllersByAccountId: [UUID: WhatsAppWebDetachedWindowController] = [:]
 
     init(
         profile: AppProfile = .default,

@@ -79,6 +79,17 @@ Adicionar a capacidade de arquivar uma conversa específica para manter o conjun
 - `aria-label="Conversa fixada"` mostra que há ao menos um estado de pin visível nessa row.
 - Neste trecho específico ainda não apareceu o menu ou botão de arquivar; isso precisa ser encontrado em outro nível da UI ou em outro estado do DOM.
 
+**Comportamento desejado**  
+- Primeiro executar `SelecionarConversa` com validação por título para garantir que o chat certo está realmente ativo.
+- Só depois disparar o atalho de arquivar conversa.
+- Se a validação por título falhar, o arquivamento não deve acontecer.
+- O fluxo deve evitar arquivar a conversa errada mesmo quando houver resultados parecidos na lista.
+
+**Notas técnicas**  
+- Como o WhatsApp Web já expõe o atalho de arquivar conversa, o fluxo mais seguro é usar o seletor do chat como etapa de confirmação e depois acionar o atalho de teclado.
+- O código deve tratar `SelecionarConversa` como pré-condição obrigatória antes do evento de arquivar.
+- Essa ordem também reduz o risco de arquivar um item incorreto quando a lista estiver parcialmente carregada ou ambígua.
+
 **Por que isso entra no backlog**  
 É uma melhoria útil para controle de contexto e limpeza da lista de conversas, com uma implementação relativamente direta em comparação com o fluxo de busca/resolução de chat.
 
@@ -383,39 +394,6 @@ Isso melhora bastante a transparência do runtime, ajuda a diagnosticar o que o 
 
 ---
 
-## 15) Menu do macOS e gerenciamento de janelas
-
-Valor: `V4 - Alto`
-Risco de Desenvolvimento: `R4 - Alto`
-Risco da Feature: `R2 - Baixo`
-Score de Execução: `0.50`
-
-**Descrição**  
-Trabalhar o menu nativo do macOS da aplicação `Assistant Server`, incluindo itens como `File`, `Edit`, `View`, `Window` e `Help`, para organizar melhor o ciclo de vida das janelas e dos perfis. Hoje, quando a janela de profiles é fechada, ela não pode ser reaberta de forma natural, e isso precisa virar um fluxo mais parecido com apps macOS comuns.
-
-**Dependências**  
-- `Nenhuma`
-
-**Comportamento desejado**  
-- Permitir reabrir a janela de `profiles` a partir do menu do app.
-- Definir se fechar a janela de um profile significa realmente encerrar o profile ou apenas esconder/minimizar a janela.
-- Manter o profile rodando em background mesmo quando a janela principal for fechada, se essa for a decisão do fluxo.
-- Separar claramente a ação de fechar janelas da ação de encerrar a aplicação inteira.
-- Entender o comportamento correto ao fechar a última janela: sair do app ou continuar residente no sistema.
-- Restaurar o estado das janelas na próxima abertura do app, reabrindo apenas as janelas que estavam ativas da última vez.
-- Se a janela de `profiles` estava fechada quando o app foi encerrado, ela deve continuar fechada ao voltar; se apenas a janela do profile estava aberta, o app deve restaurar só ela.
-
-**Notas técnicas**  
-- Esse item provavelmente exige revisar a estrutura de `NSApplication`, `NSWindow`, `WindowGroup` e handlers de fechamento para alinhar o comportamento esperado com o padrão macOS.
-- A decisão de “fechar vs esconder” precisa ser consistente com a experiência de profiles e com a existência de uma UI acessível pelo menu.
-- Também pode exigir persistir/restaurar um pequeno estado local de janela ativa por profile, para que a reabertura do app respeite o último layout.
-- Pode ser necessário introduzir um ponto único de navegação para reabrir janelas importantes, em vez de depender apenas do ciclo normal de criação da cena.
-
-**Por que isso entra no backlog**  
-Isso evita que o usuário fique preso fora da interface de profiles e deixa o app mais parecido com um aplicativo macOS normal, com menu, janelas e comportamento de background previsível.
-
----
-
 ## 17) i18n no app e idiomas iniciais
 
 Valor: `V4 - Alto`
@@ -443,5 +421,37 @@ Adicionar suporte de internacionalização no app, começando pelos nomes dos me
 
 **Por que isso entra no backlog**  
 Isso prepara o app para uma interface mais acessível e organizada, e permite começar pela parte mais visível e estruturante: os menus e o pacote inicial de idiomas.
+
+---
+
+## 18) Detach da WebView em janela independente
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R3 - Médio`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.65`
+
+**Descrição**  
+Permitir que a `WebView` da página de `WebView` seja destacada (`detach` / `pop-out`) e aberta em uma janela independente, sem recriar a instância e sem reiniciar o conteúdo carregado. Quando a janela separada fechar, a `WebView` deve voltar para a tela original exatamente na mesma instância.
+
+**Dependências**  
+- `Nenhuma`
+
+**Comportamento desejado**  
+- Adicionar um botão de `detach` na área da `WebView`.
+- Ao destacar a `WebView`, abrir uma janela independente usando a mesma instância existente.
+- Enquanto a `WebView` estiver destacada, ocultar o item correspondente do menu/tela principal.
+- Ao fechar a janela destacada, recolocar a `WebView` na tela original.
+- Quando a `WebView` voltar, o item de menu/ação correspondente deve reaparecer.
+- Manter o estado da sessão da `WebView` ativo durante todo o processo.
+
+**Notas técnicas**  
+- A solução precisa preservar uma única instância de `WKWebView`, movendo apenas o host visual entre containers.
+- A `WebView` não pode ficar em duas janelas ao mesmo tempo, então a troca de superview precisa ser controlada com cuidado.
+- Se a tela estiver em SwiftUI, a `WKWebView` precisa ficar fora do ciclo de reconstrução da view.
+- Vale prever um controller próprio para abrir/fechar a janela destacada sem reinicializar a página.
+
+**Por que isso entra no backlog**  
+Isso melhora a usabilidade quando o usuário quer manter a `WebView` separada da interface principal, sem perder contexto nem pagar o custo de recarregar tudo.
 
 ---

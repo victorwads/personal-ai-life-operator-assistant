@@ -100,6 +100,37 @@ extension AppModel {
         return whatsAppWebPageSnapshotsByAccountId[selectedWhatsAppWebAccountId]
     }
 
+    func isWhatsAppWebDetached(_ accountId: UUID) -> Bool {
+        detachedWhatsAppWebAccountIds.contains(accountId)
+    }
+
+    func detachWhatsAppWebAccount(_ account: WhatsAppWebAccount) {
+        detachedWhatsAppWebAccountIds.insert(account.id)
+
+        let webView = whatsAppWebSessionStore.webView(for: account)
+        let controller = whatsAppWebDetachedWindowControllersByAccountId[account.id] ?? WhatsAppWebDetachedWindowController(
+            appModel: self,
+            account: account,
+            webView: webView
+        )
+        whatsAppWebDetachedWindowControllersByAccountId[account.id] = controller
+        controller.show()
+    }
+
+    func closeDetachedWhatsAppWebWindow(accountId: UUID) {
+        guard let controller = whatsAppWebDetachedWindowControllersByAccountId[accountId] else {
+            detachedWhatsAppWebAccountIds.remove(accountId)
+            return
+        }
+
+        controller.close()
+    }
+
+    func handleDetachedWhatsAppWebWindowClosed(accountId: UUID) {
+        detachedWhatsAppWebAccountIds.remove(accountId)
+        whatsAppWebDetachedWindowControllersByAccountId.removeValue(forKey: accountId)
+    }
+
     func captureWhatsAppWebSnapshot(for account: WhatsAppWebAccount) async {
         let webView = whatsAppWebSessionStore.webView(for: account)
 

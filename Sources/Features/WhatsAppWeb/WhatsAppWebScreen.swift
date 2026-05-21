@@ -17,6 +17,11 @@ struct WhatsAppWebScreen: View {
     private var detail: some View {
         if let account = appModel.selectedWhatsAppWebAccount {
             let isIntegrationActive = appModel.isPolling || appModel.isSendingMessage
+            let isDetached = appModel.isWhatsAppWebDetached(account.id)
+
+            if isDetached {
+                detachedState(account: account)
+            } else {
             VStack(spacing: 0) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
@@ -33,6 +38,12 @@ struct WhatsAppWebScreen: View {
                     }
 
                     Spacer()
+
+                    Button {
+                        appModel.detachWhatsAppWebAccount(account)
+                    } label: {
+                        Label("Detach WebView", systemImage: "arrow.up.left.and.arrow.down.right")
+                    }
 
                     if appModel.developerModeSettings.isEnabled {
                         TextField("Capture name", text: $captureNameDraft)
@@ -147,6 +158,7 @@ struct WhatsAppWebScreen: View {
                     .padding(12)
                 }
             }
+            }
         } else {
             ContentUnavailableView(
                 "No WhatsApp Web account",
@@ -155,9 +167,35 @@ struct WhatsAppWebScreen: View {
             )
         }
     }
+
+    @ViewBuilder
+    private func detachedState(account: WhatsAppWebAccount) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: "macwindow.on.rectangle")
+                .font(.system(size: 44, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            VStack(spacing: 6) {
+                Text("WebView detached")
+                    .font(.title3.weight(.semibold))
+                Text("This WhatsApp Web session is open in a separate window.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Button {
+                appModel.closeDetachedWhatsAppWebWindow(accountId: account.id)
+            } label: {
+                Label("Return to sidebar", systemImage: "sidebar.left")
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(24)
+    }
 }
 
-private struct WhatsAppWebView: NSViewRepresentable {
+struct WhatsAppWebView: NSViewRepresentable {
     enum Mode: Equatable {
         case bridgePolling
         case interactive
@@ -191,7 +229,7 @@ private struct WhatsAppWebView: NSViewRepresentable {
     }
 }
 
-private final class WhatsAppWebFitContainer: NSView {
+final class WhatsAppWebFitContainer: NSView {
     private let webView: WKWebView
     var fixedViewportSize: NSSize {
         didSet {
