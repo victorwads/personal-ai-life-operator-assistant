@@ -161,37 +161,27 @@ struct LMStudioScreen: View {
                 }
             }
 
-            HStack(spacing: 12) {
-                smallLabel("MCP bridge", value: appModel.mcpServerRunning ? appModel.mcpServerStatusDescription : "Stopped", color: appModel.mcpServerRunning ? .green : .orange)
-                smallLabel("Prompt source", value: lmStudio.promptSourceDescription, color: .blue)
-                smallLabel("API", value: lmStudio.apiBaseURLText, color: .teal)
-            }
         }
     }
 
     private var leftPane: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            sessionOverviewCard
-            liveOutputCard
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                liveOutputCard
+                requirementsCard
+                connectionCard
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    requirementsCard
-                    connectionCard
-
-                    if let error = lmStudio.lastErrorMessage, !error.isEmpty {
-                        card(title: "Last Error", subtitle: "Most recent LM Studio or transport failure") {
-                            Text(error)
-                                .font(.caption)
-                                .foregroundStyle(.red)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
+                if let error = lmStudio.lastErrorMessage, !error.isEmpty {
+                    card(title: "Last Error", subtitle: "Most recent LM Studio or transport failure") {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
-                .padding(16)
             }
+            .padding(16)
         }
-        .padding(16)
         .background(Color(nsColor: .controlBackgroundColor))
     }
 
@@ -202,22 +192,6 @@ struct LMStudioScreen: View {
         .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color(nsColor: .windowBackgroundColor))
-    }
-
-    private var sessionOverviewCard: some View {
-        card(title: "Session Overview", subtitle: "Current state, model instance, and response identity") {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .top, spacing: 12) {
-                    infoPill("State", value: lmStudio.statusTitle, color: statusColor)
-                    infoPill("Response ID", value: lmStudio.activeResponseID ?? "—", color: .orange)
-                    infoPill("Model instance", value: lmStudio.activeModelInstanceID ?? "—", color: .teal)
-                }
-
-                Text(lmStudio.statusDetail)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-        }
     }
 
     private var liveOutputCard: some View {

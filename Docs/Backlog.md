@@ -298,44 +298,6 @@ Isso reduz regressões, formaliza o uso do servidor como alvo de testes e dá ma
 
 ---
 
-## 12) Menu `LM Studio` no `Server` para iniciar e pausar o agente
-
-Valor: `V5 - Altíssimo`
-Risco de Desenvolvimento: `R1 - Baixíssimo`
-Risco da Feature: `R1 - Baixíssimo`
-Score de Execução: `2.60`
-
-**Descrição**  
-Adicionar um novo item de menu na aba `Server`, chamado `LM Studio`, para controlar a sessão operacional do assistente diretamente pela aplicação Swift. Esse painel deve permitir iniciar o agente com o prompt de início de trabalho, pausar/cancelar a sessão ativa e iniciar novamente do zero, descartando o contexto anterior.
-
-Hoje o fluxo ainda depende de o cliente abrir o LM Studio manualmente, carregar o modelo, criar o chat e disparar o prompt inicial. Esse item existe justamente para tirar essa operação manual do caminho e deixar a aplicação Swift assumir o controle básico do lifecycle.
-
-**Dependências**  
-- `Nenhuma`
-
-**Comportamento desejado**  
-- Exibir um botão para iniciar o agente sem exigir abertura manual do LM Studio.
-- Exibir um botão para pausar/cancelar a sessão ativa.
-- Ao iniciar novamente depois de pausar, a sessão deve começar limpa, sem reaproveitar contexto anterior.
-- O item deve ficar dentro da navegação existente da aba `Server`, junto das demais telas operacionais.
-
-**Por que isso entra no backlog**  
-Isso remove a necessidade de operar o LM Studio manualmente para subir ou parar o agente, e funciona como uma camada de controle simples, isolada e praticamente sem risco sobre o código atual.
-
-**Notas técnicas (Timeout, Wait Tools e Continuidade)**  
-- A API do LM Studio não suporta configurar timeout por tool call/MCP via request. Na prática, tool calls blocking (ex.: `wait_for_*`, `ask_to_client`) podem estourar timeout no LM Studio mesmo que o runtime continue trabalhando.
-- Estratégia operacional do app macOS: manter o assistente "vivo". Se uma sessão SSE encerrar por timeout/erro, o app deve iniciar uma nova sessão quando houver trabalho para fazer.
-- Continuidade de contexto: o agente pode iniciar sessões novas do zero, porque ele sempre reconsulta o estado importante via tools (ex.: subjects/memories ativas). Isso simplifica recovery após timeouts.
-- Cenário `wait_for_*` (timeout esperado):
-  - O app deve tratar timeout como "sessão morreu" e acordar o assistente quando o estado local de espera terminar.
-  - Para prompts manuais do cliente (ex.: badge de "assistant waiting"), o input de start da próxima sessão deve carregar o prompt, no formato:
-    - `Start your job:\nclient_asking: <message>`
-- Risco atual importante: a tool `wait_for_chat_message` usa `consumeUnreadMessages(...)`, que marca mensagens como handled imediatamente. Se a tool call estourar timeout no LM Studio antes do assistente processar, existe risco de "perder" mensagens (ficam handled sem processamento garantido).
-  - Para robustez, o ideal é separar "peek/list unread" de "ack/mark handled" e só marcar handled após confirmação de processamento (ou por uma tool não-blocking que não sofre timeout).
-- Caso complexo: `ask_to_client` pode estourar timeout enquanto o cliente fala/escreve a resposta. Nesse caso, o agente não pode perder o contexto. Isso provavelmente exige uma estratégia de "async tool" (retornar rapidamente um id/estado e permitir polling) ou recovery controlado pelo runtime.
-
----
-
 ## 13) Contrato de humanização pós-tool
 
 Valor: `V4 - Alto`
@@ -361,36 +323,6 @@ Hoje a comunicação já existe, mas ainda mistura decisão operacional com ling
 
 **Por que isso entra no backlog**  
 Isso diminui o acoplamento entre decisão operacional e linguagem social, deixando o sistema mais modular e permitindo que o assistente fale de forma mais natural sem misturar decisão com estilo.
-
----
-
-## 14) Visualização dos eventos SSE do LM Studio
-
-Valor: `V4 - Alto`
-Risco de Desenvolvimento: `R3 - Médio`
-Risco da Feature: `R2 - Baixo`
-Score de Execução: `0.62`
-
-**Descrição**  
-Expor, no runtime do macOS e também em uma futura interface mobile, uma visualização bonita e legível dos eventos emitidos pelo stream SSE do LM Studio durante `POST /api/v1/chat` com `stream: true`. A ideia é mostrar o que o agente está fazendo enquanto responde, como carregamento de modelo, processamento do prompt, reasoning, tool calls, erros e fechamento da resposta.
-
-**Comportamento desejado**  
-- Mostrar a sequência dos eventos em tempo real, como uma timeline ou painel de atividade.
-- Destacar `reasoning`, `tool_call` e `message` com visual diferente.
-- Associar ícones diferentes para cada tipo de tool ou evento.
-- Exibir quando o modelo está carregando, processando prompt, pensando ou aguardando ferramentas.
-- Tornar essa visão acessível para quem estiver remoto e não puder olhar o LM Studio diretamente.
-
-**Dependências**  
-- `Menu LM Studio no Server para iniciar e pausar o agente`
-- `Exposição externa para app mobile e controle por API`
-
-**Comportamento desejado**  
-- O runtime pode continuar sendo a fonte de observabilidade, com o app mobile apenas espelhando essa visão.
-- A implementação deve confirmar os nomes reais dos eventos e a forma final do payload antes de consolidar a UI.
-
-**Por que isso entra no backlog**  
-Isso melhora bastante a transparência do runtime, ajuda a diagnosticar o que o agente está fazendo e leva para a interface remota uma visão que hoje só existe no LM Studio.
 
 ---
 
@@ -453,5 +385,68 @@ Permitir que a `WebView` da página de `WebView` seja destacada (`detach` / `pop
 
 **Por que isso entra no backlog**  
 Isso melhora a usabilidade quando o usuário quer manter a `WebView` separada da interface principal, sem perder contexto nem pagar o custo de recarregar tudo.
+
+---
+
+## 19) Sessões curtas para tools bloqueantes
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R4 - Alto`
+Risco da Feature: `R4 - Alto`
+Score de Execução: `0.50`
+
+**Descrição**  
+Reformular o fluxo de execução do assistente para que ferramentas bloqueantes não mantenham a sessão do LM Studio viva por tempo indefinido. A ideia é que `speak_to_client`, `ask_to_client`, `wait_for_chat_message` e `wait_for_event` passem a operar com um ciclo de sessão curta: a tool é executada, o runtime guarda o estado necessário, a sessão é finalizada e depois retomada quando houver nova resposta, nova mensagem ou novo evento.
+
+**Dependências**  
+- `Nenhuma`
+
+**Comportamento desejado**  
+- `speak_to_client` deve ter limite de tempo e não pode prender a sessão esperando indefinidamente.
+- `ask_to_client` precisa encerrar a sessão depois de disparar a pergunta, preservando contexto para retomada posterior.
+- `wait_for_chat_message` deve manter o contexto mínimo necessário para retomar o mesmo assunto quando a resposta do cliente chegar.
+- `wait_for_event` deve ser tratado como um ponto de parada explícito: o assistente finaliza a sessão, o runtime aguarda o próximo evento e então inicia uma nova sessão.
+- O runtime deve usar `response_id` e/ou `previous_response_id` para retomar o assunto quando fizer sentido.
+- O prompt do agente deve deixar claro que qualquer tool bloqueante precisa terminar a rodada atual de chat assim que tiver o estado salvo.
+
+**Notas técnicas**  
+- A API do LM Studio não suporta timeouts enormes e sessões longas com tool calls bloqueantes, então o design precisa evitar esperar “para sempre” dentro da mesma rodada.
+- O runtime deve armazenar o contexto mínimo de retomada logo após a tool bloquear ou concluir, para reconstruir a próxima sessão sem perder continuidade.
+- Para `ask_to_client`, o ideal é tratar a pergunta como início de uma etapa assíncrona, não como uma espera infinita dentro da mesma resposta.
+- Para `wait_for_event`, a sessão deve morrer de forma intencional e controlada, em vez de ficar viva só aguardando algo acontecer.
+
+**Por que isso entra no backlog**  
+Isso remove a dependência de longas sessões bloqueadas no LM Studio, reduz risco de timeout e torna o assistente mais robusto para rodar por longos períodos sem degradar a conversa.
+
+---
+
+## 20) Agrupar eventos SSE em blocos de timeline
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R3 - Médio`
+Risco da Feature: `R1 - Baixíssimo`
+Score de Execução: `0.74`
+
+**Descrição**  
+Melhorar a visualização dos eventos SSE do LM Studio para que eventos relacionados apareçam agrupados como um único bloco na timeline. Em vez de mostrar `tool_call.start`, `tool_call.arguments` e `tool_call.success` ou `tool_call.failure` como itens separados e poluentes, a UI deve apresentar um único cartão/linha principal da tool, com os detalhes expansíveis de argumentos e resultado.
+
+**Dependências**  
+- `Visualização dos eventos SSE do LM Studio`
+
+**Comportamento desejado**  
+- Agrupar eventos de tool call em um único bloco visual.
+- Mostrar `tool_call.start` como início do bloco, com argumentos e resultado dentro dele.
+- Manter os detalhes de `tool_call.arguments` e `tool_call.success`/`tool_call.failure` acessíveis por expansão ou drill-down.
+- Continuar exibindo eventos simples como `message`, `reasoning` e `error` de forma separada quando fizer sentido.
+- Reduzir poluição visual na timeline sem perder a informação bruta do stream.
+
+**Notas técnicas**  
+- A camada de UI deve interpretar a sequência de eventos do SSE como uma entidade composta, não apenas como uma lista linear.
+- O agrupamento precisa preservar a ordem temporal real dos eventos, mas condensar os que pertencem à mesma tool call.
+- Vale manter os payloads completos disponíveis no detalhe expandido para debug.
+- O agrupamento deve ser compatível com futuras ferramentas ou eventos que sigam padrão semelhante.
+
+**Por que isso entra no backlog**  
+Isso deixa a timeline muito mais legível e próxima da forma como uma pessoa entende o que aconteceu durante a execução, sem sacrificar o acesso aos detalhes técnicos.
 
 ---
