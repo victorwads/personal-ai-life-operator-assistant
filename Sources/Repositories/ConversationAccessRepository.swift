@@ -6,7 +6,6 @@ final class ConversationAccessRepository {
 
     private let defaults: UserDefaults
 
-    private let legacyBlockedConversationDefaultsKey = "blockedConversationNames"
     private let conversationAccessModeDefaultsKey = "conversationAccessMode.v1"
     private let denyConversationNamesDefaultsKey = "denyConversationNames.v1"
     private let allowConversationNamesDefaultsKey = "allowConversationNames.v1"
@@ -27,12 +26,6 @@ final class ConversationAccessRepository {
         let deny: [String] = {
             if let deny = defaults.stringArray(forKey: denyConversationNamesDefaultsKey) {
                 return deny.sorted()
-            }
-
-            if let legacy = defaults.stringArray(forKey: legacyBlockedConversationDefaultsKey) {
-                let migrated = legacy.sorted()
-                defaults.set(migrated, forKey: denyConversationNamesDefaultsKey)
-                return migrated
             }
 
             return []

@@ -40,6 +40,19 @@ echo "Generating Xcode project..."
 cd "$REPO_DIR"
 xcodegen generate
 
+echo "Running unit tests..."
+xcodebuild \
+  -project "$PROJECT_FILE" \
+  -scheme "$SCHEME" \
+  -configuration Debug \
+  -quiet \
+  -derivedDataPath "$DERIVED_DATA_DIR" \
+  CODE_SIGN_STYLE=Automatic \
+  DEVELOPMENT_TEAM="$TEAM_ID" \
+  CODE_SIGN_IDENTITY="$CODE_SIGN_IDENTITY" \
+  -destination 'platform=macOS' \
+  test
+
 echo "Building $SCHEME..."
 xcodebuild \
   -project "$PROJECT_FILE" \

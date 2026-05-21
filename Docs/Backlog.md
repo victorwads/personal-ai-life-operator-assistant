@@ -100,7 +100,7 @@ Adicionar a capacidade de arquivar uma conversa específica para manter o conjun
 Valor: `V4 - Alto`
 Risco de Desenvolvimento: `R4 - Alto`
 Risco da Feature: `R4 - Alto`
-Score de Execução: `0.40`
+Score de Execução: `0.52`
 
 **Descrição**  
 Extrair do código atual todo o mapeamento usado para interpretar o WhatsApp Web e mover esse conhecimento para um arquivo `YAML` versionado. Isso inclui seletores, caminhos relativos, alternativas de match, hooks de JavaScript quando existirem e a estrutura hierárquica de leitura da tela. O `YAML` deve ser bundlado no app como padrão, mas o runtime pode baixar uma versão mais recente via uma URL configurável nas Settings. Se a URL estiver vazia, o app usa apenas o `YAML` embutido e não tenta atualizar.
@@ -132,7 +132,7 @@ Isso reduz o acoplamento com o HTML atual do WhatsApp Web e facilita manter o ap
 Valor: `V5 - Altíssimo`
 Risco de Desenvolvimento: `R4 - Alto`
 Risco da Feature: `R2 - Baixo`
-Score de Execução: `0.56`
+Score de Execução: `0.63`
 
 **Descrição**  
 Corrigir o bug em que a listagem de chats fica desordenada quando o WhatsApp Web retorna apenas textos como `quinta-feira` ou horários soltos em vez de uma data completa da última mensagem. O objetivo é encontrar, se existir, a origem correta da data/hora real da última mensagem em formato estruturado, mapear esse valor para algo ordenável, preferencialmente `ISO string`, e usar isso tanto na listagem visual quanto no repositório/ordenação interna.
@@ -166,7 +166,7 @@ Sem uma data real e estruturada, a lista não consegue ser ordenada por recênci
 Valor: `V2 - Baixo`
 Risco de Desenvolvimento: `R5 - Muito alto`
 Risco da Feature: `R5 - Muito alto`
-Score de Execução: `0.18`
+Score de Execução: `0.16`
 
 **Descrição**  
 Externalizar parte da experiência do assistente para uma aplicação mobile ou outra interface cliente, permitindo que o usuário controle a máquina que roda o MCP server e o assistente de forma remota. A ideia é que tanto o fluxo de falar com o cliente quanto o fluxo do cliente responder possam ser acessados por essa camada externa.
@@ -273,7 +273,7 @@ Score de Execução: `0.77`
 Criar uma suíte de testes automatizados em Swift para validar o fluxo real da aplicação contra o MCP server reiniciado. A ideia é cobrir testes de integração que chamem as tools do servidor e validem os comportamentos principais da integração com WhatsApp Web.
 
 **Dependências**  
-- `Menu LM Studio no Server para iniciar e pausar o agente`
+- `Nenhuma`
 
 **Estratégia desejada**  
 - Usar um grupo fixo de testes no WhatsApp, com nome como `testes integrados`, para executar as validações.
@@ -311,7 +311,7 @@ Alterar o contrato de `speak_to_client`, `send_message` e `ask_to_client` para q
 Hoje a comunicação já existe, mas ainda mistura decisão operacional com linguagem final. Essa camada nova serve para separar melhor as responsabilidades e permitir que o sistema seja mais humano sem exigir que o agente principal carregue toda a estratégia de estilo no mesmo prompt.
 
 **Dependências**  
-- `Menu LM Studio no Server para iniciar e pausar o agente`
+- `Nenhuma`
 
 **Comportamento desejado**  
 - Essa feature depende da existência da tela/runtime de controle do LM Studio.
@@ -361,7 +361,7 @@ Isso prepara o app para uma interface mais acessível e organizada, e permite co
 Valor: `V4 - Alto`
 Risco de Desenvolvimento: `R3 - Médio`
 Risco da Feature: `R2 - Baixo`
-Score de Execução: `0.65`
+Score de Execução: `0.62`
 
 **Descrição**  
 Permitir que a `WebView` da página de `WebView` seja destacada (`detach` / `pop-out`) e aberta em uma janela independente, sem recriar a instância e sem reiniciar o conteúdo carregado. Quando a janela separada fechar, a `WebView` deve voltar para a tela original exatamente na mesma instância.
@@ -425,13 +425,13 @@ Isso remove a dependência de longas sessões bloqueadas no LM Studio, reduz ris
 Valor: `V4 - Alto`
 Risco de Desenvolvimento: `R3 - Médio`
 Risco da Feature: `R1 - Baixíssimo`
-Score de Execução: `0.74`
+Score de Execução: `0.73`
 
 **Descrição**  
 Melhorar a visualização dos eventos SSE do LM Studio para que eventos relacionados apareçam agrupados como um único bloco na timeline. Em vez de mostrar `tool_call.start`, `tool_call.arguments` e `tool_call.success` ou `tool_call.failure` como itens separados e poluentes, a UI deve apresentar um único cartão/linha principal da tool, com os detalhes expansíveis de argumentos e resultado.
 
 **Dependências**  
-- `Visualização dos eventos SSE do LM Studio`
+- `Nenhuma`
 
 **Comportamento desejado**  
 - Agrupar eventos de tool call em um único bloco visual.
@@ -448,5 +448,41 @@ Melhorar a visualização dos eventos SSE do LM Studio para que eventos relacion
 
 **Por que isso entra no backlog**  
 Isso deixa a timeline muito mais legível e próxima da forma como uma pessoa entende o que aconteceu durante a execução, sem sacrificar o acesso aos detalhes técnicos.
+
+---
+
+## 21) Captura automática do User-Agent real do navegador
+
+Valor: `V3 - Médio`
+Risco de Desenvolvimento: `R4 - Alto`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.54`
+
+**Descrição**  
+Trocar o `User-Agent` manual atualmente configurado para uma estratégia de captura automática do `User-Agent` real do navegador de referência do usuário. A ideia é expor uma rota HTTP no servidor local do app, por exemplo `/update-user-agent?token=...`, para que o navegador aberto por esse fluxo envie de volta o seu próprio `User-Agent` e o app persista esse valor para uso nas sessões de `WKWebView`.
+
+**Dependências**  
+- `Nenhuma`
+
+**Comportamento desejado**  
+- Detectar o navegador padrão do usuário no macOS.
+- Oferecer dois modos de captura:
+  - manual, quando o usuário abre a URL da rota no navegador que quiser;
+  - automático, quando o `Assistant MCP Server` iniciar e abrir esse endereço em um navegador de referência.
+- Validar a chamada com `token` na query string.
+- Capturar o `User-Agent` do navegador que abriu a rota e salvar esse valor nas settings.
+- Atualizar automaticamente esse valor na inicialização do app ou quando houver indicação confiável de mudança de versão do navegador.
+- Manter um fallback manual/persistido caso a coleta automática falhe.
+- Alimentar com esse valor a configuração de `customUserAgent` usada nas sessões de `WhatsApp Web`.
+
+**Notas técnicas**  
+- Não existe uma API do macOS que leia o `User-Agent` de qualquer navegador de forma genérica sem cooperação do próprio navegador, então a captura precisa acontecer por uma requisição explícita à rota do servidor.
+- O servidor precisa aceitar a atualização apenas quando o `token` for válido.
+- O valor capturado deve ser armazenado com metadata mínima, como data da captura, browser detectado e método usado.
+- A solução precisa prever fallback quando o navegador não estiver disponível, quando a captura for bloqueada ou quando o usuário trocar o navegador padrão.
+- O objetivo não é espionar o navegador do usuário em tempo real, e sim manter um `User-Agent` compatível e atualizado para a `WebView`.
+
+**Por que isso entra no backlog**  
+Isso reduz a chance de incompatibilidade com o WhatsApp Web quando o navegador do usuário mudar ou atualizar, sem depender de manutenção manual do `User-Agent` nas settings.
 
 ---
