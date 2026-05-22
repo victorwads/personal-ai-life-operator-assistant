@@ -4,11 +4,11 @@
   "description": "Assistente do Codex para WhatsApp Desktop via MCP local (HTTP).",
   "author": {
     "name": "Victor Wads",
-    "email": "victor.laureano@gmail.com",
+    "email": "contato@wads.dev",
     "url": "https://github.com/victorwads"
   },
-  "homepage": "https://github.com/victorwads/ai-macos-whatszap-controller-assistant",
-  "repository": "https://github.com/victorwads/ai-macos-whatszap-controller-assistant",
+  "homepage": "https://github.com/victorwads/local-ai-personal-assistant-apps",
+  "repository": "https://github.com/victorwads/local-ai-personal-assistant-apps",
   "license": "UNLICENSED",
   "keywords": [
     "whatsapp",
@@ -27,9 +27,9 @@
       "Interactive",
       "Write"
     ],
-    "websiteURL": "https://github.com/victorwads/ai-macos-whatszap-controller-assistant",
-    "privacyPolicyURL": "https://github.com/victorwads/ai-macos-whatszap-controller-assistant",
-    "termsOfServiceURL": "https://github.com/victorwads/ai-macos-whatszap-controller-assistant",
+    "websiteURL": "https://github.com/victorwads/local-ai-personal-assistant-apps",
+    "privacyPolicyURL": "https://github.com/victorwads/local-ai-personal-assistant-apps",
+    "termsOfServiceURL": "https://github.com/victorwads/local-ai-personal-assistant-apps",
     "defaultPrompt": [
       "Resuma as mensagens não lidas e sugira respostas.",
       "Envie uma mensagem para um contato (usando nickname).",

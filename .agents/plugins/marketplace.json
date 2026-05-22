@@ -1,14 +1,14 @@
 {
-  "name": "assistantmcpserver-local",
+  "name": "Wads Local Market",
   "interface": {
-    "displayName": "AssistantMCPServer (Local)"
+    "displayName": "Local AI Assistant MCP Server"
   },
   "plugins": [
     {
-      "name": "codex-whatsapp-assistant",
+      "name": "local-ai-assistant",
       "source": {
         "source": "local",
-        "path": "./plugins/codex-whatsapp-assistant"
+        "path": "./Server/Integrations/codex-plugin"
       },
       "policy": {
         "installation": "AVAILABLE",
