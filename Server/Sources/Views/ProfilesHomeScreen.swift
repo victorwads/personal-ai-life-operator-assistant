@@ -90,18 +90,15 @@ struct ProfilesHomeScreen: View {
         }
         .navigationTitle("Assistant MCP")
         .background(WindowAccessor { window in
+            profileWindowManager.registerHomeWindow(window)
             if !profileWindowManager.isHomeWindowVisible {
                 window.orderOut(nil)
             }
         })
-        .onDisappear {
-            profileWindowManager.hideHomeWindow()
-        }
         .task {
             guard !didBootstrap else { return }
             didBootstrap = true
             await appModel.loadWhatsAppWebAccounts()
-            await bootstrapAutoStartIfNeeded()
         }
     }
 
@@ -140,7 +137,16 @@ struct ProfilesHomeScreen: View {
             if profileWindowManager.isProfileWindowVisible(profileId: profile.id) {
                 await profileWindowManager.stopMainWindow(profileId: profile.id)
             } else {
-                profileWindowManager.revealMainWindow(profileId: profile.id)
+                profileWindowManager.showMainWindow(
+                    profile: profile,
+                    appModel: AppModel(
+                        profile: profile,
+                        profileIndex: index,
+                        basePort: appModel.mcpServerPort,
+                        primaryWhatsAppWebAccountId: account.id,
+                        startupMode: .live
+                    )
+                )
             }
             return
         }
@@ -179,27 +185,6 @@ struct ProfilesHomeScreen: View {
         newProfileName = ""
     }
 
-    @MainActor
-    private func bootstrapAutoStartIfNeeded() async {
-        let accounts = appModel.whatsAppWebAccounts
-        guard !accounts.isEmpty else { return }
-
-        for (index, account) in accounts.enumerated() where account.isAutoStart {
-            let profile = AppProfile.forWhatsAppWebAccount(account, isDefault: false)
-            guard !profileWindowManager.isProfileRunning(profileId: profile.id) else {
-                continue
-            }
-
-            let model = AppModel(
-                profile: profile,
-                profileIndex: index,
-                basePort: appModel.mcpServerPort,
-                primaryWhatsAppWebAccountId: account.id,
-                startupMode: .live
-            )
-            profileWindowManager.showMainWindow(profile: profile, appModel: model)
-        }
-    }
 }
 
 private struct ProfileRow: View {

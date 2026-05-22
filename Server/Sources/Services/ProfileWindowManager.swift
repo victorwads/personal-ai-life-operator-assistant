@@ -11,8 +11,11 @@ final class ProfileWindowManager: NSObject, ObservableObject, NSWindowDelegate {
 
     private var controllersByProfileId: [String: NSWindowController] = [:]
     private var appModelsByProfileId: [String: AppModel] = [:]
+    private var profilesByProfileId: [String: AppProfile] = [:]
     private var profileIdsByWindowId: [ObjectIdentifier: String] = [:]
     private var closingProfileIds: Set<String> = []
+    private weak var homeWindow: NSWindow?
+    private var isTerminating = false
     private let defaults: UserDefaults = .standard
     @Published private(set) var runningProfileIds: Set<String> = []
     @Published private(set) var visibleProfileIds: Set<String> = []
@@ -23,7 +26,9 @@ final class ProfileWindowManager: NSObject, ObservableObject, NSWindowDelegate {
         super.init()
     }
 
-    func showMainWindow(profile: AppProfile, appModel: AppModel) {
+    func showMainWindow(profile: AppProfile, appModel: @autoclosure () -> AppModel) {
+        profilesByProfileId[profile.id] = profile
+
         if let existing = controllersByProfileId[profile.id], let window = existing.window {
             runningProfileIds.insert(profile.id)
             setProfileWindowVisible(profile.id, true)
@@ -32,10 +37,11 @@ final class ProfileWindowManager: NSObject, ObservableObject, NSWindowDelegate {
             return
         }
 
-        appModelsByProfileId[profile.id] = appModel
+        let resolvedAppModel = appModelsByProfileId[profile.id] ?? appModel()
+        appModelsByProfileId[profile.id] = resolvedAppModel
 
         let rootView = ContentView()
-            .environmentObject(appModel)
+            .environmentObject(resolvedAppModel)
             .frame(minWidth: 980, minHeight: 680)
 
         let hosting = NSHostingView(rootView: rootView)
@@ -62,8 +68,22 @@ final class ProfileWindowManager: NSObject, ObservableObject, NSWindowDelegate {
         window.makeKeyAndOrderFront(nil)
     }
 
+    func startBackgroundProfile(profile: AppProfile, appModel: AppModel) {
+        profilesByProfileId[profile.id] = profile
+        appModelsByProfileId[profile.id] = appModel
+        runningProfileIds.insert(profile.id)
+        setProfileWindowVisible(profile.id, false)
+    }
+
     func revealMainWindow(profileId: String) {
         guard let controller = controllersByProfileId[profileId], let window = controller.window else {
+            guard let profile = profilesByProfileId[profileId] else {
+                return
+            }
+            guard let appModel = appModelsByProfileId[profileId] else {
+                return
+            }
+            showMainWindow(profile: profile, appModel: appModel)
             return
         }
 
@@ -76,7 +96,7 @@ final class ProfileWindowManager: NSObject, ObservableObject, NSWindowDelegate {
     func showHomeWindow() {
         setHomeWindowVisible(true)
 
-        if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "profiles" }) {
+        if let window = homeWindow ?? NSApp.windows.first(where: { $0.identifier?.rawValue == "profiles" }) {
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
         }
@@ -85,7 +105,7 @@ final class ProfileWindowManager: NSObject, ObservableObject, NSWindowDelegate {
     func hideHomeWindow() {
         setHomeWindowVisible(false)
 
-        if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "profiles" }) {
+        if let window = homeWindow ?? NSApp.windows.first(where: { $0.identifier?.rawValue == "profiles" }) {
             window.orderOut(nil)
         }
     }
@@ -125,13 +145,35 @@ final class ProfileWindowManager: NSObject, ObservableObject, NSWindowDelegate {
         controller.close()
     }
 
+    func registerHomeWindow(_ window: NSWindow) {
+        homeWindow = window
+        window.delegate = self
+        window.identifier = NSUserInterfaceItemIdentifier("profiles")
+
+        if isHomeWindowVisible {
+            window.makeKeyAndOrderFront(nil)
+        } else {
+            window.orderOut(nil)
+        }
+    }
+
+    func prepareForTermination() {
+        isTerminating = true
+    }
+
     func isProfileRunning(profileId: String) -> Bool {
         runningProfileIds.contains(profileId)
     }
 
     nonisolated func windowShouldClose(_ sender: NSWindow) -> Bool {
         MainActor.assumeIsolated {
-            handleWindowShouldClose(sender)
+            if sender.identifier?.rawValue == "profiles" {
+                if !isTerminating {
+                    setHomeWindowVisible(false)
+                }
+                return true
+            }
+            return handleWindowShouldClose(sender)
         }
     }
 
@@ -157,12 +199,18 @@ final class ProfileWindowManager: NSObject, ObservableObject, NSWindowDelegate {
         }
         let windowId = ObjectIdentifier(window)
         Task { @MainActor [weak self] in
-            self?.handleWindowWillClose(windowId: windowId)
+            self?.handleWindowWillClose(window: window, windowId: windowId)
         }
     }
 
     @MainActor
-    private func handleWindowWillClose(windowId: ObjectIdentifier) {
+    private func handleWindowWillClose(window: NSWindow, windowId: ObjectIdentifier) {
+        if window.identifier?.rawValue == "profiles" {
+            guard !isTerminating else { return }
+            homeWindow = nil
+            return
+        }
+
         guard let profileId = profileIdsByWindowId.removeValue(forKey: windowId) else {
             return
         }
