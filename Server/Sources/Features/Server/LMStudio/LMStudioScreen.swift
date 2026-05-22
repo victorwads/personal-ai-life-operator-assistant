@@ -216,7 +216,7 @@ struct LMStudioScreen: View {
         card(title: "LM Studio Requirements", subtitle: "Two server toggles can affect what you see") {
             VStack(alignment: .leading, spacing: 8) {
                 Text("If LM Studio requires authentication, keep the API token filled in here.")
-                Text("If you want tool calls from the per-request MCP bridge, enable `Allow per-request MCPs` in LM Studio Server Settings.")
+                Text("If you want tool calls from the per-request MCP bridge, enable `Allow per-request MCPs` in LM Studio Server Settings. If you want the Gmail MCP configured in LM Studio's `mcp.json`, also enable `Allow calling servers from mcp.json` and add `mcp/gmail` there.")
             }
             .font(.caption)
             .foregroundStyle(.secondary)

@@ -376,6 +376,7 @@ final class VoiceAssistant {
 
                 let request = SFSpeechAudioBufferRecognitionRequest()
                 request.shouldReportPartialResults = true
+                request.addsPunctuation = true
 
                 let engine = try startSpeechRecognitionAudioEngine(request: request)
                 self.audioEngine = engine
@@ -459,6 +460,7 @@ final class VoiceAssistant {
 
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
+        request.addsPunctuation = true
 
         let engine = try startSpeechRecognitionAudioEngine(request: request)
         self.audioEngine = engine

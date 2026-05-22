@@ -330,7 +330,7 @@ Isso diminui o acoplamento entre decisão operacional e linguagem social, deixan
 
 Valor: `V4 - Alto`
 Risco de Desenvolvimento: `R3 - Médio`
-Risco da Feature: `R1 - Baixíssimo`
+Risco da Feature: `R2 - Baixo`
 Score de Execução: `0.62`
 
 **Descrição**  
@@ -608,5 +608,134 @@ Adicionar um ícone de `system tray`/`menu bar` para o app, permitindo controlar
 
 **Por que isso entra no backlog**  
 Isso deixa o app mais alinhado com o comportamento esperado de apps macOS residentes, dá controle real de encerramento e evita que o usuário fique preso ao ciclo das janelas.
+
+---
+
+## 26) `response_id` visível e retry contínuo para `plain text`
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R3 - Médio`
+Risco da Feature: `R1 - Baixíssimo`
+Score de Execução: `0.62`
+
+**Descrição**  
+Fazer a tela de controle do LM Studio mostrar o `response_id` atual na barra de status do header, dentro da box de `response_id`, e usar esse mesmo `response_id` para reabrir a sessão quando o modelo responder em `plain text` fora do fluxo esperado. A ideia é que a request continue viva de forma controlada: se vier texto puro, o runtime reaproveita o `response_id`, aplica o warning/retry já definido no prompt e chama a chat de novo até conseguir a tool call correta ou até o runtime decidir parar por segurança.
+
+**Dependências**  
+- `Sessões curtas para tools bloqueantes`
+
+**Comportamento desejado**  
+- Exibir o `response_id` atual na área de status do header.
+- Manter o valor sincronizado com a sessão ativa visível na tela.
+- Atualizar o display quando a sessão trocar ou quando uma nova resposta for gerada.
+- Tornar o `response_id` fácil de copiar/inspecionar durante debug.
+- Detectar quando a resposta veio como texto puro fora do fluxo esperado.
+- Reusar o `response_id` para continuar a mesma conversa sem perder contexto.
+- Reabrir a sessão com o warning/retry já previsto no prompt do sistema.
+- Forçar o modelo a emitir a tool call correta na nova tentativa, em vez de aceitar texto puro como resposta operacional.
+- Manter a chamada em ciclo de retentativa enquanto fizer sentido para o runtime, sem perder o contexto da conversa.
+
+**Notas técnicas**  
+- O header precisa ler o mesmo estado que o runtime usa para retomar sessões.
+- A UI não deve depender de logs para mostrar esse identificador.
+- Se não houver `response_id` disponível, a tela deve mostrar um estado vazio claro, em vez de inventar valor.
+- A correção precisa acontecer no runtime, não só no prompt, porque o erro pode ocorrer mesmo com instrução clara.
+- O fluxo de retry deve manter o contexto operacional mínimo e não reiniciar a intenção do usuário do zero.
+- O warning usado para o retry deve ser consistente com o que já foi discutido para não criar duas versões diferentes da mesma regra.
+- A política de retry precisa evitar loops infinitos se o modelo insistir em responder em texto puro.
+
+**Por que isso entra no backlog**  
+Isso facilita a inspeção da sessão corrente do LM Studio, deixa explícito qual identificador deve ser usado para retomar contexto e protege o fluxo operacional contra saídas fora do contrato sem perder continuidade.
+
+---
+
+## 27) Auto-scroll do reasoning no LM Studio
+
+Valor: `V3 - Médio`
+Risco de Desenvolvimento: `R2 - Baixo`
+Risco da Feature: `R1 - Baixíssimo`
+Score de Execução: `0.53`
+
+**Descrição**  
+Fazer a tela do LM Studio acompanhar automaticamente o `reasoning` e o crescimento da resposta, mantendo o scroll sempre no final enquanto o conteúdo se estende. A ideia é que, durante a geração, a área de visualização role para baixo sozinha para mostrar o trecho mais recente sem exigir intervenção manual do usuário.
+
+**Dependências**  
+- `Nenhuma`
+
+**Comportamento desejado**  
+- Manter a timeline/visualização presa ao final enquanto novas linhas de `reasoning` ou eventos chegam.
+- Evitar que o usuário perca a parte mais recente da resposta durante a geração.
+- Permitir que o scroll automático pare ou seja manualmente ajustado se o usuário começar a inspecionar o histórico.
+- Retomar o auto-scroll quando uma nova geração começar.
+
+**Notas técnicas**  
+- O comportamento deve considerar tanto `reasoning` quanto outros eventos em streaming que aumentem a altura da área.
+- O auto-scroll precisa ser suave o suficiente para não atrapalhar a leitura, mas firme o bastante para manter o final visível.
+- Se o usuário interagir manualmente com a timeline, vale preservar essa intenção até a próxima sessão/stream.
+
+**Por que isso entra no backlog**  
+Isso melhora a leitura do raciocínio em tempo real e evita que a informação mais recente fique escondida fora da tela enquanto o LM Studio está gerando conteúdo.
+
+---
+
+## 28) Histórico de mensagens com falha no envio para retry
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R3 - Médio`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.62`
+
+**Descrição**  
+Criar um histórico persistente das mensagens que falharam ao serem enviadas, para permitir retentativa posterior sem perder o conteúdo, o destino e o contexto operacional. Quando `send_message` falhar, o runtime deve registrar a tentativa com status de erro, motivo conhecido e dados suficientes para reprocessar depois com segurança.
+
+**Dependências**  
+- `Nenhuma`
+
+**Comportamento desejado**  
+- Registrar mensagens que falharam no envio em um histórico próprio.
+- Guardar o chat alvo, o conteúdo da mensagem e o motivo do erro quando disponível.
+- Permitir retentativa posterior a partir desse histórico.
+- Manter a informação separada de mensagens enviadas com sucesso.
+- Evitar perder uma mensagem que falhou por erro transitório de rede, sessão ou validação.
+
+**Notas técnicas**  
+- O histórico precisa preservar o payload original da mensagem e o estado da tentativa.
+- O retry deve ser capaz de reusar o contexto operacional do `send_message`, sem reconstrução manual pelo usuário.
+- Vale registrar timestamps e a última razão de falha para facilitar debug e auditoria.
+- Se o sistema migrar mais estados para Firebase, esse histórico pode ser sincronizado junto com os demais dados operacionais.
+
+**Por que isso entra no backlog**  
+Isso evita perda silenciosa de mensagens quando o envio falha e permite ao runtime retentar de forma segura sem exigir que o usuário refaça o conteúdo do zero.
+
+---
+
+## 29) `Unresolve` de subjects com motivo obrigatório
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R3 - Médio`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.62`
+
+**Descrição**  
+Adicionar a ação de `Unresolve` para subjects na UI e no app mobile, permitindo reabrir um assunto que foi resolvido cedo demais ou que ainda não terminou de verdade. Ao usar essa ação, o usuário deve preencher um motivo obrigatório de reabertura, que pode se chamar `bronca`, para deixar explícito por que o subject não deve ser encerrado agora.
+
+**Dependências**  
+- `Exposição externa para app mobile e controle por API/Firebase`
+
+**Comportamento desejado**  
+- Permitir desfazer o estado de `resolve` de um subject.
+- Exigir um motivo obrigatório ao reabrir o subject.
+- Manter o subject aberto até que ele seja realmente concluído.
+- Exibir a ação tanto na UI local quanto no app mobile.
+- Registrar o motivo da reabertura no histórico operacional do subject.
+
+**Notas técnicas**  
+- A ação precisa atualizar o estado do subject sem apagar o histórico do que já aconteceu.
+- O campo `bronca` pode ser apenas o rótulo de interface, mas o motivo precisa ser persistido de forma auditável.
+- O runtime não deve considerar o subject resolvido novamente até uma nova resolução explícita.
+- Vale deixar claro na modelagem que `unresolve` é uma reversão operacional, não um cancelamento.
+
+**Por que isso entra no backlog**  
+Isso evita que assuntos sejam fechados cedo demais e dá ao usuário uma forma clara de reabrir um fluxo com contexto e justificativa explícitos.
 
 ---

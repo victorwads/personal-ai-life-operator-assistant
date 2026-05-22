@@ -27,6 +27,7 @@ final class LMStudioSessionManager: ObservableObject {
     private var lastMCPServerURL: URL?
     private var didUserPause = false
     private var plainTextRepairAttempts = 0
+    private static let gmailMCPPluginID = "mcp/gmail"
     // Append-only timeline: never auto-trim. Keep this as a reference in case we
     // ever want to reintroduce a soft cap for memory reasons.
     // private let maxTimelineEvents = 1000
@@ -348,15 +349,7 @@ final class LMStudioSessionManager: ObservableObject {
                 model: trimmedModelKey,
                 input: LMStudioPromptLoader.startupInputText,
                 systemPrompt: systemPrompt,
-                integrations: [
-                    LMStudioEphemeralMCPIntegration(
-                        serverLabel: mcpServerLabel,
-                        serverURL: mcpServerURL.absoluteString,
-                        allowedTools: nil,
-                        headers: nil,
-                        timeout: nil // (was: mcpTimeoutMs)
-                    )
-                ],
+                integrations: Self.lmStudioIntegrations(mcpServerURL: mcpServerURL),
                 stream: true,
                 store: nil,
                 previousResponseID: nil,
@@ -420,15 +413,7 @@ final class LMStudioSessionManager: ObservableObject {
             model: trimmedModelKey,
             input: correction,
             systemPrompt: nil,
-            integrations: [
-                LMStudioEphemeralMCPIntegration(
-                    serverLabel: mcpServerLabel,
-                    serverURL: mcpServerURL.absoluteString,
-                    allowedTools: nil,
-                    headers: nil,
-                    timeout: nil // (was: mcpTimeoutMs)
-                )
-            ],
+            integrations: Self.lmStudioIntegrations(mcpServerURL: mcpServerURL),
             stream: true,
             store: nil,
             previousResponseID: previousResponseID,
@@ -620,6 +605,19 @@ final class LMStudioSessionManager: ObservableObject {
             portSuffix = "default"
         }
         return "assistant_whatsapp_\(portSuffix)"
+    }
+
+    private static func lmStudioIntegrations(mcpServerURL: URL) -> [LMStudioIntegration] {
+        [
+            .ephemeralMCP(
+                serverLabel: mcpServerLabel(for: mcpServerURL),
+                serverURL: mcpServerURL.absoluteString,
+                allowedTools: nil,
+                headers: nil,
+                timeout: nil // (was: mcpTimeoutMs)
+            ),
+            .plugin(id: gmailMCPPluginID)
+        ]
     }
 
     private static func plainTextCorrectionPrompt(lastPlainText: String, attempt: Int) -> String {

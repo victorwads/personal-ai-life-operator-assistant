@@ -82,7 +82,7 @@ struct ContentView: View {
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            List(selection: Binding(get: { selectedScreen }, set: { handleSidebarSelection($0) })) {
+            List(selection: $selectedScreen) {
                 Section("Data") {
                     sidebarItem(.nicknames)
                     sidebarItem(.subjects)
@@ -163,6 +163,11 @@ struct ContentView: View {
                 break
             }
         }
+        .onChange(of: selectedScreen) { _, newScreen in
+            if case .whatsAppWebAccount(let accountId) = newScreen {
+                appModel.selectedWhatsAppWebAccountId = accountId
+            }
+        }
     }
 
     private var selectedDetailView: some View {
@@ -186,7 +191,6 @@ struct ContentView: View {
             case .whatsAppChats:
                 ConversationsScreen()
             case .whatsAppWebAccount(let accountId):
-                let _ = syncSelectedWhatsAppWebAccount(with: accountId)
                 WhatsAppWebScreen()
             case .settings:
                 SettingsScreen(
@@ -230,23 +234,6 @@ struct ContentView: View {
     private func sidebarItem(_ screen: SidebarScreen, title: String? = nil) -> some View {
         Label(title ?? screen.defaultTitle, systemImage: screen.systemImage)
             .tag(screen)
-    }
-
-    private func handleSidebarSelection(_ screen: SidebarScreen?) {
-        guard let screen else { return }
-        selectedScreen = screen
-
-        if case .whatsAppWebAccount(let accountId) = screen {
-            appModel.selectedWhatsAppWebAccountId = accountId
-        }
-    }
-
-    @discardableResult
-    private func syncSelectedWhatsAppWebAccount(with accountId: UUID) -> Bool {
-        if appModel.selectedWhatsAppWebAccountId != accountId {
-            appModel.selectedWhatsAppWebAccountId = accountId
-        }
-        return true
     }
 
     private var selectedScreenTitle: String {

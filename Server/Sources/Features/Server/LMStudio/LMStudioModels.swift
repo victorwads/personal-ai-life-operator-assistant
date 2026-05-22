@@ -69,7 +69,7 @@ struct LMStudioChatRequestBody: Encodable, Sendable {
     let model: String
     let input: String
     let systemPrompt: String?
-    let integrations: [LMStudioEphemeralMCPIntegration]?
+    let integrations: [LMStudioIntegration]?
     let stream: Bool
     let store: Bool?
     let previousResponseID: String?
@@ -87,18 +87,42 @@ struct LMStudioChatRequestBody: Encodable, Sendable {
     }
 }
 
-struct LMStudioEphemeralMCPIntegration: Encodable, Sendable {
-    let type = "ephemeral_mcp"
-    let serverLabel: String
-    let serverURL: String
-    let allowedTools: [String]?
-    let headers: [String: String]?
-    let timeout: Int?
-    // NOTE: LM Studio currently ignores per-request MCP timeout overrides via API.
-    // Keep the field for compatibility if/when the server supports it.
+enum LMStudioIntegration: Encodable, Sendable {
+    case plugin(id: String, allowedTools: [String]? = nil)
+    case ephemeralMCP(
+        serverLabel: String,
+        serverURL: String,
+        allowedTools: [String]?,
+        headers: [String: String]?,
+        timeout: Int?
+    )
 
-    enum CodingKeys: String, CodingKey {
+    func encode(to encoder: Encoder) throws {
+        switch self {
+        case .plugin(let id, let allowedTools):
+            if let allowedTools {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                try container.encode("plugin", forKey: .type)
+                try container.encode(id, forKey: .id)
+                try container.encode(allowedTools, forKey: .allowedTools)
+            } else {
+                var container = encoder.singleValueContainer()
+                try container.encode(id)
+            }
+        case .ephemeralMCP(let serverLabel, let serverURL, let allowedTools, let headers, let timeout):
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode("ephemeral_mcp", forKey: .type)
+            try container.encode(serverLabel, forKey: .serverLabel)
+            try container.encode(serverURL, forKey: .serverURL)
+            try container.encodeIfPresent(allowedTools, forKey: .allowedTools)
+            try container.encodeIfPresent(headers, forKey: .headers)
+            try container.encodeIfPresent(timeout, forKey: .timeout)
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
         case type
+        case id
         case serverLabel = "server_label"
         case serverURL = "server_url"
         case allowedTools = "allowed_tools"

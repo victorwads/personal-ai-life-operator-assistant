@@ -7,7 +7,6 @@ final class ProfileWindowManager: NSObject, ObservableObject, NSWindowDelegate {
 
     private enum StorageKey {
         static let homeWindowVisible = "assistant.window.home.visible.v1"
-        static let visibleProfileIds = "assistant.window.profile.visibleIds.v1"
     }
 
     private var controllersByProfileId: [String: NSWindowController] = [:]
@@ -21,8 +20,6 @@ final class ProfileWindowManager: NSObject, ObservableObject, NSWindowDelegate {
 
     override init() {
         isHomeWindowVisible = defaults.object(forKey: StorageKey.homeWindowVisible) as? Bool ?? true
-        let storedVisibleProfileIds = defaults.stringArray(forKey: StorageKey.visibleProfileIds) ?? []
-        visibleProfileIds = Set(storedVisibleProfileIds)
         super.init()
     }
 
@@ -77,8 +74,7 @@ final class ProfileWindowManager: NSObject, ObservableObject, NSWindowDelegate {
     }
 
     func showHomeWindow() {
-        isHomeWindowVisible = true
-        persistHomeWindowVisibility()
+        setHomeWindowVisible(true)
 
         if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "profiles" }) {
             window.makeKeyAndOrderFront(nil)
@@ -86,26 +82,11 @@ final class ProfileWindowManager: NSObject, ObservableObject, NSWindowDelegate {
         }
     }
 
-    func restoreVisibleProfileWindows(accounts: [WhatsAppWebAccount], basePort: Int) {
-        let accountsByProfileId = Dictionary(uniqueKeysWithValues: accounts.enumerated().map { index, account in
-            (AppProfile.forWhatsAppWebAccount(account, isDefault: false).id, (account: account, index: index))
-        })
+    func hideHomeWindow() {
+        setHomeWindowVisible(false)
 
-        for profileId in Array(visibleProfileIds) {
-            guard controllersByProfileId[profileId] == nil,
-                  let entry = accountsByProfileId[profileId] else {
-                continue
-            }
-
-            let profile = AppProfile.forWhatsAppWebAccount(entry.account, isDefault: false)
-            let model = AppModel(
-                profile: profile,
-                profileIndex: entry.index,
-                basePort: basePort,
-                primaryWhatsAppWebAccountId: entry.account.id,
-                startupMode: .live
-            )
-            showMainWindow(profile: profile, appModel: model)
+        if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "profiles" }) {
+            window.orderOut(nil)
         }
     }
 
@@ -188,7 +169,6 @@ final class ProfileWindowManager: NSObject, ObservableObject, NSWindowDelegate {
 
         runningProfileIds.remove(profileId)
         visibleProfileIds.remove(profileId)
-        persistVisibleProfileIds()
         controllersByProfileId.removeValue(forKey: profileId)
 
         let appModel = appModelsByProfileId.removeValue(forKey: profileId)
@@ -201,16 +181,14 @@ final class ProfileWindowManager: NSObject, ObservableObject, NSWindowDelegate {
         } else {
             visibleProfileIds.remove(profileId)
         }
-        persistVisibleProfileIds()
     }
-
-
 
     private func persistHomeWindowVisibility() {
         defaults.set(isHomeWindowVisible, forKey: StorageKey.homeWindowVisible)
     }
 
-    private func persistVisibleProfileIds() {
-        defaults.set(Array(visibleProfileIds).sorted(), forKey: StorageKey.visibleProfileIds)
+    func setHomeWindowVisible(_ isVisible: Bool) {
+        isHomeWindowVisible = isVisible
+        persistHomeWindowVisibility()
     }
 }

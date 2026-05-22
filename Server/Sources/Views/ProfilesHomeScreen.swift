@@ -89,14 +89,18 @@ struct ProfilesHomeScreen: View {
             .frame(maxWidth: 980, alignment: .topLeading)
         }
         .navigationTitle("Assistant MCP")
+        .background(WindowAccessor { window in
+            if !profileWindowManager.isHomeWindowVisible {
+                window.orderOut(nil)
+            }
+        })
+        .onDisappear {
+            profileWindowManager.hideHomeWindow()
+        }
         .task {
             guard !didBootstrap else { return }
             didBootstrap = true
             await appModel.loadWhatsAppWebAccounts()
-            profileWindowManager.restoreVisibleProfileWindows(
-                accounts: appModel.whatsAppWebAccounts,
-                basePort: appModel.mcpServerPort
-            )
             await bootstrapAutoStartIfNeeded()
         }
     }
