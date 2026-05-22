@@ -5,7 +5,6 @@ struct LMStudioScreen: View {
     @EnvironmentObject private var appModel: AppModel
     @ObservedObject var lmStudio: LMStudioSessionManager
     private let mcpServerURL: URL?
-    private let preferredModelDisplayName = "Qwen3.6 35B A3B"
     @State private var selectedTimelineFilter: TimelineFilter = .important
     @State private var showDeltaEvents = false
     @State private var showDebugEvents = false
@@ -61,10 +60,6 @@ struct LMStudioScreen: View {
             if lmStudio.models.isEmpty {
                 await lmStudio.refreshModels()
             }
-            selectPreferredModelIfNeeded()
-        }
-        .onChange(of: lmStudio.models) { _, _ in
-            selectPreferredModelIfNeeded()
         }
     }
 
@@ -322,19 +317,7 @@ struct LMStudioScreen: View {
     }
 
     private var selectedModelMenuLabel: String {
-        if let selectedModel = lmStudio.selectedModel {
-            return selectedModel.displayName
-        }
-        if let preferredModel = lmStudio.models.first(where: { $0.displayName == preferredModelDisplayName }) {
-            return preferredModel.displayName
-        }
-        return "No model selected"
-    }
-
-    private func selectPreferredModelIfNeeded() {
-        guard lmStudio.selectedModelKey.isEmpty || lmStudio.selectedModel == nil else { return }
-        guard let preferredModel = lmStudio.models.first(where: { $0.displayName == preferredModelDisplayName }) else { return }
-        lmStudio.selectedModelKey = preferredModel.key
+        lmStudio.selectedModelLabel
     }
 
     private var filteredTimeline: [LMStudioEventRecord] {
@@ -385,16 +368,7 @@ struct LMStudioScreen: View {
     }
 
     private func openLMStudioApp() {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-        process.arguments = ["-a", "LM Studio"]
-
-        do {
-            try process.run()
-            appModel.appendLog("Requested LM Studio app launch.")
-        } catch {
-            appModel.appendLog("Failed to open LM Studio: \(error.localizedDescription)", level: .error)
-        }
+        lmStudio.openLMStudioApp(activate: true)
     }
 
     private func fieldRow<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
