@@ -686,10 +686,10 @@ Risco da Feature: `R2 - Baixo`
 Score de Execução: `0.62`
 
 **Descrição**  
-Criar um histórico persistente das mensagens que falharam ao serem enviadas, para permitir retentativa posterior sem perder o conteúdo, o destino e o contexto operacional. Quando `send_message` falhar, o runtime deve registrar a tentativa com status de erro, motivo conhecido e dados suficientes para reprocessar depois com segurança.
+Criar um histórico persistente das mensagens que falharam ao serem enviadas, para permitir retentativa posterior sem perder o conteúdo, o destino e o contexto operacional. Esse histórico deve se apoiar no registro já persistente de cada `send_message`, porque toda mensagem enviada precisa existir como um item rastreável antes de falhar, enviar ou ser retentada. Quando `send_message` falhar, o runtime deve registrar a tentativa com status de erro, motivo conhecido e dados suficientes para reprocessar depois com segurança.
 
 **Dependências**  
-- `Nenhuma`
+- `Registro persistente de send_message com subjectId obrigatório`
 
 **Comportamento desejado**  
 - Registrar mensagens que falharam no envio em um histórico próprio.
@@ -703,6 +703,7 @@ Criar um histórico persistente das mensagens que falharam ao serem enviadas, pa
 - O retry deve ser capaz de reusar o contexto operacional do `send_message`, sem reconstrução manual pelo usuário.
 - Vale registrar timestamps e a última razão de falha para facilitar debug e auditoria.
 - Se o sistema migrar mais estados para Firebase, esse histórico pode ser sincronizado junto com os demais dados operacionais.
+- Esse item depende de um registro anterior de `send_message` com estados bem definidos, então não deve ser implementado isoladamente.
 
 **Por que isso entra no backlog**  
 Isso evita perda silenciosa de mensagens quando o envio falha e permite ao runtime retentar de forma segura sem exigir que o usuário refaça o conteúdo do zero.
@@ -737,5 +738,265 @@ Adicionar a ação de `Unresolve` para subjects na UI e no app mobile, permitind
 
 **Por que isso entra no backlog**  
 Isso evita que assuntos sejam fechados cedo demais e dá ao usuário uma forma clara de reabrir um fluxo com contexto e justificativa explícitos.
+
+---
+
+## 30) Gmail, Calendar e alarmes de subject com wake events
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R5 - Muito alto`
+Risco da Feature: `R4 - Alto`
+Score de Execução: `0.48`
+
+**Descrição**  
+Integrar oficialmente o MCP server de Gmail e Calendar ao prompt operacional do assistente, deixando claro como ele deve lidar com e-mails, eventos e compromissos de calendário. Além disso, criar uma camada de alarmes ligada a `subjects`, para que o assistente possa gerar eventos de despertar, receber avisos antes da hora marcada e continuar lembrando o usuário até o item ser resolvido, adiado (`snooze`) ou encerrado de verdade.
+
+**Dependências**  
+- `Nenhuma`
+
+**Comportamento desejado**  
+- Incluir Gmail e Calendar como partes explícitas do prompt do sistema.
+- Persistir em memória preferências recorrentes sobre como tratar e-mail e calendário.
+- Permitir que o assistente sempre lembre de regras como “me avise por áudio quando um evento chegar”.
+- Criar alarmes vinculados a subjects.
+- Tratar alarmes como eventos que acordam o assistente quando chegam ao horário ou a um tempo antes do compromisso.
+- Permitir `resolve`, `snooze` ou manutenção aberta do alarme até ele ser realmente tratado.
+- Avisar com antecedência quando houver compromisso próximo, por exemplo com `speak_to_client(...)` ou alerta equivalente.
+
+**Notas técnicas**  
+- O prompt operacional precisa documentar a rotina de Gmail e Calendar, não só as tools isoladas.
+- O comportamento sobre e-mail e calendário deve ser aprendido e persistido como memória quando for uma preferência durável do usuário.
+- O sistema precisa ter uma forma de despertar por tempo ou por alarme, mesmo que isso envolva um scheduler local, timer persistido ou integração com `wait_for_event`.
+- O alarme precisa funcionar como um subject próprio, para que tenha rastreamento, abertura, acompanhamento e fechamento.
+- Vale definir se o aviso antecipado será sempre por voz, por notificação ou por ambos, dependendo do contexto.
+
+**Por que isso entra no backlog**  
+Isso transforma o assistente em uma secretária de verdade, capaz de acompanhar compromissos e e-mails com antecedência, gerar cutucadas automáticas e manter tarefas temporais vivas até que o usuário realmente as resolva.
+
+---
+
+## 31) `subjectId` obrigatório para `speak_to_client` e `ask_to_client`
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R4 - Alto`
+Risco da Feature: `R3 - Médio`
+Score de Execução: `0.58`
+
+**Descrição**  
+Tornar obrigatório o vínculo de `subjectId` para qualquer uso de `speak_to_client` e `ask_to_client`, de modo que o assistente nunca execute essas tools fora de um subject ativo. A presença do usuário cliente passa a influenciar o comportamento de resposta, mas não substitui a necessidade de um subject identificado. Quando o usuário estiver ausente, os `ask_to_client` podem ser acumulados ou adiados, mas sempre vinculados ao subject correto.
+
+**Dependências**  
+- `Estados de presente e ausente`
+
+**Comportamento desejado**  
+- Impedir chamadas de `speak_to_client` e `ask_to_client` sem `subjectId`.
+- Garantir que qualquer fala ou pergunta do assistente esteja vinculada a um subject explícito.
+- Permitir que a camada de runtime crie ou atualize o subject antes de emitir a tool, se necessário.
+- Quando o usuário estiver ausente, manter a pergunta pendente sem perder o vínculo com o subject.
+- Tratar a presença apenas como um modificador de comportamento, e não como substituto do subject.
+
+**Notas técnicas**  
+- Essa regra deve existir no contrato das tools, não só no prompt.
+- Se a chamada vier sem `subjectId`, o runtime deve recusar, pedir correção ou gerar o subject antes de prosseguir, conforme o fluxo permitido.
+- O backlog de presença continua válido, mas esta tarefa endurece a regra estrutural de que comunicação operacional precisa de subject.
+- Vale revisar todos os fluxos que hoje chamam `speak_to_client` e `ask_to_client` para garantir que eles sempre carreguem esse identificador.
+
+**Por que isso entra no backlog**  
+Isso evita comunicação operacional solta, melhora o rastreamento dos assuntos e deixa explícito que falar com o cliente ou perguntar algo sempre faz parte de um subject rastreável.
+
+---
+
+## 32) Registro persistente de `send_message` com `subjectId` obrigatório
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R4 - Alto`
+Risco da Feature: `R3 - Médio`
+Score de Execução: `0.58`
+
+**Descrição**  
+Tornar obrigatório o `subjectId` em toda chamada de `send_message` e criar um registro persistente para cada mensagem enviada, antes mesmo dela ser concluída. Esse registro deve virar a base de auditoria e de retry do fluxo externo, permitindo acompanhar se a mensagem está `pending`, `sent` ou `error`, além de preservar o vínculo com o subject, o chat destino e o conteúdo exato enviado.
+
+**Dependências**  
+- `Nenhuma`
+
+**Comportamento desejado**  
+- Impedir `send_message` sem `subjectId`.
+- Criar um registro persistente da mensagem assim que a tool for chamada.
+- Usar estados como `pending`, `sent` e `error` para refletir o ciclo da mensagem.
+- Guardar o `subjectId`, o `chatId`, o título/nome do chat quando disponível e o payload enviado.
+- Permitir que o item de retry leia esse histórico depois sem reconstruir manualmente a mensagem.
+
+**Notas técnicas**  
+- Esse registro pode virar uma coleção própria no armazenamento persistente.
+- O estado `pending` deve existir enquanto o runtime ainda está processando ou aguardando a conclusão do envio.
+- `sent` e `error` precisam ser atualizações do mesmo registro, não entidades separadas.
+- O contrato da tool deve exigir o `subjectId` para impedir mensagens “soltas” sem rastreamento operacional.
+
+**Por que isso entra no backlog**  
+Isso cria a trilha de auditoria e rastreabilidade que o retry precisa, e também impede que mensagens externas sejam enviadas sem um subject claro por trás.
+
+---
+
+## 33) Tooling para colocar chat na deny list de forma permanente
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R3 - Médio`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.58`
+
+**Descrição**  
+Criar uma tooling para o assistente marcar um chat como ignorado para sempre, sem depender de edição manual da deny list pelo nome. Essa ação deve ser usada apenas quando o cliente deixar explícito que nunca mais quer ouvir falar daquele chat, como grupos irrelevantes, conversas de baixa prioridade ou contatos que não devem mais entrar no acompanhamento contínuo.
+
+**Dependências**  
+- `Nenhuma`
+
+**Comportamento desejado**  
+- Permitir que o assistente coloque um chat em block/deny list de forma permanente.
+- Exigir que a intenção de permanência fique explícita, para evitar bloqueios acidentais.
+- Deixar explícito na descrição da tool que, para o assistente, essa ação é irreversível.
+- Garantir que o chat nunca mais volte a aparecer para o assistente depois do `ignore forever`.
+- Fazer com que mensagens futuras daquele chat também sejam ignoradas pelo runtime, mesmo que cheguem normalmente.
+- Evitar incluir esse chat em buscas, waits, notificações e acompanhamentos futuros.
+- Manter o registro da exclusão com contexto suficiente para auditoria e reversão, se necessário.
+- Deixar claro que a ação é equivalente a “ignore forever”, não a um mute temporário.
+
+**Notas técnicas**  
+- A tooling deve aceitar o identificador correto do chat, não apenas o nome digitado manualmente.
+- Vale manter a regra separada de muting/silencing temporário, porque aqui o efeito é permanente.
+- A descrição da tool precisa tratar a ação como irreversível do ponto de vista operacional do assistente, para reduzir risco de uso indevido.
+- O runtime pode precisar atualizar índices, caches e qualquer fila de eventos pendentes para que o chat realmente suma do fluxo operacional.
+- Se houver histórico ou subjects abertos ligados a esse chat, é importante definir se eles são apenas despriorizados ou formalmente encerrados.
+
+**Por que isso entra no backlog**  
+Isso reduz ruído operacional e dá ao assistente uma forma segura e explícita de nunca mais acompanhar chats que o cliente não quer ver de novo.
+
+---
+
+## 34) Adicionar MCP server de Calendar e gatear Gmail/Calendar por settings
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R3 - Médio`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.68`
+
+**Descrição**  
+Adicionar o MCP server de Calendar ao runtime do LM Studio e, ao mesmo tempo, colocar Gmail e Calendar atrás de uma configuração explícita por perfil, desligada por padrão. Hoje o caminho de integração do Gmail já aparece em `Server/Sources/Features/Server/LMStudio/LMStudioSessionManager.swift`, onde o runtime injeta `mcp/gmail` em `lmStudioIntegrations(mcpServerURL:)`, e o banner de `Server/Sources/Features/Server/LMStudio/LMStudioScreen.swift` ainda descreve somente esse fluxo. A ideia aqui é expandir esse ponto para Calendar e só listar Gmail/Calendar quando a configuração do perfil estiver ativada em `Settings`.
+
+**Dependências**  
+- `Nenhuma`
+
+**Comportamento desejado**  
+- Adicionar o plugin/integrador de Calendar ao conjunto de MCPs do LM Studio.
+- Manter Gmail e Calendar desativados por padrão.
+- Só expor essas integrações quando o perfil habilitar explicitamente essa configuração.
+- Evitar que todos os perfis compartilhem esses MCPs sem autorização explícita.
+- Tornar claro na UI que a ativação é por perfil, não global.
+
+**Notas técnicas**  
+- O ponto principal de mudança hoje é `LMStudioSessionManager.swift`, onde a lista de integrações do LM Studio é montada.
+- O texto explicativo em `LMStudioScreen.swift` também precisa mencionar Calendar além de Gmail.
+- A configuração pode viver em `SettingsScreen.swift`, com persistência via `FirestoreSettingsService(profileID:)` e uma nova flag por perfil.
+- O default precisa ser `false`, porque o sistema ainda não tem multi-conta concluído e não pode ativar isso globalmente por engano.
+
+**Por que isso entra no backlog**  
+Isso cria a base mínima para Calendar existir de verdade no runtime sem vazar acesso entre perfis e sem surpreender o usuário com integrações ativas por padrão.
+
+---
+
+## 35) Menu Gmail/Calendar com assistente de configuração
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R3 - Médio`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.64`
+
+**Descrição**  
+Criar um menu/área dedicada para Gmail e Calendar dentro da aplicação, com um assistente de configuração que explique autenticação, permissões, credenciais e como ativar cada integração. Esse menu deve servir tanto para testar as tools quanto para orientar o setup inicial, incluindo onde ficam as credenciais, como vincular as contas e como validar que o MCP está pronto. A visão é algo como um “Google” dentro do app, com Gmail e Calendar organizados e um fluxo claro de setup.
+
+**Dependências**  
+- `Adicionar MCP server de Calendar e gatear Gmail/Calendar por settings`
+
+**Comportamento desejado**  
+- Exibir Gmail e Calendar em um menu próprio, separado do restante do Server.
+- Permitir testar as tools dessas integrações a partir da UI.
+- Incluir um assistente de configuração que explique o fluxo de autenticação.
+- Orientar o usuário sobre credenciais, permissões e ativação por perfil.
+- Manter o menu oculto ou inativo quando as integrações estiverem desabilitadas.
+
+**Notas técnicas**  
+- Esse fluxo deve conversar com a base que já existe em `LMStudioScreen.swift` e com a configuração persistida em `SettingsScreen.swift`.
+- O assistente de configuração pode gerar instruções operacionais como criar pasta, baixar credencial, referenciar arquivo e apontar o caminho certo.
+- Vale separar claramente o que é “ver status/testar tool” do que é “configurar conta”, para não misturar setup com uso diário.
+- A UI precisa deixar transparente que a ativação é por perfil, não um toggle global escondido.
+
+**Por que isso entra no backlog**  
+Isso reduz fricção para configurar Gmail e Calendar e prepara o terreno para o sistema de múltiplas contas sem exigir que o usuário decore detalhes técnicos.
+
+---
+
+## 36) Arquitetura multi-conta para Gmail e Calendar por perfil
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R5 - Muito alto`
+Risco da Feature: `R4 - Alto`
+Score de Execução: `0.46`
+
+**Descrição**  
+Criar a arquitetura de múltiplas contas para Gmail e Calendar, separando provider, conta e runtime de MCP de forma explícita. Hoje a aplicação ainda se comporta como se houvesse um único fluxo de Google por contexto, então a meta aqui é permitir várias contas por profile, com isolamento de credenciais, configuração e estado. Isso precisa valer tanto para perfis locais quanto para a evolução futura com sincronização global, para que um profile possa ter contas pessoais, de trabalho e de clientes sem compartilhar token ou contexto por acidente.
+
+**Dependências**  
+- `Adicionar MCP server de Calendar e gatear Gmail/Calendar por settings`
+- `Menu Gmail/Calendar com assistente de configuração`
+- `Migrar storage e sincronização para Firebase`
+
+**Comportamento desejado**  
+- Separar claramente `provider` e `account`.
+- Permitir múltiplas contas por profile para Gmail e Calendar.
+- Isolar credenciais, tokens e diretórios de configuração por conta.
+- Evitar que uma conta de um profile seja reutilizada automaticamente por outro.
+- Permitir que o app liste, ative, desative e teste cada conta de forma independente.
+- Preparar a UI e o runtime para um futuro app mobile ou acesso remoto sem misturar dados entre contas.
+
+**Notas técnicas**  
+- Hoje o ponto de partida é o `mcp/gmail` injetado em `LMStudioSessionManager.swift`, então essa lógica precisa deixar de ser “uma conta implícita” e virar “uma coleção de contas”.
+- O modelo de perfil já existe em `AppProfile.swift` e o armazenamento por perfil já passa por `FirestoreCollections.swift` e `FirestoreSettingsService(profileID:)`; essa nova camada deve se apoiar nisso em vez de criar um atalho global.
+- A implementação deve prever múltiplos conjuntos de credenciais e, se necessário, múltiplas instâncias MCP por conta.
+- O assistente de configuração do item anterior vira a porta de entrada dessa arquitetura, mas a persistência e o isolamento real ficam aqui.
+
+**Por que isso entra no backlog**  
+Isso é o que transforma Gmail e Calendar de um setup único e manual em uma plataforma realmente multi-conta, segura e escalável para vários perfis e futuros clientes remotos.
+
+---
+
+## 37) Memórias categorizadas e `list_memories` filtrável
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R3 - Médio`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.60`
+
+**Descrição**  
+Estruturar as memórias em categorias explícitas e fazer o `list_memories` funcionar em dois modos: listar tudo sem argumento e listar apenas um subconjunto quando a categoria for informada. A ideia é que memórias de comportamento e contexto deixem de ficar todas misturadas num bloco único, para que o runtime consiga buscar só o que importa para um cenário específico, como e-mail, calendário, subjects, personalidade ou preferências do cliente.
+
+**Dependências**  
+- `Gmail, Calendar e alarmes de subject com wake events`
+- `Arquitetura multi-conta para Gmail e Calendar por perfil`
+
+**Comportamento desejado**  
+- Manter `list_memories()` sem argumento para listar tudo.
+- Permitir `list_memories(category)` ou equivalente para filtrar por categoria.
+- Organizar memórias em grupos como `email`, `calendar`, `subjects`, `personality`, `client_preferences`, `people`, `whatsapp`, `voice` e `assistant_behavior`.
+- Facilitar o carregamento de memórias relevantes sem precisar varrer todo o banco.
+- Permitir que Gmail e Calendar usem preferências específicas sem misturar com memórias genéricas.
+
+**Notas técnicas**  
+- O contrato da memória precisa carregar um campo de categoria persistido, não só um título solto.
+- Algumas memórias continuam globais e sem categoria forte, mas várias instruções duráveis passam a viver em buckets claros.
+- O prompt pode continuar pedindo `list_memories()` na inicialização, mas o runtime ganha a capacidade de buscar por categoria quando o contexto pedir.
+- Se o sistema migrar para Firebase, essa categorização precisa continuar sendo preservada na coleção correspondente.
+- Vale manter compatibilidade com memórias antigas sem categoria, tratando-as como um bucket `general` ou equivalente.
+
+**Por que isso entra no backlog**  
+Isso torna o contexto durável muito mais útil e evita que o assistente misture preferências de e-mail, calendário, personalidade e subjects no mesmo saco sem necessidade.
 
 ---

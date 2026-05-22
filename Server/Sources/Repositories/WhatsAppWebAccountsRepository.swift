@@ -47,6 +47,7 @@ actor WhatsAppWebAccountsRepository {
             if lhs.createdAt != rhs.createdAt { return lhs.createdAt < rhs.createdAt }
             return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
         }
+        NotificationCenter.default.post(name: .whatsAppWebAccountsRepositoryDidChange, object: nil)
     }
 
     // MARK: - Read
@@ -71,6 +72,7 @@ actor WhatsAppWebAccountsRepository {
                 if lhs.createdAt != rhs.createdAt { return lhs.createdAt < rhs.createdAt }
                 return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
             }
+            NotificationCenter.default.post(name: .whatsAppWebAccountsRepositoryDidChange, object: nil)
             return entries
         } catch {
             logger.error("Failed to load WhatsApp accounts from profiles: \(error.localizedDescription)")
@@ -101,6 +103,7 @@ actor WhatsAppWebAccountsRepository {
             if lhs.createdAt != rhs.createdAt { return lhs.createdAt < rhs.createdAt }
             return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
         }
+        NotificationCenter.default.post(name: .whatsAppWebAccountsRepositoryDidChange, object: nil)
         return account
     }
 
@@ -111,6 +114,7 @@ actor WhatsAppWebAccountsRepository {
 
         await AppProfilesRepository.shared.delete(id: profileID)
         entries.removeAll { $0.id == id }
+        NotificationCenter.default.post(name: .whatsAppWebAccountsRepositoryDidChange, object: nil)
         return true
     }
 
@@ -121,6 +125,7 @@ actor WhatsAppWebAccountsRepository {
         do {
             try await persistProfile(from: account)
             entries[index] = account
+            NotificationCenter.default.post(name: .whatsAppWebAccountsRepositoryDidChange, object: nil)
             return account
         } catch {
             logger.error("Failed to update autostart for \(id): \(error.localizedDescription)")
@@ -139,6 +144,7 @@ actor WhatsAppWebAccountsRepository {
         account.name = trimmedName
         try await persistProfile(from: account)
         entries[index] = account
+        NotificationCenter.default.post(name: .whatsAppWebAccountsRepositoryDidChange, object: nil)
         return account
     }
 
@@ -182,4 +188,8 @@ extension WhatsAppWebAccount {
             "appProfileId": appProfileId as Any
         ]
     }
+}
+
+extension Notification.Name {
+    static let whatsAppWebAccountsRepositoryDidChange = Notification.Name("whatsAppWebAccountsRepositoryDidChange")
 }
