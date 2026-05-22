@@ -148,12 +148,10 @@ extension AppModel {
         do {
             let snapshot = try await whatsAppWebBridge.captureSnapshot(from: webView)
             whatsAppWebPageSnapshotsByAccountId[account.id] = snapshot
-            let dom = try? await whatsAppWebBridge.captureDebugDOM(from: webView)
             _ = whatsAppWebDebugCaptureService.saveSnapshot(
                 accountName: account.name,
                 captureName: captureName,
-                snapshot: snapshot,
-                dom: dom
+                snapshot: snapshot
             )
         } catch {
             appendLog("WhatsApp Web snapshot failed for '\(account.name)': \(error.localizedDescription)", level: .warning)

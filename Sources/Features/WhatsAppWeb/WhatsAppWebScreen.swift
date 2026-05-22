@@ -334,76 +334,14 @@ final class WhatsAppWebFitContainer: NSView {
 
     func applyInteractionLock(_ isLocked: Bool) {
         if isLocked {
-            webView.evaluateJavaScript(Self.installLockOverlayScript, completionHandler: nil)
+            webView.evaluateJavaScript(WhatsAppWebJavaScript.installLockOverlayScript, completionHandler: nil)
             if webView.window?.firstResponder === webView {
                 webView.window?.makeFirstResponder(nil)
             }
         } else {
-            webView.evaluateJavaScript(Self.removeLockOverlayScript, completionHandler: nil)
+            webView.evaluateJavaScript(WhatsAppWebJavaScript.removeLockOverlayScript, completionHandler: nil)
         }
     }
-
-    private static let installLockOverlayScript = """
-    (() => {
-      const overlayId = 'assistant-mcp-lock-overlay';
-      if (document.getElementById(overlayId)) {
-        const existing = document.getElementById(overlayId);
-        existing.focus?.();
-        return true;
-      }
-
-      const overlay = document.createElement('div');
-      overlay.id = overlayId;
-      overlay.tabIndex = 0;
-      overlay.setAttribute('aria-hidden', 'true');
-      overlay.style.position = 'fixed';
-      overlay.style.top = '0';
-      overlay.style.left = '0';
-      overlay.style.width = '100vw';
-      overlay.style.height = '100vh';
-      overlay.style.zIndex = '2147483647';
-      overlay.style.background = 'transparent';
-      overlay.style.pointerEvents = 'auto';
-      overlay.style.cursor = 'not-allowed';
-
-      const stop = (e) => {
-        try {
-          e.preventDefault();
-          e.stopPropagation();
-          if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-        } catch {}
-        return false;
-      };
-
-      const eventTypes = [
-        'click','dblclick','mousedown','mouseup','mousemove','mouseover','mouseenter','mouseleave','mouseout',
-        'contextmenu','wheel','scroll',
-        'keydown','keyup','keypress',
-        'touchstart','touchmove','touchend',
-        'pointerdown','pointerup','pointermove','pointerenter','pointerleave','pointercancel',
-        'dragstart','drag','dragend','drop'
-      ];
-
-      for (const type of eventTypes) {
-        overlay.addEventListener(type, stop, { capture: true, passive: false });
-      }
-
-      const body = document.body || document.documentElement;
-      body.appendChild(overlay);
-      overlay.focus();
-      return true;
-    })();
-    """
-
-    private static let removeLockOverlayScript = """
-    (() => {
-      const overlayId = 'assistant-mcp-lock-overlay';
-      const overlay = document.getElementById(overlayId);
-      if (!overlay) return true;
-      overlay.remove();
-      return true;
-    })();
-    """
 }
 
 #Preview {

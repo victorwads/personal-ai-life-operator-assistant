@@ -486,3 +486,36 @@ Trocar o `User-Agent` manual atualmente configurado para uma estratégia de capt
 Isso reduz a chance de incompatibilidade com o WhatsApp Web quando o navegador do usuário mudar ou atualizar, sem depender de manutenção manual do `User-Agent` nas settings.
 
 ---
+
+## 22) Migrar storage e sincronização para Firebase
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R5 - Muito alto`
+Risco da Feature: `R5 - Muito alto`
+Score de Execução: `0.40`
+
+**Descrição**  
+Mudar a base de persistência do projeto para Firebase, centralizando no cloud tudo o que hoje está salvo localmente: mensagens, memórias, configurações, perfis e demais dados operacionais. A mesma base deve atender tanto a aplicação macOS quanto uma futura aplicação Android, com sincronização entre dispositivos e acesso remoto aos perfis sem depender de uma API própria para expor diretamente as informações do usuário.
+
+**Dependências**  
+- `Nenhuma`
+
+**Comportamento desejado**  
+- Guardar mensagens, memórias, configurações e dados de perfis em coleções do Firebase.
+- Permitir acesso remoto aos perfis do usuário com autenticação apropriada.
+- Eliminar a necessidade de expor uma API própria só para ler/escrever dados do contexto do usuário.
+- Permitir que a aplicação macOS e uma futura aplicação Android leiam e escrevam no mesmo backend.
+- Definir um modelo de provisionamento/associação de usuário para que perfis remotos possam ser acessados com segurança.
+- Manter sincronização entre dispositivos sem depender de storage local como fonte principal de verdade.
+
+**Notas técnicas**  
+- A migração precisa definir claramente quais entidades vão para collections, quais ficam em subcollections e como serão indexadas.
+- A arquitetura deve prever autenticação, autorização e regras de acesso por usuário/perfil, para que ninguém leia contexto alheio.
+- O projeto precisa mapear como o estado local atual será migrado para o Firebase sem perder dados já existentes.
+- O cliente macOS e o futuro cliente Android devem passar a tratar o Firebase como backend de verdade, não como espelho parcial.
+- Esse item impacta diretamente o desenho de memória, configuração, pendências e qualquer estado persistido do assistente.
+
+**Por que isso entra no backlog**  
+Isso transforma o assistente em uma plataforma realmente sincronizada e multi-dispositivo, reduz a dependência de APIs próprias para exposição de dados e abre caminho para acesso remoto consistente aos perfis e ao contexto do usuário.
+
+---

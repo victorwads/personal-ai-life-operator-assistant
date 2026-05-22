@@ -4,6 +4,7 @@ struct WhatsAppWebPageSnapshot: Codable, Equatable {
     let url: String
     let title: String
     let documentReadyState: String
+    let rawHTML: String
     let isLoggedIn: Bool
     let hasQrCanvas: Bool
     let chatRowCount: Int

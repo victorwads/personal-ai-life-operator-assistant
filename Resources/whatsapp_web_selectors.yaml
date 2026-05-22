@@ -1,6 +1,19 @@
 schema_version: 1
 version: "2026-05-19"
 
+actions:
+  shortcuts:
+    archive_conversation:
+      modifiers:
+        - "cmd"
+        - "shift"
+      key: "e"
+
+    search:
+      modifiers:
+        - "cmd"
+      key: "/"
+
 flows:
   login_qr:
     type: flow
@@ -47,7 +60,7 @@ web:
 
           chat_clickable_to_open_chat:
             type: element
-            selector: "[data-testid]"
+            selector: "[data-testid=\"cell-frame-container\"]"
 
           chat_item_name:
             type: text
