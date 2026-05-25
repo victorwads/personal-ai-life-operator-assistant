@@ -3,8 +3,14 @@ import Foundation
 struct GetAssistantNameTool: MCPToolHandler {
     static let definition = MCPToolDefinition(
         name: "get_assistant_name",
-        summary: "Return the assistant name configured by the app.",
+        icon: "person.crop.circle",
+        description: "Returns the configured assistant name used to introduce the assistant and prefix outgoing messages.",
         group: .utilities,
+        inputSchema: .object([
+            "type": .string("object"),
+            "properties": .object([:])
+        ]),
+        exampleParameters: [],
         traits: [.readOnly]
     )
 

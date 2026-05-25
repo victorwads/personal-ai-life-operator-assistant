@@ -2,28 +2,39 @@ import Foundation
 
 struct MCPToolDefinition: Codable, Equatable, Sendable {
     let name: String
-    let title: String?
-    let summary: String
+    let icon: String
+    let description: String
     let group: MCPToolGroup
-    let traits: [MCPToolTrait]
-    let inputSchema: MCPJSONValue?
+    let inputSchema: MCPJSONValue
     let exampleParameters: [MCPToolExampleParameter]
+    let traits: [MCPToolTrait]
 
     init(
         name: String,
-        title: String? = nil,
-        summary: String,
+        icon: String,
+        description: String,
         group: MCPToolGroup,
-        traits: [MCPToolTrait],
-        inputSchema: MCPJSONValue? = nil,
-        exampleParameters: [MCPToolExampleParameter] = []
+        inputSchema: MCPJSONValue,
+        exampleParameters: [MCPToolExampleParameter] = [],
+        traits: [MCPToolTrait]
     ) {
         self.name = name
-        self.title = title
-        self.summary = summary
+        self.icon = icon
+        self.description = description
         self.group = group
-        self.traits = traits
         self.inputSchema = inputSchema
         self.exampleParameters = exampleParameters
+        self.traits = traits
+    }
+
+    var jsonValue: MCPJSONValue {
+        .object([
+            "name": .string(name),
+            "icon": .string(icon),
+            "description": .string(description),
+            "inputSchema": inputSchema,
+            "exampleParameters": .array(exampleParameters.map(\.jsonValue)),
+            "traits": .array(traits.map { .string($0.rawValue) })
+        ])
     }
 }

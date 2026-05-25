@@ -5,14 +5,11 @@ struct ChatsMCPToolProvider: MCPToolProvider {
 
     var tools: [any MCPToolHandler.Type] {
         [
-            ListChatsTool.self,
             ListChatsBySearchTool.self,
-            ListUnreadChatsTool.self,
-            ListRecentMessagesTool.self,
+            ListUnhandledChatsTool.self,
+            ListChatMessagesTool.self,
             SendMessageTool.self,
-            WaitForChatMessageTool.self,
             WaitForEventTool.self,
-            WaitNextEventTool.self,
         ]
     }
 }

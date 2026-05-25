@@ -6,7 +6,7 @@ struct Issue: Codable, Equatable, Sendable {
     let summary: String?
     let initialRequest: String?
     let priority: Int?
-    let stopCondition: String?
+    let resolutionCondition: String?
     let status: IssueStatus
 }
 

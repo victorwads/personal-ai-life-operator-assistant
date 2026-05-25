@@ -107,6 +107,16 @@ enum MCPJSONValue: Codable, Equatable, Sendable, CustomStringConvertible {
     }
 }
 
+extension MCPJSONValue {
+    static func number(_ value: Double) -> MCPJSONValue {
+        .double(value)
+    }
+
+    static func integer(_ value: Int) -> MCPJSONValue {
+        .int(value)
+    }
+}
+
 struct DynamicCodingKey: CodingKey {
     let stringValue: String
     let intValue: Int?
