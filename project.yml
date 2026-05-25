@@ -4,9 +4,15 @@ options:
   deploymentTarget:
     macOS: "14.0"
 packages:
+  MCP:
+    url: https://github.com/modelcontextprotocol/swift-sdk.git
+    from: "0.12.1"
+  Firebase:
+    url: https://github.com/firebase/firebase-ios-sdk.git
+    from: "12.13.0"
   Yams:
     url: https://github.com/jpsim/Yams.git
-    from: "5.0.0"
+    from: "6.0.1"
 targets:
   AIAssistantHub:
     type: application
@@ -16,12 +22,22 @@ targets:
     resources:
       - path: Resources
     dependencies:
+      - package: MCP
+        product: MCP
+      - package: Firebase
+        product: FirebaseCore
+      - package: Firebase
+        product: FirebaseAuth
+      - package: Firebase
+        product: FirebaseFirestore
       - package: Yams
+        product: Yams
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.localaiassistant.aiassistanthub
         GENERATE_INFOPLIST_FILE: YES
         MACOSX_DEPLOYMENT_TARGET: "14.0"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
   AIAssistantHubTests:
     type: bundle.unit-test
     platform: macOS

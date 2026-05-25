@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="appClip">
+      <rect x="54" y="54" width="916" height="916" rx="205"/>
+    </clipPath>
+
+    <radialGradient id="bg" cx="48%" cy="34%" r="78%">
+      <stop offset="0%" stop-color="#7DDCFF"/>
+      <stop offset="38%" stop-color="#3555B6"/>
+      <stop offset="72%" stop-color="#1B244D"/>
+      <stop offset="100%" stop-color="#090D1F"/>
+    </radialGradient>
+
+    <linearGradient id="bgGlass" x1="100" y1="80" x2="900" y2="930">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity=".43"/>
+      <stop offset="42%" stop-color="#A7C7FF" stop-opacity=".13"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity=".12"/>
+    </linearGradient>
+
+    <linearGradient id="shell" x1="270" y1="250" x2="750" y2="650">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="55%" stop-color="#EEF4FF"/>
+      <stop offset="100%" stop-color="#B5CAFF"/>
+    </linearGradient>
+
+    <linearGradient id="tileGlass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity=".84"/>
+      <stop offset="50%" stop-color="#D7E8FF" stop-opacity=".50"/>
+      <stop offset="100%" stop-color="#6F8CF8" stop-opacity=".30"/>
+    </linearGradient>
+
+    <linearGradient id="chatFill" x1="22" y1="22" x2="92" y2="96">
+      <stop offset="0%" stop-color="#7CFFB2"/>
+      <stop offset="100%" stop-color="#15B86A"/>
+    </linearGradient>
+
+    <linearGradient id="memoryFill" x1="26" y1="24" x2="88" y2="92">
+      <stop offset="0%" stop-color="#A78BFA"/>
+      <stop offset="100%" stop-color="#5B6BFF"/>
+    </linearGradient>
+
+    <!-- Inkscape compatibility: prefer classic shadow pipeline over feDropShadow. -->
+    <filter id="softShadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="22" result="blur"/>
+      <feOffset in="blur" dx="0" dy="20" result="offsetBlur"/>
+      <feFlood flood-color="#020617" flood-opacity=".38" result="shadowColor"/>
+      <feComposite in="shadowColor" in2="offsetBlur" operator="in" result="shadow"/>
+      <feMerge>
+        <feMergeNode in="shadow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="tileShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="12" result="blur"/>
+      <feOffset in="blur" dx="0" dy="13" result="offsetBlur"/>
+      <feFlood flood-color="#020617" flood-opacity=".32" result="shadowColor"/>
+      <feComposite in="shadowColor" in2="offsetBlur" operator="in" result="shadow"/>
+      <feMerge>
+        <feMergeNode in="shadow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="cyanGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <symbol id="tileFrame" viewBox="-60 -60 120 120">
+      <rect x="-56" y="-56" width="112" height="112" rx="28"
+            fill="url(#tileGlass)" stroke="#FFFFFF" stroke-opacity=".72" stroke-width="4"/>
+      <rect x="-49" y="-49" width="98" height="98" rx="22"
+            fill="#FFFFFF" fill-opacity=".13" stroke="#FFFFFF" stroke-opacity=".26" stroke-width="2"/>
+      <path d="M-44 -34C-22 -52 22 -52 44 -34" stroke="#FFFFFF" stroke-opacity=".28" stroke-width="5" stroke-linecap="round"/>
+    </symbol>
+
+    <symbol id="iconChat" viewBox="0 0 112 112">
+      <circle cx="56" cy="54" r="34" fill="url(#chatFill)"/>
+      <path d="M35 56C35 42 47 32 62 32C76 32 87 41 87 54C87 68 75 77 60 77C56 77 52 77 49 76L34 82L39 68C36 65 35 61 35 56Z"
+            fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M50 51H70M50 64H63" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round"/>
+    </symbol>
+
+    <symbol id="iconMail" viewBox="0 0 112 112">
+      <rect x="24" y="33" width="64" height="50" rx="12" fill="#F8FAFC"/>
+      <path d="M26 38L56 61L86 38" stroke="#EF5B70" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M27 78L49 58M85 78L63 58" stroke="#2F7DF6" stroke-width="8" stroke-linecap="round"/>
+      <rect x="24" y="33" width="64" height="50" rx="12" stroke="#FFFFFF" stroke-opacity=".7" stroke-width="3"/>
+    </symbol>
+
+    <symbol id="iconCalendar" viewBox="0 0 112 112">
+      <rect x="29" y="25" width="54" height="64" rx="12" fill="#F8FAFC"/>
+      <path d="M29 44H83" stroke="#2F7DF6" stroke-width="11"/>
+      <path d="M40 25V37M72 25V37" stroke="#8EA7FF" stroke-width="7" stroke-linecap="round"/>
+      <circle cx="43" cy="60" r="5" fill="#22C55E"/>
+      <circle cx="57" cy="60" r="5" fill="#F59E0B"/>
+      <circle cx="71" cy="60" r="5" fill="#22C55E"/>
+      <circle cx="43" cy="74" r="5" fill="#60A5FA"/>
+      <circle cx="57" cy="74" r="5" fill="#60A5FA"/>
+      <circle cx="71" cy="74" r="5" fill="#F59E0B"/>
+    </symbol>
+
+    <symbol id="iconDatabase" viewBox="0 0 112 112">
+      <ellipse cx="56" cy="34" rx="28" ry="12" fill="#243B70"/>
+      <path d="M28 34V76C28 83 41 90 56 90C71 90 84 83 84 76V34" fill="#F8FAFC"/>
+      <path d="M28 34C28 41 41 46 56 46C71 46 84 41 84 34M28 55C28 62 41 67 56 67C71 67 84 62 84 55M28 76C28 83 41 90 56 90C71 90 84 83 84 76"
+            stroke="#243B70" stroke-width="7" stroke-linecap="round"/>
+    </symbol>
+
+    <symbol id="iconMemory" viewBox="0 0 112 112">
+      <path d="M55 29C41 25 30 35 31 48C20 54 24 72 37 74C40 89 55 90 62 80C75 84 86 74 82 61C93 50 81 33 66 38C63 34 60 31 55 29Z"
+            fill="#F8FAFC"/>
+      <path d="M56 31V80M42 48C49 49 54 54 56 61M71 50C64 51 58 57 56 65M42 67H70"
+            stroke="url(#memoryFill)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M55 29C41 25 30 35 31 48C20 54 24 72 37 74C40 89 55 90 62 80C75 84 86 74 82 61C93 50 81 33 66 38C63 34 60 31 55 29Z"
+            fill="none" stroke="#6D5DF8" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+
+    <symbol id="iconSecurity" viewBox="0 0 112 112">
+      <path d="M56 21L86 34V56C86 76 73 90 56 98C39 90 26 76 26 56V34L56 21Z" fill="#2563EB"/>
+      <rect x="42" y="56" width="28" height="24" rx="6" fill="#FFFFFF"/>
+      <path d="M46 56V47C46 34 66 34 66 47V56" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round"/>
+      <circle cx="56" cy="68" r="3.5" fill="#2563EB"/>
+    </symbol>
+
+    <symbol id="iconSocial" viewBox="0 0 112 112">
+      <circle cx="45" cy="42" r="15" fill="#FFFFFF"/>
+      <circle cx="72" cy="47" r="13" fill="#FFFFFF" opacity=".92"/>
+      <path d="M20 86C25 67 38 60 50 60C63 60 76 68 80 86Z" fill="#FFFFFF"/>
+      <path d="M61 86C65 72 75 66 85 67C96 68 103 75 106 86Z" fill="#FFFFFF" opacity=".92"/>
+      <path d="M35 86C39 75 46 70 55 70C64 70 70 75 74 86" stroke="#2563EB" stroke-width="7" stroke-linecap="round"/>
+    </symbol>
+  </defs>
+
+  <g id="app-icon-artwork" clip-path="url(#appClip)">
+    <g id="background">
+      <rect id="background-base" x="54" y="54" width="916" height="916" rx="205" fill="url(#bg)"/>
+      <rect id="background-glass" x="54" y="54" width="916" height="916" rx="205" fill="url(#bgGlass)"/>
+
+      <circle id="background-purple-top" cx="760" cy="195" r="250" fill="#B15CFF" opacity=".21"/>
+      <circle id="background-purple-bottom" cx="300" cy="800" r="290" fill="#9E5CFF" opacity=".18"/>
+      <circle id="background-cyan-glow" cx="512" cy="540" r="355" fill="#38BDF8" opacity=".10"/>
+
+      <path id="background-highlight" d="M110 188C178 95 371 80 616 84C800 87 930 126 950 250V310C790 205 546 178 110 188Z"
+            fill="#FFFFFF" opacity=".09"/>
+
+      <rect id="outer-glass-border" x="64" y="64" width="896" height="896" rx="195"
+            stroke="#FFFFFF" stroke-opacity=".50" stroke-width="7"/>
+      <rect id="inner-blue-border" x="78" y="78" width="868" height="868" rx="181"
+            stroke="#8BCBFF" stroke-opacity=".22" stroke-width="5"/>
+    </g>
+
+    <g id="assistant-robot" filter="url(#softShadow)">
+      <ellipse cx="505" cy="642" rx="270" ry="74" fill="#020617" opacity=".30"/>
+
+      <circle cx="512" cy="230" r="34" fill="#EAF6FF" stroke="#A9D9FF" stroke-width="8"/>
+      <path d="M512 265V320" stroke="#A9D9FF" stroke-width="17" stroke-linecap="round"/>
+
+      <rect x="214" y="300" width="596" height="370" rx="185" fill="url(#shell)"/>
+      <rect x="174" y="426" width="76" height="152" rx="38" fill="#D9E8FF" stroke="#A7CBFF" stroke-width="8"/>
+      <rect x="774" y="426" width="76" height="152" rx="38" fill="#D9E8FF" stroke="#A7CBFF" stroke-width="8"/>
+
+      <rect x="292" y="388" width="440" height="238" rx="119" fill="#030B28" stroke="#20386B" stroke-width="10"/>
+
+      <ellipse cx="412" cy="506" rx="31" ry="48" fill="#6EE7FF" filter="url(#cyanGlow)"/>
+      <ellipse cx="614" cy="506" rx="31" ry="48" fill="#6EE7FF" filter="url(#cyanGlow)"/>
+      <path d="M462 562C493 593 533 593 564 562"
+            stroke="#75EAFF" stroke-width="17" stroke-linecap="round" filter="url(#cyanGlow)"/>
+
+      <path d="M288 334C345 292 680 292 736 334"
+            stroke="#FFFFFF" stroke-opacity=".55" stroke-width="10" stroke-linecap="round"/>
+    </g>
+
+    <g id="service-arc" filter="url(#tileShadow)">
+      <g id="tile-social" transform="translate(425 880)">
+        <use href="#tileFrame" x="-70" y="-70" width="140" height="140"/>
+        <use href="#iconSocial" x="-65" y="-65" width="130" height="130"/>
+      </g>
+
+      <g id="tile-security" transform="translate(585 852)">
+        <use href="#tileFrame" x="-70" y="-70" width="140" height="140"/>
+        <use href="#iconSecurity" x="-65" y="-65" width="130" height="130"/>
+      </g>
+
+      <g id="tile-memory" transform="translate(712 772)">
+        <use href="#tileFrame" x="-70" y="-70" width="140" height="140"/>
+        <use href="#iconMemory" x="-65" y="-65" width="130" height="130"/>
+      </g>
+
+      <g id="tile-database" transform="translate(804 670)">
+        <use href="#tileFrame" x="-70" y="-70" width="140" height="140"/>
+        <use href="#iconDatabase" x="-65" y="-65" width="130" height="130"/>
+      </g>
+
+      <g id="tile-calendar" transform="translate(858 562)">
+        <use href="#tileFrame" x="-70" y="-70" width="140" height="140"/>
+        <use href="#iconCalendar" x="-65" y="-65" width="130" height="130"/>
+      </g>
+
+      <g id="tile-mail" transform="translate(884 450)">
+        <use href="#tileFrame" x="-70" y="-70" width="140" height="140"/>
+        <use href="#iconMail" x="-65" y="-65" width="130" height="130"/>
+      </g>
+
+      <g id="tile-chat" transform="translate(876 340)">
+        <use href="#tileFrame" x="-70" y="-70" width="140" height="140"/>
+        <use href="#iconChat" x="-65" y="-65" width="130" height="130"/>
+      </g>
+    </g>
+  </g>
+</svg>

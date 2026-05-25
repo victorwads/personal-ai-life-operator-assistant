@@ -5,6 +5,7 @@
 xcuserdata/
 DerivedData/
 build/
+Resources/Assets.xcassets/AppIcon.appiconset/*.png
 
 # Swift Package Manager
 .build/
