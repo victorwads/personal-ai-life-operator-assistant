@@ -3,7 +3,7 @@ import Foundation
 struct IssuesMCPToolProvider: MCPToolProvider {
     let group: MCPToolGroup = .issues
 
-    var tools: [any MCPToolHandler.Type] {
+    var tools: [MCPToolHandler.Type] {
         [
             CreateIssueTool.self,
             UpdateIssueTool.self,

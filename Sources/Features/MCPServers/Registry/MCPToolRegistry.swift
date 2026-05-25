@@ -2,18 +2,22 @@ import Foundation
 
 final class MCPToolRegistry {
     private var providers: [any MCPToolProvider]
-    private var handlersByName: [String: any MCPToolHandler.Type]
+    private var registrationsByName: [String: MCPToolRegistration]
 
     init(providers: [any MCPToolProvider] = []) {
         self.providers = []
-        self.handlersByName = [:]
+        self.registrationsByName = [:]
         register(providers: providers)
     }
 
     func register(provider: any MCPToolProvider) {
         providers.append(provider)
         for handlerType in provider.tools {
-            handlersByName[handlerType.definition.name] = handlerType
+            let registration = MCPToolRegistration(
+                definition: handlerType.definition,
+                makeHandler: { handlerType.init() }
+            )
+            registrationsByName[registration.definition.name] = registration
         }
     }
 
@@ -23,16 +27,16 @@ final class MCPToolRegistry {
         }
     }
 
-    func handlerType(named name: String) -> (any MCPToolHandler.Type)? {
-        handlersByName[name]
+    func registration(named name: String) -> MCPToolRegistration? {
+        registrationsByName[name]
     }
 
     func definition(named name: String) -> MCPToolDefinition? {
-        handlersByName[name]?.definition
+        registrationsByName[name]?.definition
     }
 
     func allDefinitions() -> [MCPToolDefinition] {
-        handlersByName.values.map(\.definition).sorted { $0.name < $1.name }
+        registrationsByName.values.map(\.definition).sorted { $0.name < $1.name }
     }
 
     func definitions(in group: MCPToolGroup) -> [MCPToolDefinition] {
@@ -44,4 +48,9 @@ final class MCPToolRegistry {
             (group: group, definitions: definitions(in: group))
         }
     }
+}
+
+struct MCPToolRegistration {
+    let definition: MCPToolDefinition
+    let makeHandler: () -> any MCPToolHandler
 }

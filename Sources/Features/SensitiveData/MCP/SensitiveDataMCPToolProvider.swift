@@ -3,7 +3,7 @@ import Foundation
 struct SensitiveDataMCPToolProvider: MCPToolProvider {
     let group: MCPToolGroup = .sensitiveData
 
-    var tools: [any MCPToolHandler.Type] {
+    var tools: [MCPToolHandler.Type] {
         [
             SaveSensitiveDataTool.self,
             GetSensitiveDataTool.self,

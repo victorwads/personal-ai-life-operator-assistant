@@ -99,7 +99,7 @@ open class FirebaseRepository<Model: PersistableModel> {
             throw FirestoreRepositoryError.missingDocumentId
         }
 
-        let reference = documentReference(for: id)
+        let reference = try documentReference(for: id)
 
         if soft {
             let now = dateProvider()

@@ -10,11 +10,11 @@ final class MCPToolExecutor: MCPToolExecutionProviding {
     }
 
     func execute(_ call: MCPToolCall) async -> MCPToolExecutionResult {
-        guard let handlerType = registry.handlerType(named: call.name) else {
+        guard let registration = registry.registration(named: call.name) else {
             return .failure(toolName: call.name, error: .toolNotFound(call.name))
         }
 
-        let handler = handlerType.init()
+        let handler = registration.makeHandler()
         return await handler.handle(call, context: context)
     }
 }
