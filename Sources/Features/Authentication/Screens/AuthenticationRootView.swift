@@ -2,7 +2,6 @@ import SwiftUI
 
 struct AuthenticationRootView: View {
     @EnvironmentObject private var authController: AuthStateController
-    @State private var isSigningOut = false
 
     var body: some View {
         Group {
@@ -25,21 +24,7 @@ struct AuthenticationRootView: View {
                     }
                 )
             case .authenticated:
-                if let session = authController.currentSession {
-                    AuthenticatedPlaceholderScreen(
-                        session: session,
-                        isSigningOut: isSigningOut,
-                        onSignOut: {
-                            isSigningOut = true
-                            Task {
-                                await authController.signOut()
-                                isSigningOut = false
-                            }
-                        }
-                    )
-                } else {
-                    loadingView
-                }
+                loadingView
             case .failed(let message):
                 LoginScreen(
                     isLoading: false,
@@ -60,11 +45,6 @@ struct AuthenticationRootView: View {
         .task {
             if case .loading = authController.state {
                 await authController.load()
-            }
-        }
-        .onOpenURL { url in
-            Task {
-                await authController.handleOpenURL(url)
             }
         }
     }

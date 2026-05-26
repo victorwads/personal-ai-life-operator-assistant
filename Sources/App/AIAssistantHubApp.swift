@@ -3,22 +3,28 @@ import FirebaseCore
 
 @main
 struct AIAssistantHubApp: App {
-    @StateObject private var authController = AuthStateController(repository: FirebaseAuthRepository())
+    @NSApplicationDelegateAdaptor(AppLifecycleController.self) private var lifecycleController
+
+    @StateObject private var authController: AuthStateController
+    @StateObject private var appModel: AppModel
 
     init() {
-        if FirebaseApp.app() == nil {
-            FirebaseApp.configure()
-        }
+        AppBootstrapper.configureFirebaseIfNeeded()
+        AppBootstrapper.validateFirebaseConfigured()
 
-        guard FirebaseApp.app() != nil else {
-            fatalError("Firebase failed to configure. Ensure GoogleService-Info.plist is included in the app bundle Resources.")
-        }
+        let authController = AuthStateController(repository: FirebaseAuthRepository())
+        let trayIconController = TrayIconController()
+        let appModel = AppModel(authController: authController, trayIconController: trayIconController)
+
+        _authController = StateObject(wrappedValue: authController)
+        _appModel = StateObject(wrappedValue: appModel)
+
+        lifecycleController.configure(authController: authController, appModel: appModel)
     }
 
     var body: some Scene {
-        Window("AI Assistant Hub", id: "main") {
-            AuthenticationRootView()
-                .environmentObject(authController)
+        Settings {
+            EmptyView()
         }
     }
 }

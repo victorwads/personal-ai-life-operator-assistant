@@ -92,7 +92,7 @@ open class FirebaseRepository<Model: PersistableModel> {
         mergeCache(persistedModels)
     }
 
-    open func delete(_ id: String, soft: Bool = true) async throws {
+    open func delete(_ id: String, soft: Bool = false) async throws {
         guard !id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw FirestoreRepositoryError.missingDocumentId
         }
