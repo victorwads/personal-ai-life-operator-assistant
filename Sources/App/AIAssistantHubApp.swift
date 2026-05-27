@@ -9,8 +9,7 @@ struct AIAssistantHubApp: App {
     @StateObject private var appModel: AppModel
 
     init() {
-        AppBootstrapper.configureFirebaseIfNeeded()
-        AppBootstrapper.validateFirebaseConfigured()
+        FirebaseApp.configure()
 
         let authController = AuthStateController(repository: FirebaseAuthRepository())
         let trayIconController = TrayIconController()

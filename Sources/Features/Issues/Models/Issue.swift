@@ -17,6 +17,6 @@ enum IssueStatus: String, Codable, Equatable, Sendable {
     case open
     case inProgress
     case blocked
-    case done
+    case resolved
     case cancelled
 }

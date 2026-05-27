@@ -10,6 +10,9 @@ packages:
   Firebase:
     url: https://github.com/firebase/firebase-ios-sdk.git
     from: "12.13.0"
+  GoogleSignIn:
+    url: https://github.com/google/GoogleSignIn-iOS.git
+    from: "9.1.0"
   Yams:
     url: https://github.com/jpsim/Yams.git
     from: "6.0.1"
@@ -32,6 +35,8 @@ targets:
         product: FirebaseAuth
       - package: Firebase
         product: FirebaseFirestore
+      - package: GoogleSignIn
+        product: GoogleSignIn
       - package: Yams
         product: Yams
     settings:
