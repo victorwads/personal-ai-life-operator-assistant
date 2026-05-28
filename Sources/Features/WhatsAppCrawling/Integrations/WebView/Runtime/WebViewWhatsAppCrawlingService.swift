@@ -50,7 +50,9 @@ final class WebViewWhatsAppCrawlingService: ObservableObject, WhatsAppCrawlingSe
                 throw WebViewWhatsAppCrawlingServiceError.invalidURL(urlString)
             }
 
+            logNavigationEvent("Loading URL: \(url.absoluteString)")
             webView.load(URLRequest(url: url))
+            startInitialWarmup(webView)
 
             presentationMode = .embedded
             state = .started
@@ -128,6 +130,7 @@ final class WebViewWhatsAppCrawlingService: ObservableObject, WhatsAppCrawlingSe
             width: max(1, viewportWidth),
             height: max(1, viewportHeight)
         )
+        logNavigationEvent("Creating WKWebView with viewport \(Int(frame.width))x\(Int(frame.height))")
         let webView = WKWebView(frame: frame, configuration: configuration)
 
         let userAgent = settings.userAgent
@@ -191,6 +194,62 @@ final class WebViewWhatsAppCrawlingService: ObservableObject, WhatsAppCrawlingSe
         webView.navigationDelegate = proxy
     }
 
+    private func startInitialWarmup(_ webView: WKWebView) {
+        Task { @MainActor [weak self, weak webView] in
+            guard let self, let webView else { return }
+            await self.runInitialWarmup(on: webView)
+        }
+    }
+
+    private func runInitialWarmup(on webView: WKWebView) async {
+        for attempt in 1...5 {
+            guard self.webView === webView else { return }
+
+            do {
+                let readyStateResult = try await evaluateJavaScript("document.readyState", in: webView)
+                let readyState = (readyStateResult as? String) ?? String(describing: readyStateResult ?? "nil")
+                logNavigationEvent("warmup[\(attempt)] readyState=\(readyState)")
+            } catch {
+                logNavigationEvent("warmup[\(attempt)] readyState failed: \(error.localizedDescription)")
+            }
+
+            do {
+                let snapshot = try await takeSnapshot(of: webView)
+                let status = snapshot == nil ? "nil" : "ok"
+                logNavigationEvent("warmup[\(attempt)] snapshot=\(status)")
+            } catch {
+                logNavigationEvent("warmup[\(attempt)] snapshot failed: \(error.localizedDescription)")
+            }
+
+            if webView.isLoading == false { return }
+            try? await Task.sleep(nanoseconds: 400_000_000)
+        }
+    }
+
+    private func evaluateJavaScript(_ script: String, in webView: WKWebView) async throws -> Any? {
+        try await withCheckedThrowingContinuation { continuation in
+            webView.evaluateJavaScript(script) { result, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                continuation.resume(returning: result)
+            }
+        }
+    }
+
+    private func takeSnapshot(of webView: WKWebView) async throws -> NSImage? {
+        try await withCheckedThrowingContinuation { continuation in
+            webView.takeSnapshot(with: nil) { image, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                continuation.resume(returning: image)
+            }
+        }
+    }
+
     fileprivate func handleNavigationFailed(_ error: Error) {
         // Keep service alive for UI/debug, but surface failure clearly.
         state = .failed(error.localizedDescription)
@@ -224,6 +283,10 @@ private final class NavigationDelegateProxy: NSObject, WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         service?.logNavigationEvent("didStartProvisionalNavigation")
+    }
+
+    func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        service?.logNavigationEvent("didCommitNavigation")
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

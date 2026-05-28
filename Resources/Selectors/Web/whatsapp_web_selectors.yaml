@@ -1,10 +1,10 @@
-schema_version: 1
+schemaVersion: 1
 version: 1
 
 flows:
-  login_qr:
+  loginQr:
     type: boolean
-    selector: "canvas"
+    selector: '[data-testid="link-device-qrcode-alt-linking-help"]'
 
   downloading:
     type: boolean
@@ -12,48 +12,53 @@ flows:
       - "mensagens estão sendo baixadas"
       - "messages are being downloaded"
 
-  chat_list:
+  chatList:
     type: boolean
     selector: '[data-testid="chat-list"]'
 
-  chat_selected:
+  chatSelected:
     type: boolean
     selector: '[data-testid="conversation-panel-wrapper"]'
 
 web:
-  chat_list_root:
-    type: element
+  chatListRoot:
+    type: elements
     selector: '[data-testid="chat-list"]'
     extract:
-      chat_items:
+      chatItems:
         type: elements
         selector: '[data-testid^="list-item-"]'
         extract:
-          chat_clickable_to_open_options:
-            type: element
-            selector: "[data-testid]"
-            interactive: true
+#          chatClickableToOpenOptions:
+#            type: element
+#            selector: "[data-testid]"
+#            interactive: true
 
-          chat_clickable_to_open_chat:
+          chatClickableToOpenChat:
             type: element
             selector: '[data-testid="cell-frame-container"]'
             interactive: true
 
-          chat_item_name:
+#          chatItemImage:
+#            type: element
+#            selector: '[data-testid="cell-frame-container"] img[src]'
+#            interactive: true
+
+          chatItemName:
             type: text
             selector: '[data-testid="cell-frame-title"] [title]'
             attribute: "title"
 
-          chat_item_last_message:
+          chatItemLastMessage:
             type: text
             selector: '[data-testid="cell-frame-secondary"] [title]'
             attribute: "title"
 
-          chat_item_last_message_time:
+          chatItemLastMessageTime:
             type: text
             selector: '[data-testid="cell-frame-primary-detail"]'
 
-          chat_item_unread_badge:
+          chatItemUnreadBadge:
             type: element
             selector: '[data-testid="icon-unread-count"]'
             extract:
@@ -63,59 +68,72 @@ web:
                   - "textContent:int"
                 fallback_number: 1
   
-  current_chat:
+  currentChat:
     type: element
     selector: '[data-testid="conversation-panel-wrapper"]'
     extract:
-      chat_title:
+      chatTitle:
         type: text
         selector: '[data-testid="conversation-info-header-chat-title"]'
 
-      chat_input_message_box:
+      chatInputMessageBox:
         type: element
         selector: '[data-testid="conversation-compose-box-input"]'
         interactive: true
 
-      chat_input_message_text:
+      chatInputMessageText:
         type: text
         selector: '[data-testid="conversation-compose-box-input"]'
 
-      chat_button_send_message:
+      chatButtonSendMessage:
         type: element
         selector: '[data-testid="compose-btn-send"]'
         interactive: true
 
-      chat_messages:
+      chatMessages:
         type: elements
         selector: '[role="row"]'
         extract:
-          is_audio:
-            selector: '[aria-label~="voz"]'
-            type: boolean
-
-          is_image:
-            selector: '[data-testid="image-thumb"]'
-            type: boolean
-
-          is_sticker:
-            selector: '[data-testid="sticker-container"]'
-            type: boolean
-
-          message_id:
+          messageId:
             selector: '[data-id]'
             type: text
             attribute: 'data-id'
 
-          message_text:
+          messageText:
             type: text
-            selector: '[data-testid="selectable-text"]'
+            selector: '[data-testid="selectable-text"]:not([data-testid="quoted-message"] [data-testid="selectable-text"])'
 
-          message_datetime_and_author:
+          messageDatetimeAndAuthor:
             type: text
             selector: '[data-pre-plain-text]'
             attribute: "data-pre-plain-text"
 
-          message_time:
+          messageAuthor:
+            type: text
+            selector: '[data-testid="author"]'
+
+          messageTime:
             type: text
             selector: '[data-testid="msg-meta"] span'
 
+          quotedMessageText:
+            type: text
+            selector: '[data-testid="quoted-message"] [data-testid="selectable-text"]'
+
+          quotedMessageAuthor:
+            type: text
+            selector: '[data-testid="quoted-message"] [testid="author"]'
+
+          sticker:
+            selector: '[data-testid="sticker-container"] img'
+            type: element
+            interactive: true
+
+          image:
+            selector: '[data-testid="image-thumb"] img[src]'
+            type: element
+            interactive: true
+
+          isAudio:
+            selector: '[aria-label~="voz"]'
+            type: boolean

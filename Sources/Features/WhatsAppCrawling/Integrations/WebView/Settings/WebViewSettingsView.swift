@@ -12,8 +12,8 @@ struct WhatsAppWebViewSettingsView: View {
     @State private var isCapturingUserAgent = false
     @State private var lastUserAgentRefreshAt: Date?
     @State private var zoom = 1.0
-    @State private var viewportWidth = 1280
-    @State private var viewportHeight = 720
+    @State private var viewportWidth = 1080
+    @State private var viewportHeight = 1920
     @State private var enableWebInspector = true
     @State private var websiteDataStoreIdentifier = ""
 

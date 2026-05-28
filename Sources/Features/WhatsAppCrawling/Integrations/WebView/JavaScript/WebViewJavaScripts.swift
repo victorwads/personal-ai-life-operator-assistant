@@ -338,6 +338,95 @@ enum WebViewJavaScripts {
     }
   }
 
+  function imageElementFrom(element) {
+    if (!element) return null;
+    if (element.tagName === "IMG") return element;
+
+    try {
+      const img = element.querySelector && element.querySelector("img");
+      if (img) return img;
+    } catch (_) {}
+
+    return null;
+  }
+
+  function extractImageData(image) {
+    try {
+      if (!image) return null;
+
+      const width = image.naturalWidth || image.width || 0;
+      const height = image.naturalHeight || image.height || 0;
+      if (width <= 0 || height <= 0) return null;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+
+      const context = canvas.getContext("2d");
+      if (!context) return null;
+
+      context.drawImage(image, 0, 0, width, height);
+
+      const dataURL = canvas.toDataURL("image/png");
+      if (typeof dataURL !== "string" || dataURL.length === 0) return null;
+
+      const commaIndex = dataURL.indexOf(",");
+      if (commaIndex < 0) return null;
+
+      const header = dataURL.substring(0, commaIndex);
+      const base64 = dataURL.substring(commaIndex + 1);
+
+      const mimeMatch = header.match(/^data:(.*?);base64$/);
+      const mimeType = mimeMatch ? mimeMatch[1] : "image/png";
+
+      return {
+        base64,
+        mimeType,
+        width,
+        height,
+        source: image.currentSrc || image.src || null
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function extractElementBounds(element) {
+    try {
+      if (!element || typeof element.getBoundingClientRect !== "function") return null;
+      const rect = element.getBoundingClientRect();
+      const width = Number(rect.width || 0);
+      const height = Number(rect.height || 0);
+      if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
+
+      const x = Number(rect.left || 0);
+      const y = Number(rect.top || 0);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+
+      return { x, y, width, height };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function focusFocusableAncestor(element) {
+    try {
+      let current = element;
+      while (current) {
+        try {
+          if (typeof current.focus === "function") {
+            current.focus();
+            if (document.activeElement === current) return true;
+          }
+        } catch (_) {}
+        current = current.parentElement || null;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   function interactWithElement(id, action, payload) {
     try {
       if (typeof id !== "string" || id.trim().length === 0) return false;
@@ -346,6 +435,24 @@ enum WebViewJavaScripts {
       if (!element) return false;
 
       const normalizedAction = action.trim();
+      if (normalizedAction === "extractImage") {
+        const image = imageElementFrom(element);
+        if (!image) return null;
+        try { image.scrollIntoView({ block: "center", inline: "center" }); } catch (_) {}
+        focusFocusableAncestor(image);
+        const extracted = extractImageData(image);
+        if (extracted) return extracted;
+
+        const bounds = extractElementBounds(image) || extractElementBounds(element);
+        if (!bounds) return null;
+        return {
+          x: bounds.x,
+          y: bounds.y,
+          width: bounds.width,
+          height: bounds.height,
+          source: image.currentSrc || image.src || null
+        };
+      }
       try { element.scrollIntoView({ block: "center", inline: "center" }); } catch (_) {}
 
       if (normalizedAction === "click") {

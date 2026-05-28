@@ -1,7 +1,17 @@
 import SwiftUI
 import AppKit
+import WebKit
 
 struct WhatsAppWebYAMLDebugScreen: View {
+    private struct ExtractedImagePreview: Identifiable {
+        let id = UUID()
+        let image: NSImage
+        let mimeType: String?
+        let width: Double?
+        let height: Double?
+        let source: String?
+    }
+
     enum ResultViewMode: String, CaseIterable, Identifiable {
         case tree = "Tree"
         case rawJSON = "Raw JSON"
@@ -20,6 +30,7 @@ struct WhatsAppWebYAMLDebugScreen: View {
     @State private var isTesting = false
     @State private var resultViewMode: ResultViewMode = .tree
     @State private var autoTestTask: Task<Void, Never>?
+    @State private var extractedImagePreview: ExtractedImagePreview?
 
     var body: some View {
         Group {
@@ -67,6 +78,42 @@ struct WhatsAppWebYAMLDebugScreen: View {
         .onDisappear {
             autoTestTask?.cancel()
             autoTestTask = nil
+        }
+        .sheet(item: $extractedImagePreview) { preview in
+            VStack(alignment: .leading, spacing: 12) {
+                Image(nsImage: preview.image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(minWidth: 320, minHeight: 240)
+
+                if let width = preview.width, let height = preview.height {
+                    Text("Size: \(Int(width))x\(Int(height))")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                if let mimeType = preview.mimeType, !mimeType.isEmpty {
+                    Text("MIME: \(mimeType)")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                if let source = preview.source, !source.isEmpty {
+                    Text("Source: \(source)")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
+
+                HStack {
+                    Spacer()
+                    Button("Close") {
+                        extractedImagePreview = nil
+                    }
+                    .keyboardShortcut(.defaultAction)
+                }
+            }
+            .padding(16)
         }
     }
 
@@ -152,6 +199,7 @@ struct WhatsAppWebYAMLDebugScreen: View {
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.vertical, 4)
+                            .padding(.trailing, 28)
                         }
                     } else {
                         ScrollView {
@@ -295,6 +343,9 @@ struct WhatsAppWebYAMLDebugScreen: View {
                     return try await WebViewElementInteractor(webView: webView).pressEnter(element)
                 }
             }
+            actionButton(symbol: "photo", label: "extract image") {
+                await performExtractImageAction(for: element)
+            }
         }
     }
 
@@ -304,8 +355,8 @@ struct WhatsAppWebYAMLDebugScreen: View {
         } label: {
             Image(systemName: symbol)
         }
-        .buttonStyle(.borderless)
-        .controlSize(.small)
+        .buttonStyle(.bordered)
+        .controlSize(.mini)
         .help(label)
     }
 
@@ -321,6 +372,84 @@ struct WhatsAppWebYAMLDebugScreen: View {
         } catch {
             actionStatusMessage = "\(actionName) failed: \(error.localizedDescription)"
         }
+    }
+
+    private func performExtractImageAction(for element: WebViewInteractiveElement) async {
+        guard let webView = service.webView else {
+            actionStatusMessage = "extract image failed (webView unavailable)"
+            return
+        }
+
+        do {
+            let extracted = try await WebViewElementInteractor(webView: webView).extractImage(element)
+            guard let extracted else {
+                actionStatusMessage = "extract image failed"
+                return
+            }
+
+            let image: NSImage
+            if let base64 = extracted.base64 {
+                guard let imageData = Data(base64Encoded: base64), let decodedImage = NSImage(data: imageData) else {
+                    actionStatusMessage = "extract image failed (invalid base64)"
+                    return
+                }
+                image = decodedImage
+            } else if let x = extracted.x, let y = extracted.y, let width = extracted.width, let height = extracted.height {
+                if let snapshot = try await takeSnapshot(
+                    of: webView,
+                    rect: CGRect(x: x, y: y, width: width, height: height)
+                ) {
+                    image = snapshot
+                } else if let source = extracted.source, let downloaded = try await loadImageFromHTTPSource(source) {
+                    image = downloaded
+                } else {
+                    actionStatusMessage = "extract image failed (snapshot/source unavailable)"
+                    return
+                }
+            } else if let source = extracted.source, let downloaded = try await loadImageFromHTTPSource(source) {
+                image = downloaded
+            } else {
+                actionStatusMessage = "extract image failed"
+                return
+            }
+
+            extractedImagePreview = ExtractedImagePreview(
+                image: image,
+                mimeType: extracted.mimeType,
+                width: extracted.width,
+                height: extracted.height,
+                source: extracted.source
+            )
+            actionStatusMessage = "extract image OK"
+        } catch {
+            actionStatusMessage = "extract image failed: \(error.localizedDescription)"
+        }
+    }
+
+    private func takeSnapshot(of webView: WKWebView, rect: CGRect) async throws -> NSImage? {
+        let sanitized = rect.standardized.integral
+        guard sanitized.width > 0, sanitized.height > 0 else { return nil }
+
+        let configuration = WKSnapshotConfiguration()
+        configuration.rect = sanitized
+
+        return try await withCheckedThrowingContinuation { continuation in
+            webView.takeSnapshot(with: configuration) { image, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                continuation.resume(returning: image)
+            }
+        }
+    }
+
+    private func loadImageFromHTTPSource(_ source: String) async throws -> NSImage? {
+        guard let url = URL(string: source) else { return nil }
+        guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else { return nil }
+        let (data, response) = try await URLSession.shared.data(from: url)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else { return nil }
+        return NSImage(data: data)
     }
 
     private func reloadYAML() async {

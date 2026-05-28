@@ -108,7 +108,7 @@ final class WhatsAppWebViewSettingsWrapper {
 
     var viewportWidth: Int {
         get {
-            Int(settings.value(scope: Self.scopeName, key: Key.viewportWidth) ?? "") ?? 1280
+            Int(settings.value(scope: Self.scopeName, key: Key.viewportWidth) ?? "") ?? 1080
         }
         set {
             settings.setValue(scope: Self.scopeName, key: Key.viewportWidth, value: String(newValue))
@@ -117,7 +117,7 @@ final class WhatsAppWebViewSettingsWrapper {
 
     var viewportHeight: Int {
         get {
-            Int(settings.value(scope: Self.scopeName, key: Key.viewportHeight) ?? "") ?? 720
+            Int(settings.value(scope: Self.scopeName, key: Key.viewportHeight) ?? "") ?? 1920
         }
         set {
             settings.setValue(scope: Self.scopeName, key: Key.viewportHeight, value: String(newValue))
