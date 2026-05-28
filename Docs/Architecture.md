@@ -728,6 +728,17 @@ When WebView startup needs User-Agent capture (missing value or expired auto-ref
 
 Settings memory updates are synchronous in `SettingsStore`; Firebase persistence can happen later and must not block `WKWebView` creation/load after capture.
 
+WebView integration injects a small global JavaScript bridge at document end through `WKUserScript` when the `WKWebView` is created. The bridge lives at `window.AssistantMCP` and currently exposes two generic functions:
+
+- `extractTree(spec)` performs selector-driven DOM extraction for `web` and `flows` specs and returns clean JSON (`null`, object, array, string, number, boolean) without artificial wrappers such as `found/type/children`.
+- `executeShortcut(shortcut)` dispatches global keyboard events (`keydown`/`keyup`) and is the foundation for YAML-defined shortcuts.
+
+The bridge is generic and shared by both future Web debug screens and crawling orchestration.
+
+Selector YAML files for WhatsApp Web live under `Resources/Selectors/Web`. The Web YAML Debug screen loads the bundled YAML, builds a generic extraction spec from `web`/`flows`, and executes it against the profile-owned `WKWebView` through `window.AssistantMCP.extractTree(spec)`.
+
+Current debug output is intentionally the raw formatted JSON result. A recursive red/green visual tree may come later. Extraction output intentionally mirrors the YAML shape and avoids artificial metadata wrappers like `found/type/children`.
+
 All of these settings are stored as strings in `SettingsStore`. The wrappers convert them to and from enums, integers, doubles, and booleans as needed. If parsing fails, the wrapper returns the feature default.
 
 Native integration settings live under `Sources/Features/WhatsAppCrawling/Integrations/Native/Settings/` and persist in:
@@ -943,7 +954,7 @@ My Data
 WhatsApp Integration
 ├── Chats -> Chats/ChatsPlaceholderScreen
 ├── WebView -> WhatsAppCrawling/Integrations/WebView/Screens/WhatsAppWebViewScreen
-├── Web YAML Debug -> WhatsAppCrawling/Integrations/WebView/Screens/WhatsAppWebYAMLDebugPlaceholderScreen
+├── Web YAML Debug -> WhatsAppCrawling/Integrations/WebView/Screens/WhatsAppWebYAMLDebugScreen
 ├── Native YAML Debug -> WhatsAppCrawling/Integrations/Native/Screens/WhatsAppNativeYAMLDebugPlaceholderScreen
 └── Logs -> WhatsAppCrawling/WhatsAppLogsPlaceholderScreen
 

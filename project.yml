@@ -26,6 +26,8 @@ targets:
         buildPhase: resources
       - path: Resources/Firebase/GoogleService-Info.plist
         buildPhase: resources
+      - path: Resources/Selectors/Web/whatsapp_web_selectors.yaml
+        buildPhase: resources
     dependencies:
       - package: MCP
         product: MCP

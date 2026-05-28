@@ -100,6 +100,13 @@ final class WebViewWhatsAppCrawlingService: ObservableObject, WhatsAppCrawlingSe
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = try makeWebsiteDataStore(identifier: settings.websiteDataStoreIdentifier)
         configuration.processPool = WKProcessPool()
+        configuration.userContentController.addUserScript(
+            WKUserScript(
+                source: WebViewJavaScripts.assistantBridge,
+                injectionTime: .atDocumentEnd,
+                forMainFrameOnly: false
+            )
+        )
 
         let viewportWidth = settings.viewportWidth
         let viewportHeight = settings.viewportHeight
