@@ -4,9 +4,26 @@ This document explains the intended architecture for the assistant runtime and h
 
 This repo is in the middle of a rewrite-from-scratch, so some sections describe the target shape while the current codebase still contains scaffolding.
 
+## File naming
+
+File names should be local to their folder context. Type names can be explicit because Swift does not provide folder-based namespaces, but file names should not repeat the full folder hierarchy.
+
+Swift target basenames still need to be unique. If a fully local name like `Wrapper.swift` would collide elsewhere in the same target, use the shortest local qualifier that preserves context, such as `WebViewWrapper.swift` or `NativeWrapper.swift`.
+
+For example, prefer `Sources/Features/WhatsAppCrawling/Settings/Wrapper.swift` over `Sources/Features/WhatsAppCrawling/Settings/WhatsAppCrawlingSettingsWrapper.swift`.
+
+## XcodeGen and build validation
+
+This project uses XcodeGen. Treat `AIAssistantHub.xcodeproj` as generated build output.
+
+- Never manually edit generated files under `*.xcodeproj`, `project.pbxproj`, `*.xcworkspace`, `xcuserdata`, or generated scheme files.
+- Make project configuration changes in `project.yml`, source files, scripts, or resources.
+- For validation, run the repo's check/build/restart script (currently `scripts/check_build_and_restart.sh`). Do not run `xcodebuild` manually.
+
 ## Current status (rewrite scaffold)
 
 - MCP tool *definitions* exist under `Sources/Features/**/MCP/`, registered via `Sources/Features/MCPServers/Registry/MCPToolRegistry.swift`.
+- General MCP utility tools belong under `Sources/Features/MCPServers/Utilities/`. Feature-specific MCP tools belong under their owning feature folder.
 - Many tools are not executed yet because the default `MCPToolHandler.handle(...)` returns `notImplemented` unless a tool implements `handle`.
 - The operational system prompt lives at `Resources/Prompts/AssistantSystemPrompt.md`.
 - WhatsApp crawling scaffolding lives under `Sources/Features/WhatsAppCrawling/` (with both native Accessibility and WebView-oriented modules).
@@ -443,6 +460,232 @@ ProfilesController.hideProfileWindow(profileId)
 
 These are semantic shortcuts for UI and tray surfaces. They should perform lookup and delegation. The real per-profile behavior belongs to `ProfileRuntime`.
 
+### Settings Architecture
+
+Settings are profile-scoped runtime state. Each running `ProfileRuntime` owns exactly one live `SettingsStore` for its profile through `ProfileRuntimeContainer`.
+
+The Firestore shape is fixed:
+
+```text
+AccountProfiles/{profileId}/Settings/{scopeName}
+```
+
+Each settings scope is one Firestore document. Each document stores key/value fields directly:
+
+```text
+AccountProfiles/{profileId}/Settings/whatsappCrawling
+AccountProfiles/{profileId}/Settings/whatsappWebView
+AccountProfiles/{profileId}/Settings/commandCenter
+AccountProfiles/{profileId}/Settings/app
+```
+
+Firestore collection names must be PascalCase in this repo (for example `AccountProfiles`, `Settings`, `Chats`, `Messages`). Document IDs and setting scope names may remain lowerCamelCase when they represent keys/scopes (for example `whatsappCrawling`, `whatsappWebView`, `aiConnection`).
+
+The intended runtime ownership is:
+
+```text
+ProfileRuntimeContainer
+└── SettingsStore / ProfileSettings
+    ├── profileId
+    ├── scopesByName[name: SettingsScope]
+    ├── startListening()
+    ├── stopListening()
+    ├── scope(name)
+    ├── value(scope, key)
+    ├── setValue(scope, key, value)
+    └── deleteValue(scope, key)
+```
+
+`SettingsStore` is the only settings layer that talks to Firebase. It loads scope documents, listens to Firebase changes, updates the existing in-memory scope objects, exposes simple accessors to features, and saves key/value changes back to Firebase.
+
+`SettingsStore` has an explicit async lifecycle. `ProfileRuntimeContainer` must start the store before starting any runtime services that read settings.
+
+Startup:
+
+- load all existing scopes once from Firebase
+- apply them to the live in-memory scopes
+- then start the Firebase listener for future changes
+
+`SettingsStore` is a live in-memory store. Reads and writes are synchronous:
+
+- wrappers read values from memory synchronously
+- wrappers write values to memory synchronously (UI updates immediately)
+- `SettingsStore` persists changes to Firebase in the background (typically debounced per scope)
+
+Repository methods remain async because they are the persistence boundary. Wrappers must not call `loadScope(...)` for normal setting reads and must not `await` setting writes.
+
+Shutdown:
+
+- stop the Firebase listener
+- flush any pending debounced saves so recent UI changes are not lost
+
+Remote snapshot protection:
+
+- if a scope is locally dirty (pending save), the listener should not overwrite the in-memory scope with a potentially stale remote snapshot
+
+`SettingsStore` is intentionally dumb: it stores only `String` values. It does not know feature types, and it does not own typed parsing, validation, or conversion. Feature settings wrappers own parsing, formatting, defaults, and validation.
+
+`SettingsStore` and `SettingsScope` should be reference types. Swift structs are value types and are copied; they are fine for short-lived snapshots or default definitions, but they must not be treated as the live runtime source of truth. Features may keep a reference to a `SettingsScope` because the Settings feature updates that same object when Firebase changes.
+
+The Settings feature owns settings screen composition through a small registry:
+
+```text
+SettingsSectionRegistry
+├── SettingsSectionProvider
+└── SettingsSectionDefinition
+    ├── scopeName
+    ├── title
+    └── makeView
+```
+
+Each settings registration is a complete feature declaration: it names the settings scope, gives the section title, and supplies the view that renders the section body. The Settings feature owns the outer rendering, while feature-owned settings views render only the internal controls. The Settings screen renders registered sections in registration order; it does not become a giant hardcoded screen for every feature. Parent features can decide how to render subfeature settings conditionally because they understand their own subfeatures.
+
+The source-of-truth rule is:
+
+```text
+Firebase = persisted source of truth
+SettingsStore = live in-memory source of truth for the running profile
+Feature settings wrappers = typed convenience only
+```
+
+Features must not create their own settings repositories. Features must not create feature-specific settings services just to load, cache, observe, or persist settings. Features must not copy settings into long-lived private variables and keep them stale. This project intentionally avoids service-per-feature settings boilerplate.
+
+Feature-specific settings wrappers are allowed when they are typed convenience layers over the shared live `SettingsStore`. Prefer names like:
+
+```text
+WhatsAppCrawlingSettingsWrapper
+ChatsSettingsWrapper
+AIConnectionSettingsWrapper
+```
+
+Avoid names like:
+
+```text
+WhatsAppCrawlingSettingsService
+WhatsAppCrawlingSettingsRepository
+```
+
+A feature settings wrapper may:
+
+- keep a reference to the shared profile `SettingsStore`
+- define scope names
+- define key names
+- define default values
+- expose typed computed properties (Swift-style API)
+- create or ensure generated technical values such as WebView session identifiers
+
+A feature settings wrapper must not:
+
+- create its own Firebase repository
+- listen to Firebase directly
+- keep long-lived copied setting values
+- cache loaded settings as independent state
+- become a second source of truth
+- duplicate `SettingsStore` behavior
+
+The wrapper can be instantiated inside `ProfileRuntimeContainer` and passed to that feature's runtime service. This is acceptable because it is only a typed wrapper over the live store, not an independently stateful service.
+
+For simple settings features, prefer keeping the implementation small and local:
+
+- `Wrapper.swift` (scope name, private keys, inline defaults, typed computed properties)
+- `View.swift` (feature-owned inner controls only)
+- `SectionProvider.swift` (registers the feature's settings scope/title/view)
+
+Only split into additional `Keys.swift` / `Defaults.swift` files when the feature is large enough to justify it.
+
+Correct feature usage:
+
+```text
+let scope = settings.scope("whatsappWebView")
+read scope.string("url") when needed
+read scope.string("enableWebInspector") when needed (then interpret it in the wrapper)
+```
+
+Correct typed wrapper usage:
+
+```text
+WhatsAppCrawlingSettingsWrapper receives SettingsStore
+pollingIntervalSeconds reads settings.scope("whatsappCrawling").string("pollingIntervalSeconds")
+pollingIntervalSeconds writes settings.setValue(scope:key:value:)
+```
+
+Incorrect feature usage:
+
+```text
+load settings once
+store url/userAgent/interval in a feature service forever
+listen to Firebase directly
+duplicate SettingsRepository behavior
+```
+
+Feature settings declarations may exist later, but they are UI/schema declarations only. A feature can declare a scope name, section title, setting rows, default values, and validation rules. Persistence, observation, loading, saving, and live runtime state remain owned by the Settings feature.
+
+The future Settings screen will concatenate settings sections declared by features. It will not turn those declarations into feature-owned repositories or long-lived cached services.
+
+The Settings route inside CommandCenter renders the active profile runtime's `SettingsSectionRegistry`. CommandCenter does not own settings definitions; it only renders the registry supplied by the profile runtime container.
+
+### WhatsApp Crawling Settings
+
+WhatsApp Crawling registers one parent settings section with Settings. That section renders `WhatsAppCrawlingSettingsView`. The Settings feature does not register WebView and Native as independent top-level sections for now.
+
+WhatsApp Crawling reads parent settings through `WhatsAppCrawlingSettingsWrapper`, which wraps the shared `SettingsStore` owned by its `ProfileRuntimeContainer`. It must not own a separate settings persistence service, Firebase listener, repository, or cache.
+
+WhatsApp Crawling may define:
+
+- scope names
+- key names
+- defaults
+- a `WhatsAppCrawlingSettingsWrapper` with typed getters/setters that read and write through `SettingsStore`
+- a feature-owned `WhatsAppCrawlingSettingsView`
+- one `WhatsAppCrawlingSettingsSectionProvider`
+
+General WhatsApp Crawling settings live in:
+
+```text
+AccountProfiles/{profileId}/Settings/whatsappCrawling
+```
+
+`whatsappCrawling` owns active integration, polling interval, access policy, and auto start. It does not own WebView-specific settings.
+
+WebView integration settings live under `Sources/Features/WhatsAppCrawling/Integrations/WebView/Settings/` and persist in:
+
+```text
+AccountProfiles/{profileId}/Settings/whatsappWebView
+```
+
+`whatsappWebView` owns URL, user agent, zoom, viewport size, Web Inspector flag, and the stable profile-specific WebView data store identifier. The identifier is a generated technical setting; `WhatsAppWebViewSettingsWrapper` creates it once if missing and persists it through `SettingsStore`.
+
+All of these settings are stored as strings in `SettingsStore`. The wrappers convert them to and from enums, integers, doubles, and booleans as needed. If parsing fails, the wrapper returns the feature default.
+
+Native integration settings live under `Sources/Features/WhatsAppCrawling/Integrations/Native/Settings/` and persist in:
+
+```text
+AccountProfiles/{profileId}/Settings/whatsappNative
+```
+
+Native settings are intentionally minimal until the Accessibility runtime needs concrete configuration.
+
+`WhatsAppCrawlingSettingsView` renders the parent settings first. It then renders integration-specific subsettings based on `activeIntegration`:
+
+```text
+activeIntegration == webView
+└── WhatsAppWebViewSettingsView
+
+activeIntegration == nativeAccessibility
+└── WhatsAppNativeSettingsView
+```
+
+When WhatsApp Crawling needs a setting inside a service action, polling cycle, parser, or future orchestration step, it should read through the relevant wrapper, `SettingsStore`, or a live `SettingsScope` at that moment. Short-lived local snapshots inside a single operation are acceptable. Long-lived copied settings are not.
+
+Examples:
+
+- Good: each future polling cycle reads `pollingIntervalSeconds` before sleeping.
+- Good: the wrapper reads `settings.scope("whatsappCrawling").string("pollingIntervalSeconds")` and converts it to `Int`.
+- Good: the WebView service reads `url` and `userAgent` from `WhatsAppWebViewSettingsWrapper` when starting.
+- Good: future setting changes are reflected by observing `SettingsStore` and restarting or reconfiguring runtime services.
+- Bad: a `WhatsAppCrawlingSettingsService` loads `pollingIntervalSeconds` once and stores it forever.
+- Bad: each WhatsApp integration creates its own Firebase listener.
+
 ### Profile window lifecycle
 
 The intended `openWindow` flow inside a runtime is:
@@ -471,7 +714,7 @@ ProfileRuntime.openWindow()
 │           │               ├── ChatsPlaceholderScreen
 │           │               ├── WhatsApp*PlaceholderScreen
 │           │               ├── MCPServers*PlaceholderScreen
-│           │               └── SettingsPlaceholderScreen
+│           │               └── SettingsScreen
 │           ├── stores it in profileWindows[profileId]
 │           ├── shows window
 │           └── WindowVisibilityTracker.windowDidShow(profileId)
@@ -631,7 +874,7 @@ Server
 └── Server Logs -> MCPServers/ServerLogsPlaceholderScreen
 
 Settings
-└── Settings -> Settings/SettingsPlaceholderScreen
+└── Settings -> Settings/SettingsScreen
 ```
 
 The registry already has placeholder fields for developer-mode visibility and future visibility rules. The WhatsApp WebView route should eventually be visible only when the active integration is WhatsApp Web or when developer/debug mode allows it. YAML debug routes should probably become developer-mode only once the app has a developer-mode setting.

@@ -14,6 +14,12 @@ final class WhatsAppCrawlerPolling {
         guard pollingTask == nil else { return }
         pollingTask = Task { [worker, intervalNanoseconds] in
             while !Task.isCancelled {
+                // TODO: Future orchestration owns business rules: run a full
+                // cycle, then wait pollingIntervalSeconds after it finishes.
+                // It should not start overlapping cycles on a fixed timer.
+                // Message refresh decisions should flow through an explicit
+                // shouldRefreshChatMessages function; integration services
+                // should expose raw capabilities only.
                 _ = await worker.runCycle()
                 try? await Task.sleep(nanoseconds: intervalNanoseconds)
             }

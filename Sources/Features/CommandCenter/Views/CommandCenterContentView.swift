@@ -5,6 +5,7 @@ struct CommandCenterContentView: View {
     let profile: Profile
     let runtimeState: ProfileRuntimeState
     let windowState: ProfileWindowState
+    let settingsSectionRegistry: SettingsSectionRegistry?
     let screenRegistry: CommandCenterScreenRegistry
 
     var body: some View {
@@ -12,7 +13,8 @@ struct CommandCenterContentView: View {
             for: route,
             profile: profile,
             runtimeState: runtimeState,
-            windowState: windowState
+            windowState: windowState,
+            settingsSectionRegistry: settingsSectionRegistry
         )
     }
 }

@@ -6,7 +6,8 @@ struct CommandCenterScreenRegistry {
         for route: CommandCenterRoute,
         profile: Profile,
         runtimeState: ProfileRuntimeState,
-        windowState: ProfileWindowState
+        windowState: ProfileWindowState,
+        settingsSectionRegistry: SettingsSectionRegistry? = nil
     ) -> some View {
         switch route {
         case .myProfile:
@@ -36,7 +37,7 @@ struct CommandCenterScreenRegistry {
         case .serverLogs:
             ServerLogsPlaceholderScreen()
         case .settings:
-            SettingsPlaceholderScreen()
+            SettingsScreen(settingsSectionRegistry: settingsSectionRegistry)
         }
     }
 }

@@ -5,7 +5,7 @@ public final class FirestoreProfileRepository: FirebaseRepository<Profile>, Prof
     public init(firestore: Firestore = .firestore()) {
         super.init(
             entityName: "Profile",
-            path: .root(collection: "profiles"),
+            path: .root(collection: "AccountProfiles"),
             firestore: firestore
         )
     }

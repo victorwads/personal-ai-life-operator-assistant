@@ -36,7 +36,12 @@ final class ProfileRuntimeController: ObservableObject {
         guard let runtime = registry.upsertRuntime(for: profile) else {
             return
         }
-        await runtime.start()
+        do {
+            try await runtime.start()
+        } catch {
+            // ProfileRuntime is responsible for transitioning to .failed; controller keeps UI updated.
+            print("ProfileRuntimeController: failed to start profile \(profile.id ?? ""): \(error)")
+        }
         objectWillChange.send()
     }
 

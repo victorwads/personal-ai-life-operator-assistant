@@ -7,25 +7,35 @@ final class ProfileRuntime: ObservableObject {
     @Published private(set) var state: ProfileRuntimeState = .stopped
     @Published private(set) var windowState: ProfileWindowState = .hidden
 
+    private(set) var container: ProfileRuntimeContainer?
+
     init(context: ProfileContext) {
         self.context = context
     }
 
-    func start() async {
+    func start() async throws {
         guard state == .stopped || state == .failed else { return }
         state = .starting
 
-        // Placeholder startup work; real runtime (MCP/WhatsApp/assistant) comes later.
-        try? await Task.sleep(nanoseconds: 250_000_000)
-
-        state = .running
+        do {
+            let container = try ProfileRuntimeContainer(context: context)
+            try await container.start()
+            self.container = container
+            state = .running
+        } catch {
+            await container?.stop()
+            container = nil
+            state = .failed
+            throw error
+        }
     }
 
     func stop() async {
         guard state == .running || state == .starting else { return }
         state = .stopping
 
-        try? await Task.sleep(nanoseconds: 150_000_000)
+        await container?.stop()
+        container = nil
 
         state = .stopped
         windowState = .hidden

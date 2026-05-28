@@ -6,6 +6,7 @@ struct MCPServersUtilityToolProvider: MCPToolProvider {
     var tools: [MCPToolHandler.Type] {
         [
             GetCurrentDateTool.self,
+            GetAssistantNameTool.self,
         ]
     }
 }

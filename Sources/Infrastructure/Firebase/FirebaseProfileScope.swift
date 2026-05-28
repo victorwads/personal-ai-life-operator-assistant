@@ -8,6 +8,6 @@ public struct FirebaseProfileScope: Equatable, Sendable {
     }
 
     public var rootPath: String {
-        "profiles/\(profileId)"
+        "AccountProfiles/\(profileId)"
     }
 }

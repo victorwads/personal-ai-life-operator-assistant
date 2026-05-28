@@ -4,6 +4,7 @@ struct CommandCenterScreen: View {
     let profile: Profile
     let runtimeState: ProfileRuntimeState
     let windowState: ProfileWindowState
+    let settingsSectionRegistry: SettingsSectionRegistry?
 
     @State private var selectedRoute: CommandCenterRoute? = .myProfile
 
@@ -31,6 +32,7 @@ struct CommandCenterScreen: View {
                     profile: profile,
                     runtimeState: runtimeState,
                     windowState: windowState,
+                    settingsSectionRegistry: settingsSectionRegistry,
                     screenRegistry: screenRegistry
                 )
             }
