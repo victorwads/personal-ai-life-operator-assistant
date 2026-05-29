@@ -3,6 +3,15 @@ options:
   bundleIdPrefix: com.localaiassistant
   deploymentTarget:
     macOS: "14.0"
+fileGroups:
+  - project.yml
+  - firestore.indexes.json
+  - firebase.rules
+  - AGENTS.md
+  - .gitignore
+  - Docs
+  - Sources
+  - Scripts
 packages:
   MCP:
     url: https://github.com/modelcontextprotocol/swift-sdk.git
@@ -22,9 +31,8 @@ targets:
     platform: macOS
     sources:
       - path: Sources
-      - path: Docs
-      - path: Scripts
-      - path: project.yml
+        excludes:
+          - "**/*.md"
       - path: Resources
         buildPhase: resources
     dependencies:
