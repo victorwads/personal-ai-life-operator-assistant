@@ -25,7 +25,7 @@ Its master-detail structure should remain based on `NavigationSplitView`, with t
 
 The current tool groups are:
 
-### Chats (WhatsApp tools)
+### Chats (read-only tools)
 
 - `list_chats_by_search`
 - `list_unhandled_chats`
@@ -66,7 +66,13 @@ The current tool groups are:
 
 ### Utility tools
 
-- `get_assistant_name`
-- `get_current_date`
+- `get_current_datetime`
+
+## Ownership updates
+
+- `get_current_datetime` is the only date/time utility owned by `MCPServersFeature`.
+- `get_assistant_name` is owned and registered by `SentMessagesFeature`.
+- `wait_for_event` is deferred runtime/orchestration work and is not registered by `ChatsFeature`.
+- `send_message` remains a deferred transport placeholder; real sending stays channel-owned and will be added later.
 
 When changing or documenting tool behavior, check the corresponding `*Tool.swift` implementation first.

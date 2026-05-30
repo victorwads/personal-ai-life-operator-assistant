@@ -3,7 +3,7 @@ import Foundation
 struct SendMessageTool: MCPToolDefinition {
     let name = "send_message"
     let icon = "paperplane"
-    let description = "Sends external chat messages. This tool must be attached to an Issue, and the send action should later be auditable through the Issue timeline or history."
+    let description = "Deferred placeholder for outbound transport. Real send flow will later validate issueId, compose with SentMessages settings, and audit send status."
     let group = "chats"
     let inputSchema: MCPJSONValue = .object([
         "type": .string("object"),

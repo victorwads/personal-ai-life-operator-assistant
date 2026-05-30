@@ -3,7 +3,7 @@ import Foundation
 struct ListChatsBySearchTool: MCPToolDefinition {
     let name = "list_chats_by_search"
     let icon = "magnifyingglass"
-    let description = "Search chats by query, name, or term and return the best matches."
+    let description = "Search-based chat listing is deferred until repository-backed search is implemented."
     let group = "chats"
     let inputSchema: MCPJSONValue = .object([
         "type": .string("object"),

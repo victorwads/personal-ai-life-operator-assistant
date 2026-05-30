@@ -23,6 +23,18 @@ This document owns chat/message domain model and repository rules.
 - The only supported existing-message state transition is marking messages as handled.
 - Message listing reads from Firestore local cache and returns the latest messages by repository `_createdAt`, using message `dateTime` only as a tie-breaker.
 
+## MCP tool boundaries
+
+- Chats currently owns read-only listing tools such as `list_chat_messages` and `list_unhandled_chats`.
+- `list_chats_by_search` stays deferred until repository-backed search exists.
+- `wait_for_event` belongs to runtime/orchestration and is intentionally deferred until late-stage integration across Issues, Chats, SentMessages, SensitiveData, ClientVoice, and event queues.
+
+## Future direction/ownership field
+
+- `author` alone is not enough to determine message ownership.
+- A future model revision should add message direction/ownership (`incoming`, `outgoing`, `unknown`) for UI alignment, auditing, and assistant send tracking.
+- SentMessages/provider message IDs may later help reconcile outbound assistant messages when they are observed back from WhatsApp.
+
 ## Repository rules
 
 - Chat/message repositories may include feature-specific persistence rules when they are true domain/application semantics.

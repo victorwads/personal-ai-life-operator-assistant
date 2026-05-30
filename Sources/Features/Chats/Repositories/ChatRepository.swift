@@ -6,6 +6,7 @@ protocol ChatRepository {
     func upsertChat(_ chat: Chat) async throws
     func deleteChat(id: String) async throws
 
+    func listUnhandledChats(limit: Int?) async throws -> [Chat]
     func listMessages(chatId: String, limit: Int?) async throws -> [ChatMessage]
     func insertMessages(_ messages: [ChatMessage]) async throws
     func markMessagesHandled(ids: [String]) async throws

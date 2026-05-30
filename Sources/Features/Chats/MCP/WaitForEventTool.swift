@@ -1,6 +1,7 @@
 import Foundation
 
 struct WaitForEventTool: MCPToolDefinition {
+    // Deferred: runtime/orchestration ownership will be introduced later after core feature stability.
     // TODO: Decide how queued events are emitted. If multiple chats have pending messages, events may need to be returned one at a time. If multiple client prompts exist, they may need to be returned one at a time. The event queue behavior must be carefully designed.
     // TODO: If unresolved issues exist when the assistant calls wait_for_event, consider accepting a summary of unresolved issue IDs and why each one is blocked. This would make the assistant explicitly justify why it is going idle.
     let name = "wait_for_event"

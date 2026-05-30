@@ -1,6 +1,12 @@
 import Foundation
 
 struct ListUnhandledChatsTool: MCPToolDefinition {
+    private let repository: any ChatRepository
+
+    init(repository: any ChatRepository) {
+        self.repository = repository
+    }
+
     let name = "list_unhandled_chats"
     let icon = "envelope.badge"
     let description = """
@@ -11,7 +17,41 @@ struct ListUnhandledChatsTool: MCPToolDefinition {
     let group = "chats"
     let inputSchema: MCPJSONValue = .object([
         "type": .string("object"),
-        "properties": .object([:])
+        "properties": .object([
+            "limit": .object(["type": .string("number")])
+        ])
     ])
     let traits: [MCPToolTrait] = [.readOnly]
+
+    func execute(
+        _ call: MCPToolCall,
+        context _: MCPServerContext
+    ) async -> MCPToolExecutionResult {
+        do {
+            let limit = MCPToolArguments.optionalLimit(from: call, default: 10)
+            let chats = try await repository.listUnhandledChats(limit: limit)
+            return .success(
+                toolName: call.name,
+                payload: .object([
+                    "count": .int(chats.count),
+                    "chats": .array(chats.map(chatJSON))
+                ])
+            )
+        } catch {
+            return .failure(
+                toolName: call.name,
+                error: .executionFailed("Failed to list unhandled chats: \(error.localizedDescription)")
+            )
+        }
+    }
+
+    private func chatJSON(_ chat: Chat) -> MCPJSONValue {
+        .object([
+            "chatId": chat.id.map(MCPJSONValue.string) ?? .string(""),
+            "title": .string(chat.title),
+            "lastMessagePreview": chat.lastMessagePreview.map(MCPJSONValue.string) ?? .null,
+            "lastMessageTimeText": chat.lastMessageTimeText.map(MCPJSONValue.string) ?? .null,
+            "unreadCount": .int(chat.unreadCount)
+        ])
+    }
 }

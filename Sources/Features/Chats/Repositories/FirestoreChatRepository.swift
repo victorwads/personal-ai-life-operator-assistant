@@ -51,6 +51,38 @@ final class FirestoreChatRepository: ChatRepository {
         try await chatStore.delete(id)
     }
 
+    func listUnhandledChats(limit: Int? = nil) async throws -> [Chat] {
+        let effectiveLimit = max(1, limit ?? 10)
+        let pendingMessages = try await messageStore.query(
+            matching: [ChatMessageField.handled: false],
+            sortedBy: [
+                FirestoreRepositorySort(field: "_createdAt", descending: true),
+                FirestoreRepositorySort(field: ChatMessageField.dateTime, descending: true)
+            ],
+            limit: 200
+        )
+
+        var orderedChatIds: [String] = []
+        var seen = Set<String>()
+        for message in pendingMessages {
+            if seen.insert(message.chatId).inserted {
+                orderedChatIds.append(message.chatId)
+            }
+            if orderedChatIds.count >= effectiveLimit {
+                break
+            }
+        }
+
+        var chats: [Chat] = []
+        chats.reserveCapacity(orderedChatIds.count)
+        for chatId in orderedChatIds {
+            if let chat = try await getChat(id: chatId) {
+                chats.append(chat)
+            }
+        }
+        return chats
+    }
+
     func listMessages(chatId: String, limit: Int? = nil) async throws -> [ChatMessage] {
         let effectiveLimit = max(1, limit ?? 10)
         let messages = try await messageStore.query(

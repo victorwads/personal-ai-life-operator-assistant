@@ -17,10 +17,9 @@ final class ChatsFeature: FeatureRuntime {
 
         context.mcp.toolRegistry.register([
             ListChatsBySearchTool(),
-            ListUnhandledChatsTool(),
-            ListChatMessagesTool(),
-            SendMessageTool(),
-            WaitForEventTool()
+            ListUnhandledChatsTool(repository: repository),
+            ListChatMessagesTool(repository: repository),
+            SendMessageTool()
         ])
     }
 }
