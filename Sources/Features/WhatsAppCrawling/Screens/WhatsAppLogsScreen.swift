@@ -2,8 +2,18 @@ import SwiftUI
 
 @MainActor
 struct WhatsAppLogsScreen: View {
-    @ObservedObject var logStore: WhatsAppCrawlingLogStore
+    let feature: WhatsAppCrawlingFeature
     @State private var autoScroll = true
+
+    var body: some View {
+        WhatsAppLogsContent(logStore: feature.logStore, autoScroll: $autoScroll)
+    }
+}
+
+@MainActor
+private struct WhatsAppLogsContent: View {
+    @ObservedObject var logStore: WhatsAppCrawlingLogStore
+    @Binding var autoScroll: Bool
 
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()

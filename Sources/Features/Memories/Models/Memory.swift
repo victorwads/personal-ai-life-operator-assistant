@@ -1,8 +1,7 @@
 import Foundation
 
 struct Memory: PersistableModel, Equatable, Sendable {
-    @DocumentID var id: String?
-    var kind: String?
-    var title: String?
+    var id: String?
+    var key: String
     var value: String
 }

@@ -12,11 +12,7 @@ final class MCPToolRegistry {
 
     func register(provider: any MCPToolProvider) {
         providers.append(provider)
-        for handlerType in provider.tools {
-            let registration = MCPToolRegistration(
-                definition: handlerType.definition,
-                makeHandler: { handlerType.init() }
-            )
+        for registration in provider.toolRegistrations {
             registrationsByName[registration.definition.name] = registration
         }
     }

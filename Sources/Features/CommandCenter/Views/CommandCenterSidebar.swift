@@ -2,7 +2,7 @@ import SwiftUI
 
 struct CommandCenterSidebar: View {
     let sections: [CommandCenterSection]
-    let whatsAppWebViewService: WebViewWhatsAppCrawlingService?
+    let whatsAppCrawlingFeature: WhatsAppCrawlingFeature
     let onDetachWebView: () -> Void
     @Binding var selectedRoute: CommandCenterRoute
 
@@ -44,7 +44,7 @@ struct CommandCenterSidebar: View {
 
     private func shouldShowDetachButton(for item: CommandCenterMenuItem) -> Bool {
         guard item.route == .whatsappWebView else { return false }
-        guard let whatsAppWebViewService else { return false }
+        let whatsAppWebViewService = whatsAppCrawlingFeature.webViewService
         guard whatsAppWebViewService.state == .started else { return false }
         return whatsAppWebViewService.presentationMode == .embedded
     }

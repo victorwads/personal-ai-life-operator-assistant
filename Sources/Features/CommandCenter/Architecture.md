@@ -53,22 +53,22 @@ The initial menu registry is static and intentionally small:
 ```text
 My Data
 ├── My Profile -> Profiles/MyProfileScreen
-├── Issues -> Issues/IssuesPlaceholderScreen
-├── Memories -> Memories/MemoriesPlaceholderScreen
-├── Sensitive Data -> SensitiveData/SensitiveDataPlaceholderScreen
-└── Client Voice -> ClientVoice/ClientVoicePlaceholderScreen
+├── Issues -> Issues/IssuesScreen
+├── Memories -> Memories/MemoriesScreen
+├── Sensitive Data -> SensitiveData/SensitiveDataScreen
+└── Client Voice -> ClientVoice/ClientVoiceScreen
 
 WhatsApp Integration
-├── Chats -> Chats/ChatsPlaceholderScreen
+├── Chats -> Chats/ChatsScreen
 ├── WebView -> WhatsAppCrawling/Integrations/WebView/Screens/WhatsAppWebViewScreen
 ├── Web YAML Debug -> WhatsAppCrawling/Integrations/WebView/Screens/WhatsAppWebYAMLDebugScreen
-├── Native YAML Debug -> WhatsAppCrawling/Integrations/Native/Screens/WhatsAppNativeYAMLDebugPlaceholderScreen
-└── Logs -> WhatsAppCrawling/WhatsAppLogsPlaceholderScreen
+├── Native YAML Debug -> WhatsAppCrawling/Integrations/Native/Screens/WhatsAppNativeYAMLDebugScreen
+└── Logs -> WhatsAppCrawling/Screens/WhatsAppLogsScreen
 
 Server
-├── Tools -> MCPServers/MCPToolsPlaceholderScreen
-├── AI Connection -> AIConnection/AIConnectionPlaceholderScreen
-└── Server Logs -> MCPServers/ServerLogsPlaceholderScreen
+├── Tools -> MCPServers/MCPToolsScreen
+├── AI Connection -> AIConnection/AIConnectionScreen
+└── Server Logs -> MCPServers/ServerLogsScreen
 
 Settings
 └── Settings -> Settings/SettingsScreen
@@ -88,4 +88,8 @@ The current first route is `myProfile`. It renders `MyProfileScreen` from the Pr
 
 Future runtime dependency injection should flow from `ProfileRuntimeContainer` into the profile window/Command Center context. That container is expected to hold profile context, profile-scoped repositories, MCP server runtime, WhatsApp runtime, assistant loop, settings observer, logs/debug services, and AI connection/runtime services. Command Center should receive only the context needed to render the selected workspace screen; it should not construct those dependencies itself.
 
-Settings remains a separate feature. Later, each feature can declare profile-scoped settings sections, and the Settings feature should own persistence plus rendering/composition into one unified settings UI. Features should not create independent settings repositories.
+Command Center should receive explicit feature runtimes such as `SettingsFeature`, `MemoriesFeature`, and `WhatsAppCrawlingFeature` instead of loose repositories, services, or stores.
+
+Feature screens rendered by Command Center should receive their owning feature runtime and read any feature-owned internals through that runtime.
+
+Settings remains a separate feature. Later, each feature can declare profile-scoped settings sections, and the Settings feature should own rendering/composition into one unified settings UI while the shared settings substrate remains in `Sources/Shared/Settings`.

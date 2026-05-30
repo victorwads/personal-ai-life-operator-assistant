@@ -1,10 +1,12 @@
 # Settings Architecture
 
-This document owns profile-scoped settings state, wrappers, and settings UI composition rules.
+This document owns the product-facing Settings feature: settings screen composition and future Settings MCP/product behavior.
 
 ### Settings Architecture
 
-Settings are profile-scoped runtime state. Each active `ProfileRuntime` owns exactly one live `SettingsStore` for its profile through `ProfileRuntimeContainer`. A runtime may be active for UI/settings while its service lifecycle state is `stopped`.
+Shared settings runtime substrate lives under `Sources/Shared/Settings`. `SettingsFeature` is the product/UI feature that renders the Settings route and participates in feature runtime composition.
+
+`SettingsFeature` does not own `SettingsStore`. The shared profile runtime owns the store and passes it to features through `SettingsContext`.
 
 The Firestore shape is fixed:
 
@@ -80,9 +82,9 @@ Remote snapshot protection:
 
 `SettingsStore` is intentionally dumb: it stores only `String` values. It does not know feature types, and it does not own typed parsing, validation, or conversion. Feature settings wrappers own parsing, formatting, defaults, and validation.
 
-`SettingsStore` and `SettingsScope` should be reference types. Swift structs are value types and are copied; they are fine for short-lived snapshots or default definitions, but they must not be treated as the live runtime source of truth. Features may keep a reference to a `SettingsScope` because the Settings feature updates that same object when Firebase changes.
+`SettingsStore` and `SettingsScope` should be reference types. Swift structs are value types and are copied; they are fine for short-lived snapshots or default definitions, but they must not be treated as the live runtime source of truth. Features may keep a reference to a `SettingsScope` because the shared settings substrate updates that same object when Firebase changes.
 
-The Settings feature owns settings screen composition through a small registry:
+The shared settings substrate owns settings section registration through a small registry:
 
 ```text
 SettingsSectionRegistry
@@ -93,7 +95,7 @@ SettingsSectionRegistry
     └── makeView
 ```
 
-Each settings registration is a complete feature declaration: it names the settings scope, gives the section title, and supplies the view that renders the section body. The Settings feature owns the outer rendering, while feature-owned settings views render only the internal controls. The Settings screen renders registered sections in registration order; it does not become a giant hardcoded screen for every feature. Parent features can decide how to render subfeature settings conditionally because they understand their own subfeatures.
+Each settings registration is a complete feature declaration: it names the settings scope, gives the section title, and supplies the view that renders the section body. `SettingsFeature` owns the outer rendering, while feature-owned settings views render only the internal controls. The Settings screen renders registered sections in registration order; it does not become a giant hardcoded screen for every feature. Parent features can decide how to render subfeature settings conditionally because they understand their own subfeatures.
 
 The source-of-truth rule is:
 
@@ -173,7 +175,7 @@ listen to Firebase directly
 duplicate SettingsRepository behavior
 ```
 
-Feature settings declarations may exist later, but they are UI/schema declarations only. A feature can declare a scope name, section title, setting rows, default values, and validation rules. Persistence, observation, loading, saving, and live runtime state remain owned by the Settings feature.
+Feature settings declarations may exist later, but they are UI/schema declarations only. A feature can declare a scope name, section title, setting rows, default values, and validation rules. Persistence, observation, loading, saving, and live runtime state remain owned by the shared settings substrate in `Sources/Shared/Settings`.
 
 The future Settings screen will concatenate settings sections declared by features. It will not turn those declarations into feature-owned repositories or long-lived cached services.
 

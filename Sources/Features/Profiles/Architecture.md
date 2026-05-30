@@ -40,6 +40,7 @@ ProfilesController.startProfile(profileId)
     └── runtime.startServices()
         ├── ensures ProfileRuntimeContainer exists
         ├── starts SettingsStore so service autoStart settings can be read
+        ├── starts passive feature observation
         └── starts only subservices whose autoStart setting is enabled
 ```
 
@@ -62,6 +63,12 @@ ProfilesController.hideProfileWindow(profileId)
 These are semantic shortcuts for UI and tray surfaces. They should perform lookup and delegation. The real per-profile behavior belongs to `ProfileRuntime`.
 
 ### Profile runtime subservices
+
+`ProfileRuntimeContainer` owns shared profile-scoped registries and creates `AppFeatures`. Each connected feature exposes its root entrypoint as `<FeatureName>Feature.swift`, and `AppFeatures` owns the list of connected `FeatureRuntime` entries.
+
+`ProfileRuntimeContainer` must not manually list feature classes or instantiate feature-specific settings wrappers, repositories, services, MCP providers, or status providers directly. Those internals live in the owning feature runtime.
+
+`ProfileRuntimeContainer` should expose features through strict typed lookup only. It should not expose loose feature internals such as repositories, log stores, or service instances as compatibility properties.
 
 `ProfileRuntimeContainer` owns profile-scoped subservices through `ProfileRuntimeServiceRegistry`. A subservice has a stable id, title, state, `start()`, and `stop()`. The registry is intentionally small: it stores service instances, supports lookup by id, can start selected services, and can stop all services.
 
@@ -124,13 +131,13 @@ ProfileRuntime.openWindow()
 │           │       └── CommandCenterContentView(selectedRoute)
 │           │           └── CommandCenterScreenRegistry.screen(for: selectedRoute)
 │           │               ├── MyProfileScreen
-│           │               ├── IssuesPlaceholderScreen
-│           │               ├── MemoriesPlaceholderScreen
-│           │               ├── SensitiveDataPlaceholderScreen
-│           │               ├── ClientVoicePlaceholderScreen
-│           │               ├── ChatsPlaceholderScreen
-│           │               ├── WhatsApp*PlaceholderScreen
-│           │               ├── MCPServers*PlaceholderScreen
+│           │               ├── IssuesScreen
+│           │               ├── MemoriesScreen
+│           │               ├── SensitiveDataScreen
+│           │               ├── ClientVoiceScreen
+│           │               ├── ChatsScreen
+│           │               ├── WhatsApp*Screen
+│           │               ├── MCPServers*Screen
 │           │               └── SettingsScreen
 │           ├── stores it in profileWindows[profileId]
 │           ├── shows window
@@ -169,6 +176,6 @@ ProfileRuntime.stopServices()
 └── keeps ProfileWindowState unchanged
 ```
 
-Start Profile controls service startup only. It starts the profile runtime container if needed, reads profile-scoped settings, and starts only subservices with their own autoStart enabled. It does not need to open the profile window.
+Start Profile controls service startup only. It starts the profile runtime container if needed, reads profile-scoped settings, starts passive feature observation, and starts only subservices with their own autoStart enabled. It does not need to open the profile window.
 
 Stop Profile controls service shutdown only. It stops all running subservices for that profile and does not necessarily close or hide the window. Hiding or closing the profile window only changes `ProfileWindowState`; it does not stop subservices.

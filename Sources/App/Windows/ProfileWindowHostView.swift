@@ -14,36 +14,42 @@ struct ProfileWindowHostView: View {
     }
 
     var body: some View {
-        if let profile = profilesController.profiles.first(where: { $0.id == profileId }) {
-            if
-                let runtime = profilesController.runtimeController.runtime(for: profileId),
-                let container = runtime.container,
-                let webViewService = container.whatsAppWebViewService
-            {
-                CommandCenterScreen(
-                    profile: profile,
-                    runtimeState: profilesController.displayState(for: profile).runtimeState,
-                    windowState: profilesController.displayState(for: profile).windowState,
-                    settingsSectionRegistry: container.settingsSectionRegistry,
-                    statusRegistry: container.statusRegistry,
-                    whatsAppWebViewService: webViewService,
-                    whatsAppCrawlingLogStore: container.whatsAppCrawlingLogStore
-                )
-            } else {
-                VStack(spacing: 12) {
-                    ProgressView()
-                    Text("Loading profile runtime...")
-                        .foregroundStyle(.secondary)
-                }
-                .frame(minWidth: 760, minHeight: 520)
-            }
-        } else {
-            VStack(spacing: 12) {
-                ProgressView()
-                Text("Loading profile...")
-                    .foregroundStyle(.secondary)
-            }
+        guardContent
             .frame(minWidth: 760, minHeight: 520)
+    }
+
+    @ViewBuilder
+    private var guardContent: some View {
+        if let profile = resolvedProfile, let container = resolvedContainer {
+            CommandCenterScreen(
+                profile: profile,
+                runtimeState: profilesController.displayState(for: profile).runtimeState,
+                windowState: profilesController.displayState(for: profile).windowState,
+                statusRegistry: container.statusRegistry,
+                settingsFeature: container.feature(SettingsFeature.self),
+                memoriesFeature: container.feature(MemoriesFeature.self),
+                whatsAppCrawlingFeature: container.feature(WhatsAppCrawlingFeature.self)
+            )
+        } else if resolvedProfile == nil {
+            loading("Loading profile...")
+        } else {
+            loading("Loading profile runtime...")
         }
+    }
+
+    private func loading(_ message: String) -> some View {
+        VStack(spacing: 12) {
+            ProgressView()
+            Text(message)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var resolvedProfile: Profile? {
+        profilesController.profiles.first(where: { $0.id == profileId })
+    }
+
+    private var resolvedContainer: ProfileRuntimeContainer? {
+        profilesController.runtimeController.runtime(for: profileId)?.container
     }
 }

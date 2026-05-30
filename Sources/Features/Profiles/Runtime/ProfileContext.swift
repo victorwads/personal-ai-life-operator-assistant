@@ -13,3 +13,4 @@ struct ProfileContext: Sendable {
         self.mcpPort = profile.mcpPort
     }
 }
+

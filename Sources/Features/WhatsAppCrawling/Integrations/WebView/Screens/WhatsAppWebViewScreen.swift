@@ -1,11 +1,15 @@
 import SwiftUI
 
 struct WhatsAppWebViewScreen: View {
-    @ObservedObject var service: WebViewWhatsAppCrawlingService
+    let feature: WhatsAppCrawlingFeature
 
     var body: some View {
-        Group { content(for: service) }
+        WhatsAppWebViewServiceContent(service: feature.webViewService)
     }
+}
+
+private struct WhatsAppWebViewServiceContent: View {
+    @ObservedObject var service: WebViewWhatsAppCrawlingService
 
     @ViewBuilder
     private func content(for service: WebViewWhatsAppCrawlingService) -> some View {
@@ -119,5 +123,9 @@ struct WhatsAppWebViewScreen: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    var body: some View {
+        Group { content(for: service) }
     }
 }

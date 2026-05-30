@@ -142,16 +142,22 @@ This enables hosting assistants for family members (for example: partner, mother
 Feature- and infrastructure-specific architecture rules live close to the code they govern:
 
 - [Sources/App/Architecture.md](../Sources/App/Architecture.md)
+- [Sources/Features/Architecture.md](../Sources/Features/Architecture.md)
+- [Sources/Infrastructure/Architecture.md](../Sources/Infrastructure/Architecture.md)
+- [Sources/Shared/Architecture.md](../Sources/Shared/Architecture.md)
+- [Sources/Shared/Settings/Architecture.md](../Sources/Shared/Settings/Architecture.md)
 - [Sources/Infrastructure/Firebase/Architecture.md](../Sources/Infrastructure/Firebase/Architecture.md)
 - [Sources/Features/AIConnection/Architecture.md](../Sources/Features/AIConnection/Architecture.md)
 - [Sources/Features/Settings/Architecture.md](../Sources/Features/Settings/Architecture.md)
 - [Sources/Features/Profiles/Architecture.md](../Sources/Features/Profiles/Architecture.md)
 - [Sources/Features/CommandCenter/Architecture.md](../Sources/Features/CommandCenter/Architecture.md)
 - [Sources/Features/Issues/Architecture.md](../Sources/Features/Issues/Architecture.md)
+- [Sources/Features/Memories/Architecture.md](../Sources/Features/Memories/Architecture.md)
 - [Sources/Features/MCPServers/Architecture.md](../Sources/Features/MCPServers/Architecture.md)
 - [Sources/Features/WhatsAppCrawling/Architecture.md](../Sources/Features/WhatsAppCrawling/Architecture.md)
 - [Sources/Features/Chats/Architecture.md](../Sources/Features/Chats/Architecture.md)
 - [Sources/Shared/UI/Architecture.md](../Sources/Shared/UI/Architecture.md)
+- [Sources/Shared/FeatureRuntime/Architecture.md](../Sources/Shared/FeatureRuntime/Architecture.md)
 
 Keep this file as the global index and move detailed rules into the nearest local `Architecture.md` instead of replacing them with short summaries.
 

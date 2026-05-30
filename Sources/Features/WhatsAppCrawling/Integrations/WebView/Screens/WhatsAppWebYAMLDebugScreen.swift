@@ -3,6 +3,14 @@ import AppKit
 import WebKit
 
 struct WhatsAppWebYAMLDebugScreen: View {
+    let feature: WhatsAppCrawlingFeature
+
+    var body: some View {
+        WhatsAppWebYAMLDebugServiceContent(service: feature.webViewService)
+    }
+}
+
+private struct WhatsAppWebYAMLDebugServiceContent: View {
     private struct ExtractedImagePreview: Identifiable {
         let id = UUID()
         let image: NSImage

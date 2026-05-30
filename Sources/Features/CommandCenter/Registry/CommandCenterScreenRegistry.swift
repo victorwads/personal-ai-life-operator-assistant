@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 struct CommandCenterScreenRegistry {
     @ViewBuilder
     func screen(
@@ -7,53 +8,39 @@ struct CommandCenterScreenRegistry {
         profile: Profile,
         runtimeState: ProfileRuntimeState,
         windowState: ProfileWindowState,
-        settingsSectionRegistry: SettingsSectionRegistry? = nil,
-        whatsAppWebViewService: WebViewWhatsAppCrawlingService? = nil,
-        whatsAppCrawlingLogStore: WhatsAppCrawlingLogStore
+        settingsFeature: SettingsFeature,
+        memoriesFeature: MemoriesFeature,
+        whatsAppCrawlingFeature: WhatsAppCrawlingFeature
     ) -> some View {
         switch route {
         case .myProfile:
             MyProfileScreen(profile: profile, runtimeState: runtimeState, windowState: windowState)
         case .issues:
-            IssuesPlaceholderScreen()
+            IssuesScreen()
         case .memories:
-            MemoriesPlaceholderScreen()
+            MemoriesScreen(feature: memoriesFeature)
         case .sensitiveData:
-            SensitiveDataPlaceholderScreen()
+            SensitiveDataScreen()
         case .clientVoice:
-            ClientVoicePlaceholderScreen()
+            ClientVoiceScreen()
         case .chats:
-            ChatsPlaceholderScreen()
+            ChatsScreen()
         case .whatsappWebView:
-            if let whatsAppWebViewService {
-                WhatsAppWebViewScreen(service: whatsAppWebViewService)
-            } else {
-                CommandCenterPlaceholderScreen(
-                    title: "WebView runtime unavailable",
-                    description: "Open the profile window from a persisted profile so the runtime container can provide the WebView service."
-                )
-            }
+            WhatsAppWebViewScreen(feature: whatsAppCrawlingFeature)
         case .whatsappWebYAMLDebug:
-            if let whatsAppWebViewService {
-                WhatsAppWebYAMLDebugScreen(service: whatsAppWebViewService)
-            } else {
-                CommandCenterPlaceholderScreen(
-                    title: "WebView runtime unavailable",
-                    description: "Open the profile window from a persisted profile so the runtime container can provide the WebView service."
-                )
-            }
+            WhatsAppWebYAMLDebugScreen(feature: whatsAppCrawlingFeature)
         case .whatsappNativeYAMLDebug:
-            WhatsAppNativeYAMLDebugPlaceholderScreen()
+            WhatsAppNativeYAMLDebugScreen()
         case .whatsappLogs:
-            WhatsAppLogsScreen(logStore: whatsAppCrawlingLogStore)
+            WhatsAppLogsScreen(feature: whatsAppCrawlingFeature)
         case .tools:
-            MCPToolsPlaceholderScreen()
+            MCPToolsScreen()
         case .aiConnection:
-            AIConnectionPlaceholderScreen()
+            AIConnectionScreen()
         case .serverLogs:
-            ServerLogsPlaceholderScreen()
+            ServerLogsScreen()
         case .settings:
-            SettingsScreen(settingsSectionRegistry: settingsSectionRegistry)
+            SettingsScreen(settingsSectionRegistry: settingsFeature.settingsSectionRegistry)
         }
     }
 }
