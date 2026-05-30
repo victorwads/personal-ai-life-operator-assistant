@@ -7,10 +7,12 @@ final class MCPServersFeature: FeatureRuntime {
     private static let serviceId = "mcp.server"
 
     private(set) var settings: MCPServerSettingsWrapper
+    private let toolExecutor: MCPToolExecutor
 
     required init(context: FeatureContext) {
         let settings = MCPServerSettingsWrapper(settings: context.settings.store)
         self.settings = settings
+        self.toolExecutor = MCPToolExecutor(registry: context.mcp.toolRegistry)
         super.init(context: context)
 
         context.mcp.toolRegistry.register([
@@ -42,5 +44,13 @@ final class MCPServersFeature: FeatureRuntime {
         if let service = context.services.serviceRegistry.service(id: Self.serviceId) {
             await service.stop()
         }
+    }
+
+    func listToolDefinitions() -> [any MCPToolDefinition] {
+        context.mcp.toolRegistry.allDefinitions()
+    }
+
+    func executeToolCall(_ call: MCPToolCall) async -> MCPToolExecutionResult {
+        await toolExecutor.execute(call)
     }
 }

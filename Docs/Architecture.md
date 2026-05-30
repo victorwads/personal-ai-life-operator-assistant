@@ -163,6 +163,7 @@ Feature- and infrastructure-specific architecture rules live close to the code t
 - [Sources/Features/SentMessages/Architecture.md](../Sources/Features/SentMessages/Architecture.md)
 - [Sources/Features/Memories/Architecture.md](../Sources/Features/Memories/Architecture.md)
 - [Sources/Features/MCPServers/Architecture.md](../Sources/Features/MCPServers/Architecture.md)
+- [Sources/Features/ToolsBrowser/Architecture.md](../Sources/Features/ToolsBrowser/Architecture.md)
 - [Sources/Features/WhatsAppCrawling/Architecture.md](../Sources/Features/WhatsAppCrawling/Architecture.md)
 - [Sources/Features/Chats/Architecture.md](../Sources/Features/Chats/Architecture.md)
 - [Sources/Shared/UI/Architecture.md](../Sources/Shared/UI/Architecture.md)

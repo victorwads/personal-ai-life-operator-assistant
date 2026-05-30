@@ -14,6 +14,7 @@ final class AppFeatures {
             IssuesFeature(context: context),
             SentMessagesFeature(context: context),
             MCPServersFeature(context: context),
+            ToolsBrowserFeature(context: context),
             AIConnectionFeature(context: context),
             WhatsAppCrawlingFeature(context: context),
         ]

@@ -34,7 +34,7 @@ struct CommandCenterScreenRegistry {
         case .whatsappLogs:
             WhatsAppLogsScreen(feature: container.feature(WhatsAppCrawlingFeature.self))
         case .tools:
-            MCPToolsScreen(registry: container.mcpToolRegistry)
+            MCPToolsScreen(mcpServersFeature: container.feature(MCPServersFeature.self))
         case .aiConnection:
             AIConnectionScreen()
         case .serverLogs:

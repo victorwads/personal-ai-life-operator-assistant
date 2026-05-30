@@ -13,10 +13,12 @@ final class MCPToolsBrowserViewModel: ObservableObject {
     @Published var argumentDrafts: [String: MCPJSONValue] = [:]
     @Published var executionState: MCPToolExecutionState = .idle
 
+    private let mcpServersFeature: MCPServersFeature
     private let tools: [any MCPToolDefinition]
 
-    init(registry: MCPToolRegistry) {
-        self.tools = registry.allDefinitions().sorted { lhs, rhs in
+    init(mcpServersFeature: MCPServersFeature) {
+        self.mcpServersFeature = mcpServersFeature
+        self.tools = mcpServersFeature.listToolDefinitions().sorted { lhs, rhs in
             if lhs.group == rhs.group {
                 return lhs.name < rhs.name
             }
@@ -87,7 +89,7 @@ final class MCPToolsBrowserViewModel: ObservableObject {
 
         executionState = .running
         let call = MCPToolCall(name: selectedTool.name, arguments: argumentDrafts)
-        let result = await selectedTool.execute(call, context: MCPServerContext())
+        let result = await mcpServersFeature.executeToolCall(call)
         executionState = result.success ? .success(result) : .failure(result)
     }
 }

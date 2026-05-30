@@ -14,6 +14,11 @@ final class MCPToolExecutor: MCPToolExecutionProviding {
             return .failure(toolName: call.name, error: .toolNotFound(call.name))
         }
 
+        // Centralized tool execution path.
+        // Insert future guardrails here before calling the tool implementation:
+        // - input/schema validation
+        // - permission checks
+        // - audit logging
         return await definition.execute(call, context: context)
     }
 }

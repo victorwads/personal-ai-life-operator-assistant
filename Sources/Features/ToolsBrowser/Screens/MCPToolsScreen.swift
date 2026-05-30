@@ -3,8 +3,10 @@ import SwiftUI
 struct MCPToolsScreen: View {
     @StateObject private var viewModel: MCPToolsBrowserViewModel
 
-    init(registry: MCPToolRegistry) {
-        _viewModel = StateObject(wrappedValue: MCPToolsBrowserViewModel(registry: registry))
+    init(mcpServersFeature: MCPServersFeature) {
+        _viewModel = StateObject(
+            wrappedValue: MCPToolsBrowserViewModel(mcpServersFeature: mcpServersFeature)
+        )
     }
 
     var body: some View {
