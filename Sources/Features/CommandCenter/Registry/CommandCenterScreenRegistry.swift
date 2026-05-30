@@ -8,17 +8,15 @@ struct CommandCenterScreenRegistry {
         profile: Profile,
         runtimeState: ProfileRuntimeState,
         windowState: ProfileWindowState,
-        settingsFeature: SettingsFeature,
-        memoriesFeature: MemoriesFeature,
-        whatsAppCrawlingFeature: WhatsAppCrawlingFeature
+        container: ProfileRuntimeContainer
     ) -> some View {
         switch route {
         case .myProfile:
             MyProfileScreen(profile: profile, runtimeState: runtimeState, windowState: windowState)
         case .issues:
-            IssuesScreen()
+            IssuesScreen(feature: container.feature(IssuesFeature.self))
         case .memories:
-            MemoriesScreen(feature: memoriesFeature)
+            MemoriesScreen(feature: container.feature(MemoriesFeature.self))
         case .sensitiveData:
             SensitiveDataScreen()
         case .clientVoice:
@@ -26,13 +24,13 @@ struct CommandCenterScreenRegistry {
         case .chats:
             ChatsScreen()
         case .whatsappWebView:
-            WhatsAppWebViewScreen(feature: whatsAppCrawlingFeature)
+            WhatsAppWebViewScreen(feature: container.feature(WhatsAppCrawlingFeature.self))
         case .whatsappWebYAMLDebug:
-            WhatsAppWebYAMLDebugScreen(feature: whatsAppCrawlingFeature)
+            WhatsAppWebYAMLDebugScreen(feature: container.feature(WhatsAppCrawlingFeature.self))
         case .whatsappNativeYAMLDebug:
             WhatsAppNativeYAMLDebugScreen()
         case .whatsappLogs:
-            WhatsAppLogsScreen(feature: whatsAppCrawlingFeature)
+            WhatsAppLogsScreen(feature: container.feature(WhatsAppCrawlingFeature.self))
         case .tools:
             MCPToolsScreen()
         case .aiConnection:
@@ -40,7 +38,9 @@ struct CommandCenterScreenRegistry {
         case .serverLogs:
             ServerLogsScreen()
         case .settings:
-            SettingsScreen(settingsSectionRegistry: settingsFeature.settingsSectionRegistry)
+            SettingsScreen(
+                settingsSectionRegistry: container.feature(SettingsFeature.self).settingsSectionRegistry
+            )
         }
     }
 }

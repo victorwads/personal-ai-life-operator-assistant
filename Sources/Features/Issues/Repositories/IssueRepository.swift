@@ -1,8 +1,31 @@
 import Foundation
 
-protocol IssueRepository {
-    func fetchIssue(id: String) async throws -> Issue?
-    func listIssues() async throws -> [Issue]
-    func saveIssue(_ issue: Issue) async throws
-    func deleteIssue(id: String) async throws
+enum IssueRepositoryError: Error {
+    case issueNotFound(String)
+    case issueFinished(String)
+}
+
+final class FirestoreIssueRepository: FirestoreRepository<Issue> {
+    init(scope: FirebaseProfileScope) {
+        super.init(
+            entityName: "Issue",
+            path: .profileScoped(scope: scope, collection: "Issues")
+        )
+    }
+
+    func getActiveIssues() async throws -> [Issue] {
+        try await query(matching: ["finished": false])
+    }
+
+    func validateIssueId(_ issueId: String) async throws -> Issue {
+        guard let issue = try await getById(issueId) else {
+            throw IssueRepositoryError.issueNotFound(issueId)
+        }
+
+        guard !issue.finished else {
+            throw IssueRepositoryError.issueFinished(issueId)
+        }
+
+        return issue
+    }
 }

@@ -1,44 +1,37 @@
 import Foundation
 
-struct GetMemoryTool: MCPToolHandler {
-    private let repository: FirestoreMemoryRepository?
+struct GetMemoryTool: MCPToolDefinition {
+    private let repository: FirestoreMemoryRepository
 
-    static let definition = MCPToolDefinition(
-        name: "get_memory",
-        icon: "brain",
-        description: "Fetches one saved memory by its exact `key`. Use this only when you already know the key you want.",
-        group: .memories,
-        inputSchema: .object([
-            "type": .string("object"),
-            "properties": .object([
-                "id": .object(["type": .string("string")]),
-                "key": .object(["type": .string("string")])
-            ])
-        ]),
-        exampleParameters: [
-            .init(name: "key", value: .string("client_identity"))
-        ],
-        traits: [.readOnly]
-    )
-
-    init() {
-        self.repository = nil
-    }
-
-    init(repository: FirestoreMemoryRepository?) {
+    init(repository: FirestoreMemoryRepository) {
         self.repository = repository
     }
 
-    func handle(_ call: MCPToolCall, context: MCPServerContext) async -> MCPToolExecutionResult {
-        do {
-            guard let repository = MemoryMCPToolSupport.repository(explicit: repository, context: context) else {
-                throw MemoryMCPToolError.repositoryUnavailable
-            }
+    let name = "get_memory"
+    let icon = "brain"
+    let description = "Fetches one saved memory by its exact `key`. Use this only when you already know the key you want."
+    let group = "memories"
+    let inputSchema: MCPJSONValue = .object([
+        "type": .string("object"),
+        "properties": .object([
+            "id": .object(["type": .string("string")]),
+            "key": .object(["type": .string("string")])
+        ])
+    ])
+    let exampleParameters: [MCPToolExampleParameter] = [
+        .init(name: "key", value: .string("client_identity"))
+    ]
+    let traits: [MCPToolTrait] = [.readOnly]
 
+    func execute(
+        _ call: MCPToolCall,
+        context _: MCPServerContext
+    ) async -> MCPToolExecutionResult {
+        do {
             let memory: Memory?
-            if let id = MemoryMCPToolSupport.optionalString("id", from: call) {
+            if let id = MCPToolArguments.optionalString("id", from: call) {
                 memory = try await repository.getById(id)
-            } else if let key = MemoryMCPToolSupport.optionalString("key", from: call) {
+            } else if let key = MCPToolArguments.optionalString("key", from: call) {
                 memory = try await repository.query(
                     matching: ["key": key],
                     limit: 1
@@ -48,13 +41,13 @@ struct GetMemoryTool: MCPToolHandler {
             }
 
             return .success(
-                toolName: Self.definition.name,
+                toolName: call.name,
                 payload: .object([
                     "memory": memory.map(MemoryMCPToolSupport.memoryObject) ?? .null
                 ])
             )
         } catch {
-            return MemoryMCPToolSupport.failure(toolName: Self.definition.name, error)
+            return MemoryMCPToolSupport.failure(toolName: call.name, error)
         }
     }
 }

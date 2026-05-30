@@ -25,10 +25,7 @@ struct ProfileWindowHostView: View {
                 profile: profile,
                 runtimeState: profilesController.displayState(for: profile).runtimeState,
                 windowState: profilesController.displayState(for: profile).windowState,
-                statusRegistry: container.statusRegistry,
-                settingsFeature: container.feature(SettingsFeature.self),
-                memoriesFeature: container.feature(MemoriesFeature.self),
-                whatsAppCrawlingFeature: container.feature(WhatsAppCrawlingFeature.self)
+                container: container
             )
         } else if resolvedProfile == nil {
             loading("Loading profile...")

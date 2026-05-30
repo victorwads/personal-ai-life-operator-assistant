@@ -15,8 +15,12 @@ final class MemoriesFeature: FeatureRuntime {
         self.repository = repository
         super.init(context: context)
 
-        context.mcp.toolRegistry.register(
-            provider: MemoriesMCPToolProvider(repository: repository)
-        )
+        context.mcp.toolRegistry.register([
+            CreateMemoryTool(repository: repository),
+            GetMemoryTool(repository: repository),
+            ListMemoriesTool(repository: repository),
+            SearchMemoriesTool(repository: repository),
+            DeleteMemoryTool(repository: repository)
+        ])
     }
 }

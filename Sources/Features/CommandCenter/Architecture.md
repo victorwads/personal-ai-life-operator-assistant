@@ -21,13 +21,13 @@ AppWindowManager.showProfileWindow(profile)
     └── ProfileWindowHostView(profileId, profilesController)
         ├── looks up Profile by profileId
         ├── reads runtime/window display state from ProfilesController
-        └── CommandCenterScreen(profile, runtimeState, windowState)
+        └── CommandCenterScreen(profile, runtimeState, windowState, container)
             ├── owns selected CommandCenterRoute
             ├── renders CommandCenterSidebar
             │   └── sections/items from CommandCenterMenuRegistry
             ├── optionally renders CommandCenterHeaderView
-            └── renders CommandCenterContentView
-                └── CommandCenterScreenRegistry maps the route to the owning feature screen
+            └── resolves the selected route through CommandCenterScreenRegistry
+                └── feature screens receive their owning feature runtime
 ```
 
 Command Center owns:
@@ -91,5 +91,7 @@ Future runtime dependency injection should flow from `ProfileRuntimeContainer` i
 Command Center should receive explicit feature runtimes such as `SettingsFeature`, `MemoriesFeature`, and `WhatsAppCrawlingFeature` instead of loose repositories, services, or stores.
 
 Feature screens rendered by Command Center should receive their owning feature runtime and read any feature-owned internals through that runtime.
+
+`CommandCenterScreen` stores the container, but `CommandCenterScreenRegistry` resolves only the feature runtime needed by the active route. `CommandCenterContentView` is no longer part of the composition tree.
 
 Settings remains a separate feature. Later, each feature can declare profile-scoped settings sections, and the Settings feature should own rendering/composition into one unified settings UI while the shared settings substrate remains in `Sources/Shared/Settings`.

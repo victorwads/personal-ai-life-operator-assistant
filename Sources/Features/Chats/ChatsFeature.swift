@@ -6,6 +6,12 @@ final class ChatsFeature: FeatureRuntime {
 
     required init(context: FeatureContext) {
         super.init(context: context)
-        context.mcp.toolRegistry.register(provider: ChatsMCPToolProvider())
+        context.mcp.toolRegistry.register([
+            ListChatsBySearchTool(),
+            ListUnhandledChatsTool(),
+            ListChatMessagesTool(),
+            SendMessageTool(),
+            WaitForEventTool()
+        ])
     }
 }

@@ -13,7 +13,10 @@ final class MCPServersFeature: FeatureRuntime {
         self.settings = settings
         super.init(context: context)
 
-        context.mcp.toolRegistry.register(provider: MCPServersUtilityToolProvider())
+        context.mcp.toolRegistry.register([
+            GetCurrentDateTool(),
+            GetAssistantNameTool()
+        ])
 
         let service = PlaceholderProfileRuntimeService(
             id: Self.serviceId,

@@ -22,9 +22,9 @@ This project uses XcodeGen. Treat `AIAssistantHub.xcodeproj` as generated build 
 
 ## Current status (rewrite scaffold)
 
-- MCP tool *definitions* exist under `Sources/Features/**/MCP/`, registered via `Sources/Features/MCPServers/Registry/MCPToolRegistry.swift`.
+- MCP tool instances live under `Sources/Features/**/MCP/`, and `Sources/Features/MCPServers/Registry/MCPToolRegistry.swift` stores them by name.
 - General MCP utility tools belong under `Sources/Features/MCPServers/Utilities/`. Feature-specific MCP tools belong under their owning feature folder.
-- Many tools are not executed yet because the default `MCPToolHandler.handle(...)` returns `notImplemented` unless a tool implements `handle`.
+- Many tools are still being migrated to the executable-definition model, where the tool instance itself owns metadata and execution.
 - The operational system prompt lives at `Resources/Prompts/AssistantSystemPrompt.md`.
 - WhatsApp crawling scaffolding lives under `Sources/Features/WhatsAppCrawling/` (with both native Accessibility and WebView-oriented modules).
 

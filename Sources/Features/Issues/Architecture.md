@@ -1,18 +1,30 @@
 # Issues Architecture
 
-This document owns issue/subject lifecycle rules and issue-focused operational behavior.
+Issues are the operational and audit anchor for assistant work.
 
-## Subjects / Issues lifecycle
+Future features such as Sensitive Data, Sent Messages, Client Voice, and WhatsApp actions may store an `issueId` to justify sensitive actions.
 
-In the v2 rewrite, the current abstraction is `issues` (finite threads of work with a beginning/middle/end), as reflected by the MCP tools under `Sources/Features/Issues/`.
+## Core model rules
 
-The assistant can:
+- `Issue.finished` is a stored field to keep active issue queries simple in Firestore.
+- Active issues are every issue where `finished == false`.
+- Resolved and cancelled issues must set `finished == true`.
+- `IssueStatus` values are `pending`, `suspended`, `resolved`, and `cancelled`.
+- `IssuePriority` is numeric (`1...5`) to keep priority handling stable across tools and persistence.
+- Timeline items record lifecycle changes and issue updates using `issueId`, `kind`, and `description`.
 
-- create an issue when a new thread of work appears
-- update it as more information arrives
-- attach external references such as chat IDs, future Gmail threads, or calendar IDs
-- resolve or cancel it when the work is done
-- list active issues to recover operational context after waiting or restarting
+## Runtime and validation surface
 
-This is one of the ways the runtime avoids relying only on the model host chat context.
+- `IssuesFeature` owns a non-optional `FirestoreIssueRepository`.
+- `IssuesFeature` also owns the issue timeline repository used by lifecycle and update actions.
+- Cross-feature issue validation should go through `IssuesFeature.validateIssueId(_:)` and repository validation methods.
+- Issue validation is internal Swift support for future actions; it is not exposed as a public MCP tool.
+- `create_issue` always starts pending.
+- `update_issue` updates issue details and appends explicit timeline items.
+- `suspend_issue`, `resolve_issue`, and `cancel_issue` are the lifecycle actions that mutate issue state and optionally append timeline entries.
 
+## UI scope (current phase)
+
+- The first Issues screen is intentionally list-only.
+- It loads active issues and shows lightweight operational cards.
+- Rich history, timeline, and dashboard experiences are intentionally deferred.

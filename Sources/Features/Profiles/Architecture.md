@@ -125,20 +125,19 @@ ProfileRuntime.openWindow()
 │       └── if window does not exist
 │           ├── creates ProfileWindowController(profileId)
 │           ├── creates ProfileWindowHostView(profileId)
-│           │   └── CommandCenterScreen(profile, runtimeState, windowState)
+│           │   └── CommandCenterScreen(profile, runtimeState, windowState, container)
 │           │       ├── CommandCenterSidebar
 │           │       │   └── CommandCenterMenuRegistry.sections()
-│           │       └── CommandCenterContentView(selectedRoute)
-│           │           └── CommandCenterScreenRegistry.screen(for: selectedRoute)
-│           │               ├── MyProfileScreen
-│           │               ├── IssuesScreen
-│           │               ├── MemoriesScreen
-│           │               ├── SensitiveDataScreen
-│           │               ├── ClientVoiceScreen
-│           │               ├── ChatsScreen
-│           │               ├── WhatsApp*Screen
-│           │               ├── MCPServers*Screen
-│           │               └── SettingsScreen
+│           │       └── CommandCenterScreenRegistry.screen(for: selectedRoute, container)
+│           │           ├── MyProfileScreen
+│           │           ├── IssuesScreen
+│           │           ├── MemoriesScreen
+│           │           ├── SensitiveDataScreen
+│           │           ├── ClientVoiceScreen
+│           │           ├── ChatsScreen
+│           │           ├── WhatsApp*Screen
+│           │           ├── MCPServers*Screen
+│           │           └── SettingsScreen
 │           ├── stores it in profileWindows[profileId]
 │           ├── shows window
 │           └── WindowVisibilityTracker.windowDidShow(profileId)

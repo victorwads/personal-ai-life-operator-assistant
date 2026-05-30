@@ -1,23 +1,50 @@
 import Foundation
 
-struct GetIssueTool: MCPToolHandler {
-    static let definition = MCPToolDefinition(
-        name: "get_issue",
-        icon: "folder",
-        description: "Fetches an issue by id.",
-        group: .issues,
-        inputSchema: .object([
-            "type": .string("object"),
-            "properties": .object([
-                "id": .object(["type": .string("string")])
-            ]),
-            "required": .array([.string("id")])
-        ]),
-        exampleParameters: [
-            .init(name: "id", value: .string("issue-1"))
-        ],
-        traits: [.readOnly]
-    )
+struct GetIssueTool: MCPToolDefinition {
+    private let repository: FirestoreIssueRepository
+    private let timelineRepository: FirestoreIssueTimelineRepository
 
-    init() {}
+    init(repository: FirestoreIssueRepository, timelineRepository: FirestoreIssueTimelineRepository) {
+        self.repository = repository
+        self.timelineRepository = timelineRepository
+    }
+
+    let name = "get_issue"
+    let icon = "folder"
+    let description = "Fetches an issue by id."
+    let group = "issues"
+    let inputSchema: MCPJSONValue = .object([
+        "type": .string("object"),
+        "properties": .object([
+            "id": .object(["type": .string("string")])
+        ]),
+        "required": .array([.string("id")])
+    ])
+    let exampleParameters: [MCPToolExampleParameter] = [
+        .init(name: "id", value: .string("issue-1"))
+    ]
+    let traits: [MCPToolTrait] = [.readOnly]
+
+    func execute(
+        _ call: MCPToolCall,
+        context _: MCPServerContext
+    ) async -> MCPToolExecutionResult {
+        do {
+            let id = try MCPToolArguments.requiredString("id", from: call)
+            guard let issue = try await repository.getById(id) else {
+                throw IssueMCPToolError.issueNotFound(id)
+            }
+            let timelineItems = try await timelineRepository.listItems(for: issue.id ?? id)
+
+            return .success(
+                toolName: call.name,
+                payload: .object([
+                    "issue": IssueMCPToolSupport.issueObject(issue),
+                    "timelineItems": IssueMCPToolSupport.timelineItemsObject(timelineItems)
+                ])
+            )
+        } catch {
+            return IssueMCPToolSupport.failure(toolName: call.name, error)
+        }
+    }
 }

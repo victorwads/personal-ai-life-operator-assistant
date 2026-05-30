@@ -4,10 +4,11 @@ This document owns MCP server composition, tool registry boundaries, and the cur
 
 ## Current tool surface
 
-The registered tool list is assembled from `MCPToolProvider`s and registered via `Sources/Features/MCPServers/Registry/MCPToolRegistry.swift`.
+The registered tool list is assembled from concrete tool instances that conform to `MCPToolDefinition` and stored by `Sources/Features/MCPServers/Registry/MCPToolRegistry.swift`.
 
-Each concrete tool definition lives under `Sources/Features/**/MCP/`.
-Those Swift files are the source of truth for tool names, schemas, and descriptions.
+Each concrete tool lives under `Sources/Features/**/MCP/`.
+Those Swift files are the source of truth for tool names, schemas, descriptions, and execution behavior.
+Tool grouping is a plain string owned by the feature that instantiates the tool.
 
 The current tool groups are:
 
@@ -56,4 +57,3 @@ The current tool groups are:
 - `get_current_date`
 
 When changing or documenting tool behavior, check the corresponding `*Tool.swift` implementation first.
-

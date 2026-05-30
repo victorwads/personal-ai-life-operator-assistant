@@ -5,10 +5,7 @@ struct CommandCenterScreen: View {
     let profile: Profile
     let runtimeState: ProfileRuntimeState
     let windowState: ProfileWindowState
-    let statusRegistry: ProfileRuntimeStatusRegistry?
-    let settingsFeature: SettingsFeature
-    let memoriesFeature: MemoriesFeature
-    let whatsAppCrawlingFeature: WhatsAppCrawlingFeature
+    let container: ProfileRuntimeContainer
 
     @State private var selectedRoute: CommandCenterRoute? = .myProfile
 
@@ -28,20 +25,17 @@ struct CommandCenterScreen: View {
                     profile: profile,
                     runtimeState: runtimeState,
                     windowState: windowState,
-                    statusRegistry: statusRegistry
+                    statusRegistry: container.statusRegistry
                 )
 
                 Divider()
 
-                CommandCenterContentView(
-                    route: selectedRoute ?? .myProfile,
+                screenRegistry.screen(
+                    for: selectedRoute ?? .myProfile,
                     profile: profile,
                     runtimeState: runtimeState,
                     windowState: windowState,
-                    settingsFeature: settingsFeature,
-                    memoriesFeature: memoriesFeature,
-                    whatsAppCrawlingFeature: whatsAppCrawlingFeature,
-                    screenRegistry: screenRegistry
+                    container: container
                 )
             }
             .frame(minWidth: 620, minHeight: 520)
@@ -70,6 +64,10 @@ struct CommandCenterScreen: View {
         CommandCenterMenuRegistry.sections(
             isWhatsAppWebViewVisible: whatsAppCrawlingFeature.webViewService.presentationMode == .embedded
         )
+    }
+
+    private var whatsAppCrawlingFeature: WhatsAppCrawlingFeature {
+        container.feature(WhatsAppCrawlingFeature.self)
     }
 
     private func detachWebViewFromSidebar() {

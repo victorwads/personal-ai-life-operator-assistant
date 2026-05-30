@@ -1,52 +1,34 @@
 import Foundation
 
 final class MCPToolRegistry {
-    private var providers: [any MCPToolProvider]
-    private var registrationsByName: [String: MCPToolRegistration]
+    private var definitionsByName: [String: any MCPToolDefinition]
 
-    init(providers: [any MCPToolProvider] = []) {
-        self.providers = []
-        self.registrationsByName = [:]
-        register(providers: providers)
+    init(definitions: [any MCPToolDefinition] = []) {
+        self.definitionsByName = [:]
+        register(definitions)
     }
 
-    func register(provider: any MCPToolProvider) {
-        providers.append(provider)
-        for registration in provider.toolRegistrations {
-            registrationsByName[registration.definition.name] = registration
+    func register(_ definitions: [any MCPToolDefinition]) {
+        for definition in definitions {
+            definitionsByName[definition.name] = definition
         }
     }
 
-    func register(providers: [any MCPToolProvider]) {
-        for provider in providers {
-            register(provider: provider)
-        }
+    func definition(named name: String) -> (any MCPToolDefinition)? {
+        definitionsByName[name]
     }
 
-    func registration(named name: String) -> MCPToolRegistration? {
-        registrationsByName[name]
+    func allDefinitions() -> [any MCPToolDefinition] {
+        definitionsByName.values.sorted { $0.name < $1.name }
     }
 
-    func definition(named name: String) -> MCPToolDefinition? {
-        registrationsByName[name]?.definition
-    }
-
-    func allDefinitions() -> [MCPToolDefinition] {
-        registrationsByName.values.map(\.definition).sorted { $0.name < $1.name }
-    }
-
-    func definitions(in group: MCPToolGroup) -> [MCPToolDefinition] {
+    func definitions(in group: String) -> [any MCPToolDefinition] {
         allDefinitions().filter { $0.group == group }
     }
 
-    func groupedDefinitions() -> [(group: MCPToolGroup, definitions: [MCPToolDefinition])] {
-        MCPToolGroup.allCases.map { group in
-            (group: group, definitions: definitions(in: group))
-        }
+    func groupedDefinitions() -> [(group: String, definitions: [any MCPToolDefinition])] {
+        Dictionary(grouping: allDefinitions(), by: \.group)
+            .map { (group: $0.key, definitions: $0.value.sorted { $0.name < $1.name }) }
+            .sorted { $0.group < $1.group }
     }
-}
-
-struct MCPToolRegistration {
-    let definition: MCPToolDefinition
-    let makeHandler: () -> any MCPToolHandler
 }

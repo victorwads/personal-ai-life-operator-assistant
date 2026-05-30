@@ -1,61 +1,66 @@
 import Foundation
 
-struct CreateIssueTool: MCPToolHandler {
-    static let definition = MCPToolDefinition(
-        name: "create_issue",
-        icon: "folder.badge.plus",
-        description: """
-        Creates a new operational issue.
+struct CreateIssueTool: MCPToolDefinition {
+    private let repository: FirestoreIssueRepository
 
-        Use this to start tracking work that needs follow-up, execution, or closure.
+    init(repository: FirestoreIssueRepository) {
+        self.repository = repository
+    }
 
-        `initialRequest` captures the trigger and is immutable after creation.
-        `resolutionCondition` captures the observable condition that must be satisfied before the issue can be resolved.
-        Use `update_issue(...)` to record progress over time and refine the resolution condition if needed.
-        """,
-        group: .issues,
-        inputSchema: .object([
-            "type": .string("object"),
-            "properties": .object([
-                "title": .object(["type": .string("string")]),
-                "summary": .object(["type": .string("string")]),
-                "initialRequest": .object(["type": .string("string")]),
-                "resolutionCondition": .object(["type": .string("string")]),
-                "details": .object(["type": .string("string")]),
-                "priority": .object(["type": .string("number")]),
-                "participants": .object([
-                    "type": .string("array"),
-                    "items": .object(["type": .string("string")])
-                ]),
-                "nextSteps": .object([
-                    "type": .string("array"),
-                    "items": .object(["type": .string("string")])
-                ]),
-                "whatsappChatId": .object(["type": .string("string")]),
-                "gmailThreadId": .object(["type": .string("string")]),
-                "calendarEventId": .object(["type": .string("string")])
-            ]),
-            "required": .array([
-                .string("title"),
-                .string("summary"),
-                .string("initialRequest"),
-                .string("resolutionCondition"),
-                .string("priority")
-            ])
+    let name = "create_issue"
+    let icon = "folder.badge.plus"
+    let description = "Creates a new operational issue."
+    let group = "issues"
+    let inputSchema: MCPJSONValue = .object([
+        "type": .string("object"),
+        "properties": .object([
+            "title": .object(["type": .string("string")]),
+            "description": .object(["type": .string("string")]),
+            "initialRequest": .object(["type": .string("string")]),
+            "resolutionCondition": .object(["type": .string("string")]),
+            "priority": .object(["type": .string("number")])
         ]),
-        exampleParameters: [
-            .init(name: "title", value: .string("Preview issue")),
-            .init(name: "summary", value: .string("Issue created from the tools browser preview.")),
-            .init(name: "initialRequest", value: .string("Build the new server tools browser.")),
-            .init(name: "resolutionCondition", value: .string("The browser shows the issue with all core fields and the create/update flow works end to end.")),
-            .init(name: "details", value: .string("Optional supporting details for the issue.")),
-            .init(name: "priority", value: .integer(1)),
-            .init(name: "participants", value: .array([.string("Codex")])),
-            .init(name: "nextSteps", value: .array([.string("Validate the preview")])),
-            .init(name: "whatsappChatId", value: .string("chat-1"))
-        ],
-        traits: [.writesState]
-    )
+        "required": .array([
+            .string("title"),
+            .string("description"),
+            .string("initialRequest"),
+            .string("resolutionCondition")
+        ])
+    ])
+    let exampleParameters: [MCPToolExampleParameter] = [
+        .init(name: "title", value: .string("Preview issue")),
+        .init(name: "description", value: .string("Issue created from the tools browser preview.")),
+        .init(name: "initialRequest", value: .string("Build the new server tools browser.")),
+        .init(name: "resolutionCondition", value: .string("The browser shows the issue with all core fields and the create/update flow works end to end.")),
+        .init(name: "priority", value: .integer(3))
+    ]
+    let traits: [MCPToolTrait] = [.writesState]
 
-    init() {}
+    func execute(
+        _ call: MCPToolCall,
+        context _: MCPServerContext
+    ) async -> MCPToolExecutionResult {
+        do {
+            let saved = try await repository.save(
+                Issue(
+                    id: nil,
+                    title: try MCPToolArguments.requiredString("title", from: call),
+                    description: try MCPToolArguments.requiredString("description", from: call),
+                    initialRequest: try MCPToolArguments.requiredString("initialRequest", from: call),
+                    resolutionCondition: try MCPToolArguments.requiredString("resolutionCondition", from: call),
+                    priority: IssueMCPToolSupport.optionalPriority("priority", from: call) ?? .medium,
+                    status: .pending,
+                    finished: false,
+                    suspendUntil: nil
+                )
+            )
+
+            return .success(
+                toolName: call.name,
+                payload: .object(["issue": IssueMCPToolSupport.issueObject(saved)])
+            )
+        } catch {
+            return IssueMCPToolSupport.failure(toolName: call.name, error)
+        }
+    }
 }

@@ -1,25 +1,70 @@
 import Foundation
 
-struct ResolveIssueTool: MCPToolHandler {
-    static let definition = MCPToolDefinition(
-        name: "resolve_issue",
-        icon: "checkmark.seal",
-        description: "Marks an issue as resolved by id and reason. Only call this when the issue's resolutionCondition has been satisfied.",
-        group: .issues,
-        inputSchema: .object([
-            "type": .string("object"),
-            "properties": .object([
-                "issueId": .object(["type": .string("string")]),
-                "reason": .object(["type": .string("string")])
-            ]),
-            "required": .array([.string("issueId"), .string("reason")])
-        ]),
-        exampleParameters: [
-            .init(name: "issueId", value: .string("issue-1")),
-            .init(name: "reason", value: .string("Task completed and confirmed with the client."))
-        ],
-        traits: [.writesState]
-    )
+struct ResolveIssueTool: MCPToolDefinition {
+    private let repository: FirestoreIssueRepository
+    private let timelineRepository: FirestoreIssueTimelineRepository
 
-    init() {}
+    init(repository: FirestoreIssueRepository, timelineRepository: FirestoreIssueTimelineRepository) {
+        self.repository = repository
+        self.timelineRepository = timelineRepository
+    }
+
+    let name = "resolve_issue"
+    let icon = "checkmark.seal"
+    let description = "Marks an issue as resolved by id."
+    let group = "issues"
+    let inputSchema: MCPJSONValue = .object([
+        "type": .string("object"),
+        "properties": .object([
+            "id": .object(["type": .string("string")]),
+            "resolutionDescription": .object(["type": .string("string")])
+        ]),
+        "required": .array([.string("id")])
+    ])
+    let exampleParameters: [MCPToolExampleParameter] = [
+        .init(name: "id", value: .string("issue-1")),
+        .init(name: "resolutionDescription", value: .string("Task completed and confirmed with the client."))
+    ]
+    let traits: [MCPToolTrait] = [.writesState]
+
+    func execute(
+        _ call: MCPToolCall,
+        context _: MCPServerContext
+    ) async -> MCPToolExecutionResult {
+        do {
+            let id = try MCPToolArguments.requiredString("id", from: call)
+            guard var issue = try await repository.getById(id) else {
+                throw IssueMCPToolError.issueNotFound(id)
+            }
+
+            issue.status = .resolved
+            issue.finished = true
+            let saved = try await repository.save(issue)
+            let timelineItem: IssueTimelineItem?
+            if let resolutionDescription = MCPToolArguments.optionalString("resolutionDescription", from: call) {
+                timelineItem = try await timelineRepository.save(
+                    IssueTimelineItem(
+                        id: nil,
+                        issueId: saved.id ?? id,
+                        kind: "resolved",
+                        description: resolutionDescription
+                    )
+                )
+            } else {
+                timelineItem = nil
+            }
+
+            var payload: [String: MCPJSONValue] = [
+                "issue": IssueMCPToolSupport.issueObject(saved),
+                "resolutionDescription": MCPToolArguments.optionalString("resolutionDescription", from: call).map(MCPJSONValue.string) ?? .null
+            ]
+            if let timelineItem {
+                payload["timelineItem"] = IssueMCPToolSupport.timelineItemObject(timelineItem)
+            }
+
+            return .success(toolName: call.name, payload: .object(payload))
+        } catch {
+            return IssueMCPToolSupport.failure(toolName: call.name, error)
+        }
+    }
 }

@@ -1,25 +1,70 @@
 import Foundation
 
-struct CancelIssueTool: MCPToolHandler {
-    static let definition = MCPToolDefinition(
-        name: "cancel_issue",
-        icon: "xmark.circle",
-        description: "Marks an issue as canceled by id and reason.",
-        group: .issues,
-        inputSchema: .object([
-            "type": .string("object"),
-            "properties": .object([
-                "issueId": .object(["type": .string("string")]),
-                "reason": .object(["type": .string("string")])
-            ]),
-            "required": .array([.string("issueId"), .string("reason")])
-        ]),
-        exampleParameters: [
-            .init(name: "issueId", value: .string("issue-1")),
-            .init(name: "reason", value: .string("The request is no longer needed."))
-        ],
-        traits: [.writesState]
-    )
+struct CancelIssueTool: MCPToolDefinition {
+    private let repository: FirestoreIssueRepository
+    private let timelineRepository: FirestoreIssueTimelineRepository
 
-    init() {}
+    init(repository: FirestoreIssueRepository, timelineRepository: FirestoreIssueTimelineRepository) {
+        self.repository = repository
+        self.timelineRepository = timelineRepository
+    }
+
+    let name = "cancel_issue"
+    let icon = "xmark.circle"
+    let description = "Marks an issue as canceled by id."
+    let group = "issues"
+    let inputSchema: MCPJSONValue = .object([
+        "type": .string("object"),
+        "properties": .object([
+            "id": .object(["type": .string("string")]),
+            "reason": .object(["type": .string("string")])
+        ]),
+        "required": .array([.string("id")])
+    ])
+    let exampleParameters: [MCPToolExampleParameter] = [
+        .init(name: "id", value: .string("issue-1")),
+        .init(name: "reason", value: .string("The request is no longer needed."))
+    ]
+    let traits: [MCPToolTrait] = [.writesState]
+
+    func execute(
+        _ call: MCPToolCall,
+        context _: MCPServerContext
+    ) async -> MCPToolExecutionResult {
+        do {
+            let id = try MCPToolArguments.requiredString("id", from: call)
+            guard var issue = try await repository.getById(id) else {
+                throw IssueMCPToolError.issueNotFound(id)
+            }
+
+            issue.status = .cancelled
+            issue.finished = true
+            let saved = try await repository.save(issue)
+            let timelineItem: IssueTimelineItem?
+            if let reason = MCPToolArguments.optionalString("reason", from: call) {
+                timelineItem = try await timelineRepository.save(
+                    IssueTimelineItem(
+                        id: nil,
+                        issueId: saved.id ?? id,
+                        kind: "cancelled",
+                        description: reason
+                    )
+                )
+            } else {
+                timelineItem = nil
+            }
+
+            var payload: [String: MCPJSONValue] = [
+                "issue": IssueMCPToolSupport.issueObject(saved),
+                "reason": MCPToolArguments.optionalString("reason", from: call).map(MCPJSONValue.string) ?? .null
+            ]
+            if let timelineItem {
+                payload["timelineItem"] = IssueMCPToolSupport.timelineItemObject(timelineItem)
+            }
+
+            return .success(toolName: call.name, payload: .object(payload))
+        } catch {
+            return IssueMCPToolSupport.failure(toolName: call.name, error)
+        }
+    }
 }

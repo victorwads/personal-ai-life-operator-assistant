@@ -1,30 +1,31 @@
 import Foundation
 
-struct MCPToolDefinition: Codable, Equatable, Sendable {
-    let name: String
-    let icon: String
-    let description: String
-    let group: MCPToolGroup
-    let inputSchema: MCPJSONValue
-    let exampleParameters: [MCPToolExampleParameter]
-    let traits: [MCPToolTrait]
+protocol MCPToolDefinition {
+    var name: String { get }
+    var icon: String { get }
+    var description: String { get }
+    var group: String { get }
+    var inputSchema: MCPJSONValue { get }
+    var exampleParameters: [MCPToolExampleParameter] { get }
+    var traits: [MCPToolTrait] { get }
 
-    init(
-        name: String,
-        icon: String,
-        description: String,
-        group: MCPToolGroup,
-        inputSchema: MCPJSONValue,
-        exampleParameters: [MCPToolExampleParameter] = [],
-        traits: [MCPToolTrait]
-    ) {
-        self.name = name
-        self.icon = icon
-        self.description = description
-        self.group = group
-        self.inputSchema = inputSchema
-        self.exampleParameters = exampleParameters
-        self.traits = traits
+    func execute(
+        _ call: MCPToolCall,
+        context: MCPServerContext
+    ) async -> MCPToolExecutionResult
+}
+
+extension MCPToolDefinition {
+    var exampleParameters: [MCPToolExampleParameter] { [] }
+
+    func execute(
+        _ call: MCPToolCall,
+        context _: MCPServerContext
+    ) async -> MCPToolExecutionResult {
+        .failure(
+            toolName: call.name,
+            error: .notImplemented("Tool definition not implemented yet.")
+        )
     }
 
     var jsonValue: MCPJSONValue {
@@ -32,6 +33,7 @@ struct MCPToolDefinition: Codable, Equatable, Sendable {
             "name": .string(name),
             "icon": .string(icon),
             "description": .string(description),
+            "group": .string(group),
             "inputSchema": inputSchema,
             "exampleParameters": .array(exampleParameters.map(\.jsonValue)),
             "traits": .array(traits.map { .string($0.rawValue) })

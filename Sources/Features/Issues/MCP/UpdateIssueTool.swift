@@ -1,63 +1,96 @@
 import Foundation
 
-struct UpdateIssueTool: MCPToolHandler {
-    static let definition = MCPToolDefinition(
-        name: "update_issue",
-        icon: "pencil",
-        description: """
-        Updates an existing operational issue by id.
+struct UpdateIssueTool: MCPToolDefinition {
+    private let repository: FirestoreIssueRepository
+    private let timelineRepository: FirestoreIssueTimelineRepository
 
-        Use this tool to change fields and record progress while the issue is still open.
+    init(repository: FirestoreIssueRepository, timelineRepository: FirestoreIssueTimelineRepository) {
+        self.repository = repository
+        self.timelineRepository = timelineRepository
+    }
 
-        Rules:
-        - `nextSteps` replaces the current array
-        - `appendUpdatesLog` appends new updates and ignores exact duplicates
-        - `resolutionCondition` can be refined as the understanding of completion changes
-        """,
-        group: .issues,
-        inputSchema: .object([
-            "type": .string("object"),
-            "properties": .object([
-                "issueId": .object(["type": .string("string")]),
-                "title": .object(["type": .string("string")]),
-                "summary": .object(["type": .string("string")]),
-                "resolutionCondition": .object(["type": .string("string")]),
-                "details": .object(["type": .string("string")]),
-                "priority": .object(["type": .string("number")]),
-                "participants": .object([
-                    "type": .string("array"),
-                    "items": .object(["type": .string("string")])
-                ]),
-                "nextSteps": .object([
-                    "type": .string("array"),
-                    "items": .object(["type": .string("string")])
-                ]),
-                "appendUpdatesLog": .object([
-                    "type": .string("array"),
-                    "items": .object(["type": .string("string")])
-                ]),
-                "whatsappChatId": .object(["type": .string("string")]),
-                "whatsappAfterMessageId": .object(["type": .string("string")]),
-                "gmailThreadId": .object(["type": .string("string")]),
-                "calendarEventId": .object(["type": .string("string")])
-            ]),
-            "required": .array([.string("issueId")])
+    let name = "update_issue"
+    let icon = "pencil"
+    let description = "Updates an existing operational issue by id."
+    let group = "issues"
+    let inputSchema: MCPJSONValue = .object([
+        "type": .string("object"),
+        "properties": .object([
+            "id": .object(["type": .string("string")]),
+            "description": .object(["type": .string("string")]),
+            "resolutionCondition": .object(["type": .string("string")]),
+            "priority": .object(["type": .string("number")]),
+            "timelineItems": .object([
+                "type": .string("array"),
+                "items": .object([
+                    "type": .string("object"),
+                    "properties": .object([
+                        "kind": .object(["type": .string("string")]),
+                        "description": .object(["type": .string("string")])
+                    ]),
+                    "required": .array([.string("kind"), .string("description")])
+                ])
+            ])
         ]),
-        exampleParameters: [
-            .init(name: "issueId", value: .string("issue-1")),
-            .init(name: "title", value: .string("Preview issue updated")),
-            .init(name: "summary", value: .string("Updated from the preview browser.")),
-            .init(name: "resolutionCondition", value: .string("The issue shows the revised end condition and the work can be closed when it is met.")),
-            .init(name: "details", value: .string("Expanded with more context.")),
-            .init(name: "priority", value: .integer(2)),
-            .init(name: "participants", value: .array([.string("Codex"), .string("Client")])),
-            .init(name: "nextSteps", value: .array([.string("Review")])),
-            .init(name: "appendUpdatesLog", value: .array([.string("Confirmed the next follow-up action with the client.")])),
-            .init(name: "whatsappChatId", value: .string("chat-1")),
-            .init(name: "whatsappAfterMessageId", value: .string("m2"))
-        ],
-        traits: [.writesState]
-    )
+        "required": .array([.string("id")])
+    ])
+    let exampleParameters: [MCPToolExampleParameter] = [
+        .init(name: "id", value: .string("issue-1")),
+        .init(name: "description", value: .string("Updated from the preview browser.")),
+        .init(name: "priority", value: .integer(4)),
+        .init(name: "timelineItems", value: .array([
+            .object([
+                "kind": .string("client_message_sent"),
+                "description": .string("Sent a follow-up message to the client.")
+            ])
+        ]))
+    ]
+    let traits: [MCPToolTrait] = [.writesState]
 
-    init() {}
+    func execute(
+        _ call: MCPToolCall,
+        context _: MCPServerContext
+    ) async -> MCPToolExecutionResult {
+        do {
+            let id = try MCPToolArguments.requiredString("id", from: call)
+            guard var issue = try await repository.getById(id) else {
+                throw IssueMCPToolError.issueNotFound(id)
+            }
+
+            if let description = MCPToolArguments.optionalString("description", from: call) {
+                issue.description = description
+            }
+            if let resolutionCondition = MCPToolArguments.optionalString("resolutionCondition", from: call) {
+                issue.resolutionCondition = resolutionCondition
+            }
+            if let priority = IssueMCPToolSupport.optionalPriority("priority", from: call) {
+                issue.priority = priority
+            }
+
+            let saved = try await repository.save(issue)
+            let timelineInputs = try IssueMCPToolSupport.timelineItemInputs(from: call)
+            var timelineItems: [IssueTimelineItem] = []
+            for input in timelineInputs {
+                timelineItems.append(
+                    try await timelineRepository.save(
+                        IssueTimelineItem(
+                            id: nil,
+                            issueId: saved.id ?? id,
+                            kind: input.kind,
+                            description: input.description
+                        )
+                    )
+                )
+            }
+            return .success(
+                toolName: call.name,
+                payload: .object([
+                    "issue": IssueMCPToolSupport.issueObject(saved),
+                    "timelineItems": IssueMCPToolSupport.timelineItemsObject(timelineItems)
+                ])
+            )
+        } catch {
+            return IssueMCPToolSupport.failure(toolName: call.name, error)
+        }
+    }
 }

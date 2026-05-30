@@ -6,6 +6,13 @@ final class SensitiveDataFeature: FeatureRuntime {
 
     required init(context: FeatureContext) {
         super.init(context: context)
-        context.mcp.toolRegistry.register(provider: SensitiveDataMCPToolProvider())
+        context.mcp.toolRegistry.register([
+            SaveSensitiveDataTool(),
+            GetSensitiveDataTool(),
+            ListSensitiveDataTool(),
+            SearchSensitiveDataTool(),
+            UpdateSensitiveDataTool(),
+            DeleteSensitiveDataTool()
+        ])
     }
 }
