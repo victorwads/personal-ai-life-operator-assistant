@@ -3,23 +3,18 @@ import Foundation
 struct SentMessage: PersistableModel, Equatable, Sendable {
     @DocumentID var id: String?
     var issueId: String
-    var targetKind: SentMessageTargetKind
-    var targetId: String
-    var targetTitle: String
+    var chatId: String
+    var chatTitle: String?
     var messages: [String]
     var status: SentMessageStatus
-    var providerMessageIds: [String]
+    var chatMessageIds: [String]
     var errorMessage: String?
-}
-
-enum SentMessageTargetKind: String, Codable, Equatable, Sendable, CaseIterable {
-    case chat
-    case email
-    case unknown
+    var sentAt: Date?
 }
 
 enum SentMessageStatus: String, Codable, Equatable, Sendable, CaseIterable {
     case pending
     case sent
     case failed
+    case partiallySent
 }

@@ -60,7 +60,7 @@ struct SentMessagesScreen: View {
         errorMessage = nil
 
         do {
-            sentMessages = try await feature.repository.listAll()
+            sentMessages = try await feature.repository.listAll(limit: 100)
         } catch {
             errorMessage = error.localizedDescription
             sentMessages = []

@@ -22,29 +22,14 @@ final class SentMessagesFeature: FeatureRuntime {
         )
 
         context.mcp.toolRegistry.register([
-            GetAssistantNameTool(settings: settings)
-        ])
-    }
-
-    func recordPending(
-        issueId: String,
-        targetKind: SentMessageTargetKind,
-        targetId: String,
-        targetTitle: String,
-        messages: [String]
-    ) async throws -> SentMessage {
-        try await repository.save(
-            SentMessage(
-                id: nil,
-                issueId: issueId,
-                targetKind: targetKind,
-                targetId: targetId,
-                targetTitle: targetTitle,
-                messages: messages,
-                status: .pending,
-                providerMessageIds: [],
-                errorMessage: nil
+            GetAssistantNameTool(settings: settings),
+            SendMessageTool(
+                repository: repository,
+                settings: settings,
+                senderProvider: {
+                    context.feature(WhatsAppCrawlingFeature.self).messageSender
+                }
             )
-        )
+        ])
     }
 }

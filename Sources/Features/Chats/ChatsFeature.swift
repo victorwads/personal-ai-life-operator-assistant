@@ -16,10 +16,10 @@ final class ChatsFeature: FeatureRuntime {
         super.init(context: context)
 
         context.mcp.toolRegistry.register([
+            ListChatsTool(repository: repository),
             ListChatsBySearchTool(),
             ListUnhandledChatsTool(repository: repository),
-            ListChatMessagesTool(repository: repository),
-            SendMessageTool()
+            ListChatMessagesTool(repository: repository)
         ])
     }
 }

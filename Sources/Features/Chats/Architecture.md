@@ -25,7 +25,8 @@ This document owns chat/message domain model and repository rules.
 
 ## MCP tool boundaries
 
-- Chats currently owns read-only listing tools such as `list_chat_messages` and `list_unhandled_chats`.
+- Chats currently owns read-only listing tools such as `list_chats`, `list_chat_messages`, and `list_unhandled_chats`.
+- `send_message` does not belong to Chats. Outbound audit and tool ownership belong to SentMessages.
 - `list_chats_by_search` stays deferred until repository-backed search exists.
 - `wait_for_event` belongs to runtime/orchestration and is intentionally deferred until late-stage integration across Issues, Chats, SentMessages, SensitiveData, ClientVoice, and event queues.
 
@@ -49,4 +50,4 @@ This document owns chat/message domain model and repository rules.
 - Message bubble content must support text, image, sticker, audio, and unknown states with clear labels/placeholders.
 - `ChatsFeature` owns chat display/tooling dependencies for this domain and creates repositories in feature initialization.
 - `WhatsAppCrawling` owns crawling/parsing/persisting chat data and must remain separate from chat UI concerns.
-- Real send-message behavior and sent-message auditing flows are intentionally out of scope for this screen.
+- Real send-message behavior and sent-message auditing flows are intentionally out of scope for this screen and belong to SentMessages plus WhatsAppCrawling.

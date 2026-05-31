@@ -8,11 +8,13 @@ final class FirestoreSentMessageRepository: FirestoreRepository<SentMessage> {
         )
     }
 
-    func listAll() async throws -> [SentMessage] {
-        try await query(sortedBy: [FirestoreRepositorySort(field: "_createdAt", descending: true)])
+    func listAll(limit: Int? = nil) async throws -> [SentMessage] {
+        try await query(
+            sortedBy: [FirestoreRepositorySort(field: "_createdAt", descending: true)],
+            limit: limit
+        )
     }
 
-    // TODO create firestore compose index
     func listByIssueId(_ issueId: String) async throws -> [SentMessage] {
         try await query(
             matching: ["issueId": issueId],
@@ -20,16 +22,9 @@ final class FirestoreSentMessageRepository: FirestoreRepository<SentMessage> {
         )
     }
 
-    // Why?
-    func listByTarget(
-        targetKind: SentMessageTargetKind,
-        targetId: String
-    ) async throws -> [SentMessage] {
+    func listByChatId(_ chatId: String) async throws -> [SentMessage] {
         try await query(
-            matching: [
-                "targetKind": targetKind.rawValue,
-                "targetId": targetId
-            ],
+            matching: ["chatId": chatId],
             sortedBy: [FirestoreRepositorySort(field: "_createdAt", descending: true)]
         )
     }

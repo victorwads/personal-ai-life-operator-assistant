@@ -10,12 +10,46 @@ struct SentMessagesSettingsView: View {
     @State private var messageFooter = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            TextField("Assistant Name", text: assistantNameBinding)
-            TextField("Message Header", text: messageHeaderBinding)
-            TextField("Message Prefix", text: messagePrefixBinding)
-            TextField("Message Postfix", text: messagePostfixBinding)
-            TextField("Message Footer", text: messageFooterBinding)
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Current send order: header as its own first message, then each message with prefix and postfix applied, then footer as its own last message.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            DSSettingsTextField(
+                title: "Assistant Name",
+                prompt: "Assistant",
+                helperText: "Used as the configured outbound assistant identity. It does not add text to the message body itself.",
+                text: assistantNameBinding
+            )
+
+            DSSettingsTextField(
+                title: "Message Header",
+                prompt: "Optional first message",
+                helperText: "If filled, this is sent as a separate first message before the main batch.",
+                text: messageHeaderBinding
+            )
+
+            DSSettingsTextField(
+                title: "Message Prefix",
+                prompt: "Optional text before each message",
+                helperText: "Added to the start of every main message in the batch, not just the first one.",
+                text: messagePrefixBinding
+            )
+
+            DSSettingsTextField(
+                title: "Message Postfix",
+                prompt: "Optional text after each message",
+                helperText: "Added to the end of every main message in the batch.",
+                text: messagePostfixBinding
+            )
+
+            DSSettingsTextField(
+                title: "Message Footer",
+                prompt: "Optional last message",
+                helperText: "If filled, this is sent as a separate last message after the main batch.",
+                text: messageFooterBinding
+            )
 
             Text("Empty values mean no extra formatting is applied.")
                 .foregroundStyle(.secondary)
