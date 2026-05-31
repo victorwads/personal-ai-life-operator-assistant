@@ -7,17 +7,35 @@ final class AIConnectionFeature: FeatureRuntime {
     private static let serviceId = "ai.connection"
 
     private(set) var settings: AIConnectionSettingsWrapper
+    private(set) var streamingService: AIConnectionStreamingService
 
     required init(context: FeatureContext) {
         let settings = AIConnectionSettingsWrapper(settings: context.settings.store)
         self.settings = settings
+        self.streamingService = AIConnectionStreamingService(
+            settingsProvider: {
+                await MainActor.run {
+                    settings.providerConfiguration
+                }
+            },
+            toolCatalog: MCPToolCatalogBridge(
+                featureProvider: {
+                    context.feature(MCPServersFeature.self)
+                }
+            ),
+            toolExecutor: MCPToolExecutorBridge(
+                featureProvider: {
+                    context.feature(MCPServersFeature.self)
+                }
+            )
+        )
         super.init(context: context)
 
         context.settings.sectionRegistry.register(
             AIConnectionSettingsSectionProvider(wrapper: settings)
         )
 
-        let service = PlaceholderProfileRuntimeService(
+        let service = AIConnectionProfileRuntimeService(
             id: Self.serviceId,
             title: "AI Connection"
         )
