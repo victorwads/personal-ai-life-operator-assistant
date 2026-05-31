@@ -41,7 +41,8 @@ struct ListChatsTool: MCPToolDefinition {
             "title": .string(chat.title),
             "lastMessagePreview": chat.lastMessagePreview.map(MCPJSONValue.string) ?? .null,
             "lastMessageTimeText": chat.lastMessageTimeText.map(MCPJSONValue.string) ?? .null,
-            "unreadCount": .int(chat.unreadCount)
+            "unreadCount": .int(chat.unreadCount),
+            "unhandledCount": .int(chat.unhandledCount)
         ])
     }
 }
