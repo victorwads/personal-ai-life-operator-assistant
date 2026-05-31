@@ -1,4 +1,0 @@
-# App icon PNGs are generated from the SVG source via scripts/regenerate_app_icon.sh
-DerivedData/
-build/
-Sources/Assets.xcassets/AppIcon.appiconset/*.png
