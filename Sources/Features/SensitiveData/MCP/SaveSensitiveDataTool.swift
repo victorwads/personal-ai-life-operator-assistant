@@ -1,6 +1,8 @@
 import Foundation
 
 struct SaveSensitiveDataTool: MCPToolDefinition {
+    let repositories: SensitiveDataRepositories
+
     let name = "save_sensitive_data"
     let icon = "lock"
     let description = """
@@ -39,4 +41,45 @@ struct SaveSensitiveDataTool: MCPToolDefinition {
         .init(name: "reason", value: .string("cadastrar um dado sensível recebido do cliente"))
     ]
     let traits: [MCPToolTrait] = [.writesState]
+
+    func execute(
+        _ call: MCPToolCall,
+        context _: MCPServerContext
+    ) async throws -> MCPJSONValue {
+        let issueId = try MCPSupport.string("issueId", from: call)
+        let reason = try MCPSupport.string("reason", from: call)
+        let key = try MCPSupport.string("key", from: call)
+        let value = try MCPSupport.string("value", from: call)
+        let kindRawValue = try MCPSupport.string("kind", from: call)
+
+        guard let kind = SensitiveDataKind(rawValue: kindRawValue) else {
+            throw SensitiveDataMCPToolError.invalidArguments("Invalid sensitive data kind.")
+        }
+
+        let existingItem = try await repositories.data.item(forKey: key, includeDeleted: true)
+        let savedItem = try await repositories.data.save(
+            SensitiveDataItem(
+                id: existingItem?.id ?? repositories.data.documentID(forKey: key),
+                key: key,
+                kind: kind,
+                value: value,
+                issueId: issueId
+            )
+        )
+
+        let usage = try await repositories.usage.save(
+            SensitiveDataMCPToolSupport.usage(
+                action: .save,
+                key: key,
+                issueId: issueId,
+                reason: reason
+            ),
+            merge: false
+        )
+
+        return .object([
+            "item": SensitiveDataMCPToolSupport.itemMetadataObject(savedItem),
+            "usage": SensitiveDataMCPToolSupport.usageObject(usage)
+        ])
+    }
 }

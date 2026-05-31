@@ -41,6 +41,14 @@
         { "fieldPath": "handled", "order": "ASCENDING" },
         { "fieldPath": "dateTime", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "SensitiveDataUsage",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "key", "order": "ASCENDING" },
+        { "fieldPath": "usedAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [

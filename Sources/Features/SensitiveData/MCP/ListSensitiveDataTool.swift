@@ -1,6 +1,8 @@
 import Foundation
 
 struct ListSensitiveDataTool: MCPToolDefinition {
+    let repositories: SensitiveDataRepositories
+
     let name = "list_sensitive_data"
     let icon = "lock"
     let description = """
@@ -39,4 +41,28 @@ struct ListSensitiveDataTool: MCPToolDefinition {
         )
     ]
     let traits: [MCPToolTrait] = [.readOnly]
+
+    func execute(
+        _ call: MCPToolCall,
+        context _: MCPServerContext
+    ) async throws -> MCPJSONValue {
+        let issueId = try MCPSupport.string("issueId", from: call)
+        let reason = try MCPSupport.string("reason", from: call)
+        let kinds = try SensitiveDataMCPToolSupport.parseKinds(from: call)
+        let items = try await repositories.data.list(kinds: kinds, includeDeleted: false)
+        let usage = try await repositories.usage.save(
+            SensitiveDataMCPToolSupport.usage(
+                action: .list,
+                key: SensitiveDataMCPToolSupport.listAuditKey,
+                issueId: issueId,
+                reason: reason
+            ),
+            merge: false
+        )
+
+        return .object([
+            "items": SensitiveDataMCPToolSupport.itemListObject(items),
+            "usage": SensitiveDataMCPToolSupport.usageObject(usage)
+        ])
+    }
 }

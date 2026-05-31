@@ -18,7 +18,7 @@ struct CommandCenterScreenRegistry {
         case .memories:
             MemoriesScreen(feature: appFeatures.feature(MemoriesFeature.self))
         case .sensitiveData:
-            SensitiveDataScreen()
+            SensitiveDataScreen(feature: appFeatures.feature(SensitiveDataFeature.self))
         case .clientVoice:
             ClientVoiceScreen()
         case .sentMessages:

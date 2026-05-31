@@ -1,7 +1,8 @@
 import Foundation
 
 struct DeleteSensitiveDataTool: MCPToolDefinition {
-    // TODO: Soft delete the record, preserve audit history, and keep deleted items out of normal list_sensitive_data results.
+    let repositories: SensitiveDataRepositories
+
     let name = "delete_sensitive_data"
     let icon = "trash"
     let description = """
@@ -25,4 +26,32 @@ struct DeleteSensitiveDataTool: MCPToolDefinition {
         .init(name: "reason", value: .string("remover dado sensível incorreto"))
     ]
     let traits: [MCPToolTrait] = [.writesState]
+
+    func execute(
+        _ call: MCPToolCall,
+        context _: MCPServerContext
+    ) async throws -> MCPJSONValue {
+        let issueId = try MCPSupport.string("issueId", from: call)
+        let reason = try MCPSupport.string("reason", from: call)
+        let key = try MCPSupport.string("key", from: call)
+        let item = try await repositories.data.item(forKey: key, includeDeleted: false)
+        if let item {
+            try await repositories.data.delete(repositories.data.documentID(forKey: key), soft: true)
+        }
+        let usage = try await repositories.usage.save(
+            SensitiveDataMCPToolSupport.usage(
+                action: .delete,
+                key: key,
+                issueId: issueId,
+                reason: reason
+            ),
+            merge: false
+        )
+
+        return .object([
+            "deleted": .bool(item != nil),
+            "item": item.map(SensitiveDataMCPToolSupport.itemMetadataObject) ?? .null,
+            "usage": SensitiveDataMCPToolSupport.usageObject(usage)
+        ])
+    }
 }
