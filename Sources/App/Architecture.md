@@ -93,10 +93,11 @@ AIAssistantHubApp
 │   └── AppWindowManager
 │       ├── receives WindowVisibilityTracker
 │       ├── creates/keeps the login/root window when needed
-│       │   ├── AppRootWindowController
+│       │   ├── AppWindowController(root)
 │       │   └── AppRootView
 │       ├── creates/keeps the profiles home window
-│       └── creates/keeps one physical window per profile
+│       │   └── AppWindowController(profiles_home)
+│       └── creates/keeps one physical window per profile/feature id
 │
 ├── creates: ProfilesBootstrap
 │   ├── FirestoreProfileRepository
@@ -222,7 +223,7 @@ AppLifecycleController.applicationDidFinishLaunching()
 └── AppModel.openDefaultWindowForCurrentState()
     ├── if auth is loading / unauthenticated / failed
     │   └── AppWindowManager.showLoginWindow()
-    │       ├── creates AppRootWindowController if needed
+    │       ├── creates AppWindowController(root) if needed
     │       ├── hosts AppRootView
     │       ├── shows the window
     │       └── marks root visible in WindowVisibilityTracker
@@ -239,6 +240,16 @@ Tray menu action
     ├── unauthenticated / failed / loading -> AppWindowManager.showLoginWindow()
     └── authenticated -> AppWindowManager.showProfilesHomeWindow()
 ```
+
+### Window controller registry
+
+`AppWindowManager` owns every physical app window through a generic registry keyed by window id.
+
+- `AppWindowController` is the only AppKit controller used for root, profiles home, profile, and feature windows.
+- `AppWindowRequest` provides the window id, title, size, and hosted root view.
+- `AppWindowManager` stores controllers in a `[String: AppWindowController]` registry instead of feature-specific controller properties.
+- Feature windows remain feature-owned at the view layer through `FeatureWindowRequest`; the app layer manages only generic window requests and ids.
+- `AppWindowManager` must not grow feature-specific APIs such as `showIssueDetailWindow`.
 
 Do not reopen login/root windows with `NSApp.mainWindow`. That is fragile after a window has been closed/ordered out and bypasses the window visibility tracker.
 

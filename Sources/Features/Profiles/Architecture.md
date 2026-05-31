@@ -119,11 +119,11 @@ ProfileRuntime.openWindow()
 ├── ensures ProfileRuntimeContainer exists for UI/settings
 ├── calls windowManaging.showProfileWindow(profile)
 │   └── AppWindowManager.showProfileWindow(profile)
-│       ├── if window already exists in profileWindows[profileId]
+│       ├── if window already exists in windowControllers["profile_<id>"]
 │       │   └── makeKeyAndOrderFront()
 │       │
 │       └── if window does not exist
-│           ├── creates ProfileWindowController(profileId)
+│           ├── creates AppWindowController(request: "profile_<id>")
 │           ├── creates ProfileWindowHostView(profileId)
 │           │   └── CommandCenterScreen(profile, runtimeState, windowState, container)
 │           │       ├── CommandCenterSidebar
@@ -138,7 +138,7 @@ ProfileRuntime.openWindow()
 │           │           ├── WhatsApp*Screen
 │           │           ├── MCPServers*Screen
 │           │           └── SettingsScreen
-│           ├── stores it in profileWindows[profileId]
+│           ├── stores it in AppWindowManager.windowControllers
 │           ├── shows window
 │           └── WindowVisibilityTracker.windowDidShow(profileId)
 │               └── DockVisibilityController.refresh()
@@ -156,7 +156,7 @@ The intended `hideWindow` flow is:
 ProfileRuntime.hideWindow()
 ├── calls windowManaging.hideProfileWindow(profileId)
 │   └── AppWindowManager.hideProfileWindow(profileId)
-│       ├── finds ProfileWindowController
+│       ├── finds AppWindowController("profile_<id>")
 │       ├── orderOut / hide
 │       └── WindowVisibilityTracker.windowDidHide(profileId)
 │           └── DockVisibilityController.refresh()

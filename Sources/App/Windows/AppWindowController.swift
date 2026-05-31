@@ -2,26 +2,24 @@ import AppKit
 import SwiftUI
 
 @MainActor
-public final class ProfileWindowController: NSWindowController, NSWindowDelegate {
+public final class AppWindowController: NSWindowController, NSWindowDelegate {
     private let windowId: String
     private let visibilityTracker: WindowVisibilityTracker
     private let onVisibilityChange: () -> Void
 
-    public init(
-        windowId: String,
-        title: String,
-        rootView: AnyView,
+    init(
+        request: AppWindowRequest,
         visibilityTracker: WindowVisibilityTracker,
         onVisibilityChange: @escaping () -> Void
     ) {
-        self.windowId = windowId
+        windowId = request.id
         self.visibilityTracker = visibilityTracker
         self.onVisibilityChange = onVisibilityChange
 
-        let hostingController = NSHostingController(rootView: rootView)
+        let hostingController = NSHostingController(rootView: request.rootView)
         let window = NSWindow(contentViewController: hostingController)
-        window.title = title
-        window.setContentSize(NSSize(width: 760, height: 520))
+        window.title = request.title
+        window.setContentSize(NSSize(width: request.size.width, height: request.size.height))
         window.styleMask.insert(.closable)
         window.isReleasedWhenClosed = false
 
@@ -53,4 +51,3 @@ public final class ProfileWindowController: NSWindowController, NSWindowDelegate
         onVisibilityChange()
     }
 }
-

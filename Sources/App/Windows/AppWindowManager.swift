@@ -9,11 +9,8 @@ public final class AppWindowManager: ObservableObject, ProfileWindowManaging {
     public let visibilityTracker: WindowVisibilityTracker
     private let dockVisibilityController: DockVisibilityController
 
-    private var rootWindowController: AppRootWindowController?
+    private var windowControllers: [String: AppWindowController] = [:]
     private var rootContentFactory: (() -> AnyView)?
-    private var profilesHomeWindowController: ProfilesHomeWindowController?
-    private var profileWindowControllers: [String: ProfileWindowController] = [:]
-    private var featureWindowControllers: [String: ProfileWindowController] = [:]
     private var profilesHomeContentFactory: (() -> AnyView)?
     private weak var profilesController: ProfilesController?
 
@@ -41,25 +38,27 @@ public final class AppWindowManager: ObservableObject, ProfileWindowManaging {
     }
 
     public func installRootWindow(rootView: AnyView) {
-        guard rootWindowController == nil else { return }
-        rootWindowController = AppRootWindowController(
-            windowId: Self.rootWindowId,
-            rootView: rootView,
-            visibilityTracker: visibilityTracker,
-            onVisibilityChange: { [weak self] in self?.syncDockVisibility() }
+        guard windowControllers[Self.rootWindowId] == nil else { return }
+        windowControllers[Self.rootWindowId] = makeWindowController(
+            request: AppWindowRequest(
+                id: Self.rootWindowId,
+                title: "AI Assistant Hub",
+                rootView: rootView,
+                size: CGSize(width: 980, height: 680)
+            )
         )
     }
 
     public func showRootWindow(contentFactory: (() -> AnyView)? = nil) {
         let factory = contentFactory ?? rootContentFactory
-        if rootWindowController == nil, let factory {
+        if windowControllers[Self.rootWindowId] == nil, let factory {
             installRootWindow(rootView: factory())
         }
-        rootWindowController?.show()
+        windowControllers[Self.rootWindowId]?.show()
     }
 
     public func hideRootWindow() {
-        rootWindowController?.hide()
+        hideWindow(id: Self.rootWindowId)
     }
 
     public func showLoginWindow() {
@@ -68,43 +67,46 @@ public final class AppWindowManager: ObservableObject, ProfileWindowManaging {
     }
 
     public func installProfilesHomeWindow(rootView: AnyView) {
-        guard profilesHomeWindowController == nil else { return }
-        profilesHomeWindowController = ProfilesHomeWindowController(
-            windowId: Self.profilesHomeWindowId,
-            rootView: rootView,
-            visibilityTracker: visibilityTracker,
-            onVisibilityChange: { [weak self] in self?.syncDockVisibility() }
+        guard windowControllers[Self.profilesHomeWindowId] == nil else { return }
+        windowControllers[Self.profilesHomeWindowId] = makeWindowController(
+            request: AppWindowRequest(
+                id: Self.profilesHomeWindowId,
+                title: "Profiles",
+                rootView: rootView,
+                size: CGSize(width: 980, height: 680)
+            )
         )
     }
 
     public func showProfilesHomeWindow(contentFactory: (() -> AnyView)? = nil) {
         hideRootWindow()
         let factory = contentFactory ?? profilesHomeContentFactory
-        if profilesHomeWindowController == nil, let factory {
+        if windowControllers[Self.profilesHomeWindowId] == nil, let factory {
             installProfilesHomeWindow(rootView: factory())
         }
-        profilesHomeWindowController?.show()
+        windowControllers[Self.profilesHomeWindowId]?.show()
     }
 
     public func hideProfilesHomeWindow() {
-        profilesHomeWindowController?.hide()
+        hideWindow(id: Self.profilesHomeWindowId)
     }
 
     public func installProfileWindow(profileId: String, title: String, rootView: AnyView) {
-        guard profileWindowControllers[profileId] == nil else { return }
-        let windowId = "profile_\(profileId)"
-        profileWindowControllers[profileId] = ProfileWindowController(
-            windowId: windowId,
-            title: title,
-            rootView: rootView,
-            visibilityTracker: visibilityTracker,
-            onVisibilityChange: { [weak self] in self?.syncDockVisibility() }
+        let windowId = profileWindowId(profileId: profileId)
+        guard windowControllers[windowId] == nil else { return }
+        windowControllers[windowId] = makeWindowController(
+            request: AppWindowRequest(
+                id: windowId,
+                title: title,
+                rootView: rootView
+            )
         )
     }
 
     func showProfileWindow(profile: Profile) {
         guard let profileId = profile.id, !profileId.isEmpty else { return }
-        if profileWindowControllers[profileId] == nil {
+        let windowId = profileWindowId(profileId: profileId)
+        if windowControllers[windowId] == nil {
             installProfileWindow(
                 profileId: profileId,
                 title: profile.name,
@@ -116,30 +118,26 @@ public final class AppWindowManager: ObservableObject, ProfileWindowManaging {
                 )
             )
         }
-        profileWindowControllers[profileId]?.show()
+        windowControllers[windowId]?.show()
     }
 
     public func hideProfileWindow(profileId: String) {
-        profileWindowControllers[profileId]?.hide()
+        hideWindow(id: profileWindowId(profileId: profileId))
     }
 
     func showFeatureWindow(profileId: String, request: FeatureWindowRequest) {
         let windowId = featureWindowId(profileId: profileId, featureWindowId: request.id)
-        if featureWindowControllers[windowId] == nil {
-            featureWindowControllers[windowId] = ProfileWindowController(
-                windowId: windowId,
+        showWindow(
+            AppWindowRequest(
+                id: windowId,
                 title: request.title,
-                rootView: request.rootView,
-                visibilityTracker: visibilityTracker,
-                onVisibilityChange: { [weak self] in self?.syncDockVisibility() }
+                rootView: request.rootView
             )
-        }
-
-        featureWindowControllers[windowId]?.show()
+        )
     }
 
     public func isProfileWindowVisible(profileId: String) -> Bool {
-        visibilityTracker.visibleWindowIds.contains("profile_\(profileId)")
+        visibilityTracker.visibleWindowIds.contains(profileWindowId(profileId: profileId))
     }
 
     public var visibleWindowCount: Int {
@@ -147,26 +145,14 @@ public final class AppWindowManager: ObservableObject, ProfileWindowManaging {
     }
 
     public func hideAllWindows() {
-        rootWindowController?.hide()
-        profilesHomeWindowController?.hide()
-        for controller in profileWindowControllers.values {
-            controller.hide()
-        }
-        for controller in featureWindowControllers.values {
+        for controller in windowControllers.values {
             controller.hide()
         }
         syncDockVisibility()
     }
 
     public func clearProfileWindows() {
-        for controller in profileWindowControllers.values {
-            controller.hide()
-        }
-        for controller in featureWindowControllers.values {
-            controller.hide()
-        }
-        profileWindowControllers.removeAll()
-        featureWindowControllers.removeAll()
+        removeWindows { $0.hasPrefix("profile_") }
         syncDockVisibility()
     }
 
@@ -182,7 +168,41 @@ public final class AppWindowManager: ObservableObject, ProfileWindowManaging {
         return profilesController
     }
 
+    private func makeWindowController(request: AppWindowRequest) -> AppWindowController {
+        AppWindowController(
+            request: request,
+            visibilityTracker: visibilityTracker,
+            onVisibilityChange: { [weak self] in self?.syncDockVisibility() }
+        )
+    }
+
+    private func showWindow(_ request: AppWindowRequest) {
+        if windowControllers[request.id] == nil {
+            windowControllers[request.id] = makeWindowController(request: request)
+        }
+
+        windowControllers[request.id]?.show()
+    }
+
+    private func hideWindow(id: String) {
+        windowControllers[id]?.hide()
+    }
+
+    private func removeWindows(matching shouldRemove: (String) -> Bool) {
+        for (id, controller) in windowControllers where shouldRemove(id) {
+            controller.hide()
+        }
+
+        windowControllers = windowControllers.filter { id, _ in
+            !shouldRemove(id)
+        }
+    }
+
+    private func profileWindowId(profileId: String) -> String {
+        "profile_\(profileId)"
+    }
+
     private func featureWindowId(profileId: String, featureWindowId: String) -> String {
-        "profile_\(profileId)_feature_\(featureWindowId)"
+        "\(profileWindowId(profileId: profileId))_feature_\(featureWindowId)"
     }
 }

@@ -17,7 +17,7 @@ The profile window composition is:
 
 ```text
 AppWindowManager.showProfileWindow(profile)
-└── ProfileWindowController
+└── AppWindowController("profile_<id>")
     └── ProfileWindowHostView(profileId, profilesController)
         ├── looks up Profile by profileId
         ├── reads runtime/window display state from ProfilesController
