@@ -101,6 +101,8 @@ At a high level, the runtime loop looks like this:
 4. refresh pending events and voice state
 5. expose the resulting state through MCP
 
+When parsing the WhatsApp chat list, crawling stores the visual list order as `Chat.listOrder`. This value represents the order observed in the WhatsApp chat list during crawling. It is not yet used for sorting in this change.
+
 This is what makes the system feel more like a runtime than a thin server.
 
 ### Startup warm cycles

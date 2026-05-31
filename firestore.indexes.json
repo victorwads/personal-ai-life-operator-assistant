@@ -49,6 +49,14 @@
         { "fieldPath": "key", "order": "ASCENDING" },
         { "fieldPath": "usedAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "Chats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "_updatedAt", "order": "DESCENDING" },
+        { "fieldPath": "listOrder", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [

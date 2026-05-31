@@ -79,12 +79,17 @@ final class WhatsAppChatCrawlingOrchestrator {
                 let chat = Chat(
                     id: header.id,
                     title: header.title,
+                    listOrder: header.listOrder,
                     lastMessagePreview: header.lastMessagePreview,
                     lastMessageTimeText: header.lastMessageTimeText,
                     unreadCount: header.unreadCount,
                     stateHash: header.stateHash
                 )
-                try await chatRepository.upsertChat(chat)
+                // `stateHash` is the write guard for chat metadata: unchanged chats should not be rewritten every crawl cycle.
+                // `listOrder` is persisted only when chat state changes, to avoid writing all chats when only the visual order changes.
+                if existingChat == nil || existingChat?.stateHash != chat.stateHash {
+                    try await chatRepository.upsertChat(chat)
+                }
                 guard shouldRefresh else {
                     logStore.append(source: "Decision", "Skip '\(header.title)': shouldRefresh=false")
                     continue

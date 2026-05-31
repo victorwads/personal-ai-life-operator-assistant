@@ -40,7 +40,13 @@ final class FirestoreChatRepository: ChatRepository {
     }
 
     func listChats() async throws -> [Chat] {
-        try await chatStore.getAll(includeDeleted: false)
+        try await chatStore.query(
+            sortedBy: [
+                FirestoreRepositorySort(field: "_updatedAt", descending: true),
+                FirestoreRepositorySort(field: "listOrder", descending: false)
+            ],
+            includeDeleted: false
+        )
     }
 
     func upsertChat(_ chat: Chat) async throws {

@@ -5,6 +5,7 @@ protocol ChatListParser: CrawlingParser where Output == [CrawledChat] {}
 struct ParsedChatHeader: Sendable {
     let id: String
     let title: String
+    let listOrder: Int
     let lastMessagePreview: String?
     let lastMessageTimeText: String?
     let unreadCount: Int
@@ -22,6 +23,7 @@ enum WhatsAppChatListParser {
         }
 
         var headers: [ParsedChatHeader] = []
+        var listOrder = 0
         for root in roots {
             guard let rootObject = root as? [String: Any], let chatItems = rootObject["chatItems"] as? [Any] else { continue }
             for chatItem in chatItems {
@@ -41,6 +43,7 @@ enum WhatsAppChatListParser {
                     ParsedChatHeader(
                         id: WhatsAppCrawlingNormalizer.makeWhatsAppChatId(title: title),
                         title: title,
+                        listOrder: listOrder,
                         lastMessagePreview: lastMessagePreview,
                         lastMessageTimeText: lastMessageTimeText,
                         unreadCount: unreadCount,
@@ -48,6 +51,7 @@ enum WhatsAppChatListParser {
                         openChatElement: WebViewInteractiveElementDetector.from(chatObject["chatClickableToOpenChat"] as Any)
                     )
                 )
+                listOrder += 1
             }
         }
 
