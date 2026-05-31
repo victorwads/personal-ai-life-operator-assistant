@@ -10,6 +10,7 @@ final class WhatsAppCrawlingPollingService: ObservableObject, WhatsAppCrawlingSe
     private let orchestrator: WhatsAppChatCrawlingOrchestrator
 
     private var pollingTask: Task<Void, Never>?
+    private var completedCycleCount = 0
 
     // TODO: Replace `[String]` with `Set<String>` or a typed pause token.
     // Current array-based pause tracking allows duplicate reasons and fallback removal
@@ -54,6 +55,10 @@ final class WhatsAppCrawlingPollingService: ObservableObject, WhatsAppCrawlingSe
 
     func start() async {
         guard state == .stopped || isFailed else { return }
+
+        if state == .stopped {
+            completedCycleCount = 0
+        }
 
         state = .starting
         statusText = "Starting"
@@ -109,7 +114,10 @@ final class WhatsAppCrawlingPollingService: ObservableObject, WhatsAppCrawlingSe
                         self.logStore.append(source: "Polling", "Cycle started")
                     }
 
-                    let result = await orchestrator.runCycle(in: webView)
+                    let result = await orchestrator.runCycle(
+                        in: webView,
+                        completedCycleCount: await MainActor.run { self.completedCycleCount }
+                    )
 
                     switch result {
                     case .success:
@@ -128,6 +136,8 @@ final class WhatsAppCrawlingPollingService: ObservableObject, WhatsAppCrawlingSe
                             self.logStore.append(source: "Error", "Cycle failed: \(error.localizedDescription)")
                         }
                     }
+
+                    await MainActor.run { self.completedCycleCount += 1 }
                 } else {
                     await MainActor.run { self.statusText = "Waiting for WebView" }
                     await MainActor.run {

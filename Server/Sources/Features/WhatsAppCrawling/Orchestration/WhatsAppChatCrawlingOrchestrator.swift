@@ -8,6 +8,7 @@ final class WhatsAppChatCrawlingOrchestrator {
     private let logStore: WhatsAppCrawlingLogStore
     private var onStatusUpdate: ((String) -> Void)?
     private let debugForceRefreshFirstChat = false
+    private let forcedStartupCrawlCycleCount = 5
 
     init(
         chatRepository: any ChatRepository,
@@ -25,8 +26,12 @@ final class WhatsAppChatCrawlingOrchestrator {
         onStatusUpdate = handler
     }
 
-    func runCycle(in webView: WKWebView) async -> CrawlingResult<Void> {
+    func runCycle(
+        in webView: WKWebView,
+        completedCycleCount: Int
+    ) async -> CrawlingResult<Void> {
         do {
+            let forceRefreshAllChats = completedCycleCount < forcedStartupCrawlCycleCount
             logStore.append(source: "Orchestrator", "Extraction started")
             onStatusUpdate?("Reading flows")
             let extractionJSON = try await WebYAMLExtractionRunner.run(yamlText: yamlText, in: webView)
@@ -52,7 +57,7 @@ final class WhatsAppChatCrawlingOrchestrator {
                 let existingChat = try await chatRepository.getChat(id: header.id)
                 let refreshByRule = shouldRefreshChatMessages(header: header, existingChat: existingChat)
                 let forcedRefresh = debugForceRefreshFirstChat && index == 0
-                let shouldRefresh = refreshByRule || forcedRefresh
+                let shouldRefresh = forceRefreshAllChats || refreshByRule || forcedRefresh
                 logStore.append(
                     source: "Decision",
                     "title='\(header.title)' id=\(header.id) unread=\(header.unreadCount) stateHash=\(header.stateHash) existing=\(existingChat != nil) existingStateHash=\(existingChat?.stateHash ?? "nil") refresh=\(shouldRefresh) clickable=\(header.openChatElement != nil)"

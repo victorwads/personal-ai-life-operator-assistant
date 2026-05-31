@@ -103,6 +103,14 @@ At a high level, the runtime loop looks like this:
 
 This is what makes the system feel more like a runtime than a thin server.
 
+### Startup warm cycles
+
+When `WhatsAppCrawlingPollingService` starts from a stopped state, the first few completed polling cycles force crawling of all visible chats, ignoring the normal refresh skip rules (`stateHash`, unread count, or existing chat presence).
+
+This is intended to warm WhatsApp Web state: during early startup, opening a chat may initially show an incomplete set of visible/recent messages. Forcing multiple early cycles reduces the risk of persisting an incomplete message list from a single early pass.
+
+After the warm cycle window (currently 5 completed cycles), the crawler returns to the normal refresh rules (`stateHash` change, unread count, or new chat).
+
 ## Ownership boundary
 
 - WhatsAppCrawling owns transport-specific WhatsApp Web interaction, crawling, parsing, and persisted chat/message observation.
