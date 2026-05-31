@@ -9,16 +9,16 @@ CONFIGURATION="Debug"
 APP_ICON_DIR="$ROOT_DIR/Resources/Assets.xcassets/AppIcon.appiconset"
 
 echo "==> Sanitizing file endings"
-"$ROOT_DIR/scripts/sanitize_file_endings.sh"
+"$ROOT_DIR/Scripts/sanitize_file_endings.sh"
 
 echo "==> Checking app icon"
 icon_pngs=("$APP_ICON_DIR"/*.png(N))
 if (( ${#icon_pngs} == 0 )); then
-  "$ROOT_DIR/scripts/regenerate_app_icon.sh"
+  "$ROOT_DIR/Scripts/regenerate_app_icon.sh"
 fi
 
 echo "==> Running linters"
-bash "$ROOT_DIR/scripts/lint.sh"
+bash "$ROOT_DIR/Scripts/lint.sh"
 
 cd "$ROOT_DIR"
 echo "==> Generating Xcode project"

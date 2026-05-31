@@ -117,13 +117,7 @@ open class FirestoreRepository<Model: PersistableModel> {
             query = query.whereField(field, isEqualTo: value)
         }
 
-        let snapshot: QuerySnapshot
-        switch readSource {
-        case .default:
-            snapshot = try await query.getDocuments()
-        case .cacheOnly:
-            snapshot = try await query.getDocuments(source: .cache)
-        }
+        let snapshot: QuerySnapshot = try await query.getDocuments(source: .cache)
         return Set(snapshot.documents.map(\.documentID))
     }
 
@@ -158,10 +152,17 @@ open class FirestoreRepository<Model: PersistableModel> {
     @discardableResult
     open func save(_ model: Model, merge: Bool = true) async throws -> Model {
         var record = model
-        let isCreating = record.id?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true
 
-        if isCreating {
-            record.id = collection.document().documentID
+        let documentID: String
+        let isCreating: Bool
+        if let existingDocumentID = record.id, !existingDocumentID.isEmpty {
+            documentID = existingDocumentID
+            let existingIds = try await existingIds(matching: [:])
+            isCreating = existingIds.contains(existingDocumentID) == false
+        } else {
+            documentID = collection.document().documentID
+            record.id = documentID
+            isCreating = true
         }
 
         let document = try documentReference(for: record.id)
@@ -183,16 +184,21 @@ open class FirestoreRepository<Model: PersistableModel> {
 
         let batch = firestore.batch()
         let now = dateProvider()
+        var existingIds = try await existingIds(matching: [:])
 
         for model in models {
             var record = model
-            let isCreating = record.id?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true
-            if isCreating {
-                record.id = collection.document().documentID
-            }
 
-            guard let documentID = record.id, !documentID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                throw FirestoreRepositoryError.missingDocumentId
+            let documentID: String
+            let isCreating: Bool
+            if let existingDocumentID = record.id, !existingDocumentID.isEmpty {
+                documentID = existingDocumentID
+                isCreating = existingIds.contains(existingDocumentID) == false
+            } else {
+                documentID = collection.document().documentID
+                record.id = documentID
+                isCreating = true
+                existingIds.insert(documentID)
             }
 
             let payload = try makePayload(
@@ -225,7 +231,7 @@ open class FirestoreRepository<Model: PersistableModel> {
     }
 
     open func delete(_ id: String, soft: Bool = false) async throws {
-        guard !id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        guard !id.isEmpty else {
             throw FirestoreRepositoryError.missingDocumentId
         }
 
@@ -274,7 +280,7 @@ open class FirestoreRepository<Model: PersistableModel> {
         guard path.isValid else {
             throw FirestoreRepositoryError.invalidPath
         }
-        guard let id, !id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        guard let id, !id.isEmpty else {
             throw FirestoreRepositoryError.missingDocumentId
         }
         return firestore.collection(path.collectionPath).document(id)

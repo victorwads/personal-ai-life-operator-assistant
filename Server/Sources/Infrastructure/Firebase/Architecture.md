@@ -25,6 +25,15 @@ This document owns Firebase repository boundaries and persistence metadata rules
 - Repositories may support cache-only reads when runtime responsiveness matters.
 - Cache-only reads must treat normal cache misses as "not found" instead of aborting higher-level workflows.
 
+## Firestore local cache
+
+- Firebase startup enables Firestore local persistence/cache in Infrastructure.
+- Startup explicitly keeps Firestore on `PersistentCacheSettings` so local-first behavior is clear at bootstrap.
+- Startup enables persistent cache index auto-creation when supported by the SDK.
+- Local persistent cache indexes improve cache/offline filtered query behavior over already cached data.
+- Local cache indexes do not replace remote Firestore composite indexes required for server/default reads.
+- User-facing flows should not rely on cache-only reads unless empty or incomplete cache results are acceptable.
+
 ## Merge/upsert rules
 
 - Model structs must not own merge/upsert persistence behavior.

@@ -5,10 +5,9 @@ options:
     macOS: "14.0"
 fileGroups:
   - project.yml
-  - firestore.indexes.json
-  - firebase.rules
+  - ../firestore.indexes.json
+  - ../firebase.rules
   - AGENTS.md
-  - .gitignore
   - Docs
   - Sources
   - Scripts
