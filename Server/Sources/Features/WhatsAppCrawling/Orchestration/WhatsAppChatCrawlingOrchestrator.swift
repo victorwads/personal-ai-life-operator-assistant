@@ -28,9 +28,20 @@ final class WhatsAppChatCrawlingOrchestrator {
 
     func runCycle(
         in webView: WKWebView,
-        completedCycleCount: Int
+        completedCycleCount: Int,
+        shouldContinue: @escaping @MainActor () -> Bool
     ) async -> CrawlingResult<Void> {
         do {
+            func shouldProceed() -> Bool {
+                let proceed = shouldContinue()
+                if !proceed {
+                    logStore.append(source: "Orchestrator", "Crawling cycle interrupted by stop/pause.")
+                }
+                return proceed
+            }
+
+            guard shouldProceed() else { return .success(()) }
+
             let forceRefreshAllChats = completedCycleCount < forcedStartupCrawlCycleCount
             logStore.append(source: "Orchestrator", "Extraction started")
             onStatusUpdate?("Reading flows")
@@ -54,6 +65,8 @@ final class WhatsAppChatCrawlingOrchestrator {
             let interactor = WebViewElementInteractor(webView: webView)
 
             for (index, header) in headers.enumerated() {
+                guard shouldProceed() else { return .success(()) }
+
                 let existingChat = try await chatRepository.getChat(id: header.id)
                 let refreshByRule = shouldRefreshChatMessages(header: header, existingChat: existingChat)
                 let forcedRefresh = debugForceRefreshFirstChat && index == 0
@@ -82,6 +95,7 @@ final class WhatsAppChatCrawlingOrchestrator {
                     continue
                 }
 
+                guard shouldProceed() else { return .success(()) }
                 onStatusUpdate?("Opening \(header.title)")
                 logStore.append(source: "Interactor", "Click started for '\(header.title)'")
                 let clicked = try await interactor.click(openElement)
@@ -91,8 +105,15 @@ final class WhatsAppChatCrawlingOrchestrator {
                     continue
                 }
 
+                guard shouldProceed() else { return .success(()) }
                 logStore.append(source: "CurrentChat", "Waiting selected chat '\(header.title)'")
-                guard let selectedRoot = await waitForSelectedChat(expectedChatId: header.id, title: header.title, webView: webView) else {
+                guard let selectedRoot = await waitForSelectedChat(
+                    expectedChatId: header.id,
+                    title: header.title,
+                    webView: webView,
+                    shouldContinue: shouldContinue
+                ) else {
+                    guard shouldProceed() else { return .success(()) }
                     logStore.append(source: "CurrentChat", "Selected chat did not match expected id=\(header.id)")
                     continue
                 }
@@ -104,6 +125,8 @@ final class WhatsAppChatCrawlingOrchestrator {
                 logStore.append(source: "CurrentChat", "Selected title='\(parsedCurrentChat.chatTitle)' id=\(parsedCurrentChat.chatId)")
                 logStore.append(source: "CurrentChat", "Parsed \(parsedCurrentChat.messages.count) messages")
                 onStatusUpdate?("Extracting messages from \(parsedCurrentChat.chatTitle)")
+
+                guard shouldProceed() else { return .success(()) }
                 try await chatRepository.insertMessages(parsedCurrentChat.messages)
                 logStore.append(source: "Repository", "Inserted new messages from \(parsedCurrentChat.messages.count) parsed messages for '\(parsedCurrentChat.chatTitle)'")
                 onStatusUpdate?("Persisted new messages")
@@ -136,8 +159,17 @@ final class WhatsAppChatCrawlingOrchestrator {
         return object as? [String: Any]
     }
 
-    private func waitForSelectedChat(expectedChatId: String, title: String, webView: WKWebView) async -> [String: Any]? {
+    private func waitForSelectedChat(
+        expectedChatId: String,
+        title: String,
+        webView: WKWebView,
+        shouldContinue: @escaping @MainActor () -> Bool
+    ) async -> [String: Any]? {
         for attempt in 1...10 {
+            if !shouldContinue() {
+                logStore.append(source: "Orchestrator", "Crawling cycle interrupted by stop/pause.")
+                return nil
+            }
             do {
                 let currentChatJSON = try await WebYAMLExtractionRunner.run(yamlText: yamlText, in: webView)
                 guard let currentChatObject = parseJSONObject(from: currentChatJSON) else {
@@ -156,6 +188,10 @@ final class WhatsAppChatCrawlingOrchestrator {
                 }
             } catch {
                 logStore.append(source: "Error", "Retry \(attempt)/10 extraction failed: \(error.localizedDescription)")
+            }
+            if !shouldContinue() {
+                logStore.append(source: "Orchestrator", "Crawling cycle interrupted by stop/pause.")
+                return nil
             }
             try? await Task.sleep(nanoseconds: 300_000_000)
         }

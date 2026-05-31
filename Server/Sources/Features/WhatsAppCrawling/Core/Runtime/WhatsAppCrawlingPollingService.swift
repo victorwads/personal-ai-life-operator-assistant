@@ -116,7 +116,13 @@ final class WhatsAppCrawlingPollingService: ObservableObject, WhatsAppCrawlingSe
 
                     let result = await orchestrator.runCycle(
                         in: webView,
-                        completedCycleCount: await MainActor.run { self.completedCycleCount }
+                        completedCycleCount: await MainActor.run { self.completedCycleCount },
+                        shouldContinue: { [weak self] in
+                            guard let self else { return false }
+                            return self.state == .started
+                                && self.pauseReasons.isEmpty
+                                && !Task.isCancelled
+                        }
                     )
 
                     switch result {
