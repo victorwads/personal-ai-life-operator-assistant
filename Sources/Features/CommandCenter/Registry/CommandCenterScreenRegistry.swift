@@ -8,40 +8,40 @@ struct CommandCenterScreenRegistry {
         profile: Profile,
         runtimeState: ProfileRuntimeState,
         windowState: ProfileWindowState,
-        container: ProfileRuntimeContainer
+        appFeatures: AppFeatures
     ) -> some View {
         switch route {
         case .myProfile:
             MyProfileScreen(profile: profile, runtimeState: runtimeState, windowState: windowState)
         case .issues:
-            IssuesScreen(feature: container.feature(IssuesFeature.self))
+            IssuesScreen(feature: appFeatures.feature(IssuesFeature.self))
         case .memories:
-            MemoriesScreen(feature: container.feature(MemoriesFeature.self))
+            MemoriesScreen(feature: appFeatures.feature(MemoriesFeature.self))
         case .sensitiveData:
             SensitiveDataScreen()
         case .clientVoice:
             ClientVoiceScreen()
         case .sentMessages:
-            SentMessagesScreen(feature: container.feature(SentMessagesFeature.self))
+            SentMessagesScreen(feature: appFeatures.feature(SentMessagesFeature.self))
         case .chats:
-            ChatsScreen(feature: container.feature(ChatsFeature.self))
+            ChatsScreen(feature: appFeatures.feature(ChatsFeature.self))
         case .whatsappWebView:
-            WhatsAppWebViewScreen(feature: container.feature(WhatsAppCrawlingFeature.self))
+            WhatsAppWebViewScreen(feature: appFeatures.feature(WhatsAppCrawlingFeature.self))
         case .whatsappWebYAMLDebug:
-            WhatsAppWebYAMLDebugScreen(feature: container.feature(WhatsAppCrawlingFeature.self))
+            WhatsAppWebYAMLDebugScreen(feature: appFeatures.feature(WhatsAppCrawlingFeature.self))
         case .whatsappNativeYAMLDebug:
             WhatsAppNativeYAMLDebugScreen()
         case .whatsappLogs:
-            WhatsAppLogsScreen(feature: container.feature(WhatsAppCrawlingFeature.self))
+            WhatsAppLogsScreen(feature: appFeatures.feature(WhatsAppCrawlingFeature.self))
         case .tools:
-            MCPToolsScreen(mcpServersFeature: container.feature(MCPServersFeature.self))
+            MCPToolsScreen(mcpServersFeature: appFeatures.feature(MCPServersFeature.self))
         case .aiConnection:
             AIConnectionScreen()
         case .serverLogs:
             ServerLogsScreen()
         case .settings:
             SettingsScreen(
-                settingsSectionRegistry: container.feature(SettingsFeature.self).settingsSectionRegistry
+                settingsSectionRegistry: appFeatures.feature(SettingsFeature.self).settingsSectionRegistry
             )
         }
     }

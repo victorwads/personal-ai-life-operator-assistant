@@ -13,7 +13,7 @@ final class ProfileRuntimeContainer {
     let serviceRegistry: ProfileRuntimeServiceRegistry
     let statusRegistry: ProfileRuntimeStatusRegistry
 
-    private let appFeatures: AppFeatures
+    let appFeatures: AppFeatures
 
     init(context: ProfileContext) throws {
         guard let scope = context.scope else {
@@ -28,14 +28,17 @@ final class ProfileRuntimeContainer {
         self.serviceRegistry = ProfileRuntimeServiceRegistry()
         self.statusRegistry = ProfileRuntimeStatusRegistry()
 
+        let featureResolver = FeatureResolverBox()
         let featureContext = FeatureContext(
             profileContext: context,
             settings: SettingsContext(store: settings, sectionRegistry: settingsSectionRegistry),
             mcp: MCPContext(toolRegistry: mcpToolRegistry),
             services: FeatureServicesContext(serviceRegistry: serviceRegistry),
-            status: FeatureStatusContext(statusRegistry: statusRegistry)
+            status: FeatureStatusContext(statusRegistry: statusRegistry),
+            featureResolver: featureResolver
         )
         self.appFeatures = AppFeatures(context: featureContext)
+        featureResolver.appFeatures = appFeatures
     }
 
     func startSettings() async throws {
@@ -58,9 +61,6 @@ final class ProfileRuntimeContainer {
         await settings.stop()
     }
 
-    func feature<T: FeatureRuntime>(_ type: T.Type) -> T {
-        appFeatures.feature(type)
-    }
 }
 
 private enum ProfileRuntimeContainerError: LocalizedError {

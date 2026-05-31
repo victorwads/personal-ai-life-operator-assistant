@@ -25,7 +25,8 @@ struct ProfileWindowHostView: View {
                 profile: profile,
                 runtimeState: profilesController.displayState(for: profile).runtimeState,
                 windowState: profilesController.displayState(for: profile).windowState,
-                container: container
+                statusRegistry: container.statusRegistry,
+                appFeatures: container.appFeatures
             )
         } else if resolvedProfile == nil {
             loading("Loading profile...")

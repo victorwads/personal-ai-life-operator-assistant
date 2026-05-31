@@ -5,7 +5,8 @@ struct CommandCenterScreen: View {
     let profile: Profile
     let runtimeState: ProfileRuntimeState
     let windowState: ProfileWindowState
-    let container: ProfileRuntimeContainer
+    let statusRegistry: ProfileRuntimeStatusRegistry
+    let appFeatures: AppFeatures
 
     @State private var selectedRoute: CommandCenterRoute? = .myProfile
 
@@ -25,7 +26,7 @@ struct CommandCenterScreen: View {
                     profile: profile,
                     runtimeState: runtimeState,
                     windowState: windowState,
-                    statusRegistry: container.statusRegistry
+                    statusRegistry: statusRegistry
                 )
 
                 Divider()
@@ -35,7 +36,7 @@ struct CommandCenterScreen: View {
                     profile: profile,
                     runtimeState: runtimeState,
                     windowState: windowState,
-                    container: container
+                    appFeatures: appFeatures
                 )
             }
             .frame(minWidth: 620, minHeight: 520)
@@ -67,7 +68,7 @@ struct CommandCenterScreen: View {
     }
 
     private var whatsAppCrawlingFeature: WhatsAppCrawlingFeature {
-        container.feature(WhatsAppCrawlingFeature.self)
+        appFeatures.feature(WhatsAppCrawlingFeature.self)
     }
 
     private func detachWebViewFromSidebar() {

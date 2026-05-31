@@ -1,15 +1,6 @@
 import Foundation
 
 @MainActor
-struct FeatureContext {
-    let profileContext: ProfileContext
-    let settings: SettingsContext
-    let mcp: MCPContext
-    let services: FeatureServicesContext
-    let status: FeatureStatusContext
-}
-
-@MainActor
 struct MCPContext {
     let toolRegistry: MCPToolRegistry
 }
