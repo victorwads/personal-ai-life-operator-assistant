@@ -901,3 +901,34 @@ Criar no server uma associação explícita entre o Firebase Auth UID do usuári
 Sem essa camada, o app depende de uma seleção manual temporária e fica frágil para múltiplos clientes e subclientes. A associação por UID é o que fecha o ciclo de autenticação, autorização e roteamento correto do profile.
 
 ---
+
+## 39) Desativar extração de imagem e sticker por chat
+
+Valor: `V3 - Médio`
+Risco de Desenvolvimento: `R3 - Médio`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.40`
+
+**Descrição**  
+Permitir que alguns chats tenham uma regra explícita para não tentar extrair imagem e sticker na lista de mensagens. Hoje o parser já consegue identificar `image`, `sticker` e outros tipos de mídia, mas nem todo chat precisa desse esforço de leitura. Em alguns casos, o ideal é marcar o chat como “não extrair mídia” e seguir só com o conteúdo textual/operacional.
+
+**Dependências**  
+- `Mapeamento do parsing do WhatsApp Web via YAML com auto-update`
+
+**Comportamento desejado**  
+- Permitir marcar um chat com uma política de “não ler mídia”.
+- Quando essa regra estiver ativa, o runtime deve ignorar tentativa de extração de imagem/sticker daquele chat.
+- O chat continua normal para texto, pendências, waits e demais operações.
+- A regra deve ser explícita por chat, não um bloqueio global da integração.
+- O uso dessa regra deve ser fácil de entender na UI, como um toggle ou bloco de configuração do próprio chat.
+
+**Notas técnicas**  
+- O modelo já sabe classificar `MessageKind` como `image`, `voice`, `document`, `deleted` e `unknown`, então a feature aqui é controlar quando vale a pena tentar extrair essas mídias.
+- Vale guardar essa preferência no mesmo lugar onde ficam outras propriedades operacionais do chat, para não virar uma condição solta espalhada pelo parser.
+- A regra deve ser diferente de deny-list: o chat continua ativo, só muda o nível de leitura de mídia.
+- O parser e a UI precisam respeitar essa política para não gastar esforço tentando interpretar mídia que o usuário não quer acompanhar.
+
+**Por que isso entra no backlog**  
+Isso reduz ruído e processamento desnecessário em chats onde mídia não é útil, sem perder a conversa nem os eventos textuais importantes.
+
+---
