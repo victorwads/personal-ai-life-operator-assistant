@@ -110,6 +110,26 @@ open class FirestoreRepository<Model: PersistableModel> {
         return records.filter { !$0.isDeleted }.map(\.model)
     }
 
+    open func count(matching filters: [String: Any]) async throws -> Int {
+        await waitForInitialCacheWarmupIfNeeded()
+        var query: Query = collection
+
+        for (field, value) in filters {
+            query = query.whereField(field, isEqualTo: value)
+        }
+
+        let source: AggregateSource
+        switch readSource {
+        case .default:
+            source = .server
+        case .cacheOnly:
+            source = .cache
+        }
+
+        let snapshot = try await query.count.getAggregation(source: source)
+        return Int(truncating: snapshot.count)
+    }
+
     open func existingIds(matching filters: [String: Any]) async throws -> Set<String> {
         await waitForInitialCacheWarmupIfNeeded()
         var query: Query = collection

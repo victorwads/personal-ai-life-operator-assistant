@@ -43,6 +43,14 @@
       ]
     },
     {
+      "collectionGroup": "ChatMessages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "chatId", "order": "ASCENDING" },
+        { "fieldPath": "handled", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "SensitiveDataUsage",
       "queryScope": "COLLECTION",
       "fields": [

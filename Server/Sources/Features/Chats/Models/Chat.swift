@@ -7,5 +7,6 @@ struct Chat: PersistableModel, Equatable, Sendable {
     var lastMessagePreview: String?
     var lastMessageTimeText: String?
     var unreadCount: Int
+    var unhandledCount: Int = 0
     var stateHash: String
 }

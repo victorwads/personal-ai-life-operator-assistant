@@ -6,6 +6,10 @@ private enum ChatMessageField {
     static let handled = "handled"
 }
 
+private enum ChatField {
+    static let unhandledCount = "unhandledCount"
+}
+
 final class FirestoreChatRepository: ChatRepository {
     private final class ChatStore: FirestoreRepository<Chat> {
         init(scope: FirebaseProfileScope) {
@@ -120,7 +124,17 @@ final class FirestoreChatRepository: ChatRepository {
             return !existingIds.contains(id)
         }
 
+        guard !newMessages.isEmpty else {
+            return
+        }
+
         try await messageStore.saveAll(newMessages)
+
+        // New messages may change the cached Chat.unhandledCount.
+        let affectedChatIds = Set(newMessages.map(\.chatId))
+        for chatId in affectedChatIds {
+            try await updateUnhandledCount(chatId: chatId, count: nil)
+        }
     }
 
     func markMessagesHandled(ids: [String]) async throws {
@@ -138,6 +152,23 @@ final class FirestoreChatRepository: ChatRepository {
 
     func deleteMessage(id: String) async throws {
         try await messageStore.delete(id)
+    }
+
+    func countUnhandledMessages(chatId: String) async throws -> Int {
+        try await messageStore.count(
+            matching: [
+                ChatMessageField.chatId: chatId,
+                ChatMessageField.handled: false
+            ]
+        )
+    }
+
+    func updateUnhandledCount(chatId: String, count: Int?) async throws {
+        let resolvedCount = try await (count ?? countUnhandledMessages(chatId: chatId))
+        try await chatStore.updateAll(
+            ids: [chatId],
+            data: [ChatField.unhandledCount: max(0, resolvedCount)]
+        )
     }
 
 }

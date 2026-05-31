@@ -8,6 +8,8 @@ This document owns chat/message domain model and repository rules.
 - Persisted chat models must not contain raw integration transport fields.
 - Raw fields such as `rawDateTimeAndAuthor` and `rawTimeText` are forbidden in persisted domain models.
 - Integration-specific parsing and cleanup belongs in the integration/parser layer before creating persisted models.
+- `Chat.unhandledCount` is a cached count of messages with `handled == false`. The source of truth remains `ChatMessages`; the repository can recompute it via `updateUnhandledCount(chatId:count:)`, using Firestore count aggregation (not document reads).
+- When new messages are inserted, the repository recomputes `Chat.unhandledCount` for affected chats. This avoids recalculating counts on every chat list read.
 
 ## ID format rules
 

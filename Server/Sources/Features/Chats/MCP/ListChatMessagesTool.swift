@@ -23,7 +23,7 @@ struct ListChatMessagesTool: MCPToolDefinition {
         .init(name: "chatId", value: .string("chat-1")),
         .init(name: "limit", value: .integer(5))
     ]
-    let traits: [MCPToolTrait] = [.readOnly]
+    let traits: [MCPToolTrait] = [.writesState]
 
     func execute(
         _ call: MCPToolCall,
@@ -32,6 +32,15 @@ struct ListChatMessagesTool: MCPToolDefinition {
         let chatId = try MCPSupport.string("chatId", from: call)
         let limit = MCPSupport.optionalLimit(from: call, default: 10)
         let messages = try await repository.listMessages(chatId: chatId, limit: limit)
+
+        let unhandledIds = messages.compactMap { message in
+            guard !message.handled else { return nil }
+            return message.id
+        }
+        if !unhandledIds.isEmpty {
+            try await repository.markMessagesHandled(ids: unhandledIds)
+            try await repository.updateUnhandledCount(chatId: chatId, count: nil)
+        }
 
         return .object([
             "chatId": .string(chatId),

@@ -12,4 +12,7 @@ protocol ChatRepository {
     func markMessagesHandled(ids: [String]) async throws
     func existingMessageIds(chatId: String) async throws -> Set<String>
     func deleteMessage(id: String) async throws
+
+    func countUnhandledMessages(chatId: String) async throws -> Int
+    func updateUnhandledCount(chatId: String, count: Int?) async throws
 }
