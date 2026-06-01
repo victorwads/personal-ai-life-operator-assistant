@@ -266,6 +266,30 @@ open class FirestoreRepository<Model: PersistableModel> {
         }
     }
 
+    open func deleteAll(ids: [String], soft: Bool = false) async throws {
+        let documentIds = ids.filter { !$0.isEmpty }
+        guard !documentIds.isEmpty else {
+            return
+        }
+
+        let now = dateProvider()
+        for chunk in documentIds.chunked(into: 450) {
+            let batch = firestore.batch()
+            for id in chunk {
+                let reference = try documentReference(for: id)
+                if soft {
+                    batch.updateData([
+                        FirestoreRepositoryMetadataField.deletedAt: now,
+                        FirestoreRepositoryMetadataField.updatedAt: now
+                    ], forDocument: reference)
+                } else {
+                    batch.deleteDocument(reference)
+                }
+            }
+            try await batch.commit()
+        }
+    }
+
     open func observe(_ listener: @escaping ([Model]) -> Void) -> FirestoreListenerToken {
         let registration = collection.addSnapshotListener { [weak self] snapshot, error in
             guard let self else { return }
@@ -388,5 +412,15 @@ open class FirestoreRepository<Model: PersistableModel> {
         }
 
         return true
+    }
+}
+
+private extension Array {
+    func chunked(into size: Int) -> [[Element]] {
+        guard size > 0 else { return [self] }
+
+        return stride(from: 0, to: count, by: size).map { startIndex in
+            Array(self[startIndex..<Swift.min(startIndex + size, count)])
+        }
     }
 }

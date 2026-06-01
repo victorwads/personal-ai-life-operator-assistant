@@ -6,6 +6,9 @@ struct ChatListView: View {
     let isLoading: Bool
     let errorMessage: String?
     let onRefresh: () -> Void
+    let onDeleteAll: () -> Void
+
+    @State private var isConfirmingDeleteAll = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -15,6 +18,25 @@ struct ChatListView: View {
                 systemImage: "message"
             ) {
                 DSRefreshButton(isLoading: isLoading, action: onRefresh)
+
+                Button(role: .destructive) {
+                    isConfirmingDeleteAll = true
+                } label: {
+                    Label("Delete All", systemImage: "trash")
+                }
+                .disabled(isLoading || chats.isEmpty)
+                .foregroundStyle(.red)
+                .help("Delete all chats and messages")
+            }
+            .confirmationDialog(
+                "Delete all chats?",
+                isPresented: $isConfirmingDeleteAll,
+                titleVisibility: .visible
+            ) {
+                Button("Delete All Chats", role: .destructive, action: onDeleteAll)
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This deletes all chats and all chat messages from the local database.")
             }
 
             Divider()

@@ -61,6 +61,14 @@ final class FirestoreChatRepository: ChatRepository {
         try await chatStore.delete(id)
     }
 
+    func deleteAllChatsAndMessages() async throws {
+        let messageIds = try await messageStore.existingIds(matching: [:])
+        try await messageStore.deleteAll(ids: Array(messageIds))
+
+        let chatIds = try await chatStore.existingIds(matching: [:])
+        try await chatStore.deleteAll(ids: Array(chatIds))
+    }
+
     func listUnhandledChats(limit: Int? = nil) async throws -> [Chat] {
         let chats = try await listChats()
         let filtered = chats.filter { $0.unhandledCount > 0 }
@@ -127,6 +135,14 @@ final class FirestoreChatRepository: ChatRepository {
 
     func deleteMessage(id: String) async throws {
         try await messageStore.delete(id)
+    }
+
+    func deleteChatAndMessages(chatId: String) async throws {
+        let messageIds = try await messageStore.existingIds(
+            matching: [ChatMessageField.chatId: chatId]
+        )
+        try await messageStore.deleteAll(ids: Array(messageIds))
+        try await chatStore.delete(chatId)
     }
 
     func countUnhandledMessages(chatId: String) async throws -> Int {

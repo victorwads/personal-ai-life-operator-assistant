@@ -8,6 +8,8 @@ struct ChatsScreen: View {
     @State private var messagesByChatId: [String: [ChatMessage]] = [:]
     @State private var isLoadingChats = false
     @State private var loadingMessagesChatId: String?
+    @State private var isDeletingAllChats = false
+    @State private var deletingChatId: String?
     @State private var errorMessage: String?
 
     var body: some View {
@@ -15,18 +17,20 @@ struct ChatsScreen: View {
             ChatListView(
                 chats: chats,
                 selectedChatId: $selectedChatId,
-                isLoading: isLoadingChats,
+                isLoading: isLoadingChats || isDeletingAllChats,
                 errorMessage: errorMessage,
-                onRefresh: loadChats
+                onRefresh: loadChats,
+                onDeleteAll: beginDeleteAllChatsAndMessages
             )
             .frame(minWidth: 280, idealWidth: 340, maxWidth: 420)
 
             ChatConversationView(
                 chat: selectedChat,
                 messages: selectedMessages,
-                isLoading: isLoadingMessages,
+                isLoading: isLoadingMessages || isDeletingSelectedChat,
                 errorMessage: errorMessage,
-                onRefresh: refreshSelection
+                onRefresh: refreshSelection,
+                onDelete: beginDeleteSelectedChatAndMessages
             )
             .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -55,6 +59,11 @@ struct ChatsScreen: View {
         return loadingMessagesChatId == selectedChatId
     }
 
+    private var isDeletingSelectedChat: Bool {
+        guard let selectedChatId else { return false }
+        return deletingChatId == selectedChatId
+    }
+
     private func refreshSelection() {
         if let selectedChatId {
             Task { await loadMessages(chatId: selectedChatId, force: true) }
@@ -67,7 +76,15 @@ struct ChatsScreen: View {
         Task { await loadChats() }
     }
 
-    private func loadChats() async {
+    private func beginDeleteAllChatsAndMessages() {
+        Task { await deleteAllChatsAndMessages() }
+    }
+
+    private func beginDeleteSelectedChatAndMessages() {
+        Task { await deleteSelectedChatAndMessages() }
+    }
+
+    private func loadChats(autoSelect: Bool = true) async {
         isLoadingChats = true
         errorMessage = nil
         defer { isLoadingChats = false }
@@ -79,9 +96,52 @@ struct ChatsScreen: View {
             if let current = selectedChatId, loaded.contains(where: { $0.id == current }) {
                 return
             }
-            selectedChatId = loaded.first?.id
+            selectedChatId = autoSelect ? loaded.first?.id : nil
         } catch {
             errorMessage = "Failed to load chats: \(error.localizedDescription)"
+        }
+    }
+
+    private func deleteAllChatsAndMessages() async {
+        isDeletingAllChats = true
+        errorMessage = nil
+        defer { isDeletingAllChats = false }
+
+        do {
+            try await feature.repository.deleteAllChatsAndMessages()
+            selectedChatId = nil
+            messagesByChatId = [:]
+            chats = []
+            await loadChats(autoSelect: false)
+        } catch {
+            let message = "Failed to delete all chats and messages: \(error.localizedDescription)"
+            print(message)
+            errorMessage = message
+        }
+    }
+
+    private func deleteSelectedChatAndMessages() async {
+        guard let chatId = selectedChatId else {
+            return
+        }
+
+        deletingChatId = chatId
+        errorMessage = nil
+        defer {
+            if deletingChatId == chatId {
+                deletingChatId = nil
+            }
+        }
+
+        do {
+            try await feature.repository.deleteChatAndMessages(chatId: chatId)
+            selectedChatId = nil
+            messagesByChatId[chatId] = nil
+            await loadChats(autoSelect: false)
+        } catch {
+            let message = "Failed to delete chat \(chatId) and messages: \(error.localizedDescription)"
+            print(message)
+            errorMessage = message
         }
     }
 

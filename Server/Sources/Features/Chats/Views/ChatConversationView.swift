@@ -6,6 +6,9 @@ struct ChatConversationView: View {
     let isLoading: Bool
     let errorMessage: String?
     let onRefresh: () -> Void
+    let onDelete: () -> Void
+
+    @State private var isConfirmingDelete = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -15,6 +18,25 @@ struct ChatConversationView: View {
                 systemImage: "text.bubble"
             ) {
                 DSRefreshButton(isLoading: isLoading, action: onRefresh)
+
+                Button(role: .destructive) {
+                    isConfirmingDelete = true
+                } label: {
+                    Label("Delete Chat", systemImage: "trash")
+                }
+                .disabled(isLoading || chat == nil)
+                .foregroundStyle(.red)
+                .help("Delete the selected chat and messages")
+            }
+            .confirmationDialog(
+                "Delete this chat?",
+                isPresented: $isConfirmingDelete,
+                titleVisibility: .visible
+            ) {
+                Button("Delete Chat", role: .destructive, action: onDelete)
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This deletes the selected chat and all of its messages from the local database.")
             }
 
             Divider()
