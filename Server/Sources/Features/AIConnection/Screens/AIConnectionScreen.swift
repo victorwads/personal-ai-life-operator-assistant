@@ -10,10 +10,35 @@ struct AIConnectionScreen: View {
     }
 
     var body: some View {
-        FeatureScreenContainer(
-            title: "AI Connection",
-            subtitle: "Aggregated AI run inspector for prompts, output, reasoning, tools, usage, and errors."
-        ) {
+        FeatureScreenContainer {
+            DSFeatureHeader(
+                title: "AI Connection",
+                subtitle: "Runtime inspector/controller for prompt, output, reasoning, tools, usage, and errors."
+            ) {
+                HStack(spacing: 8) {
+                    Button("Load Tools") {
+                        Task { await viewModel.loadTools() }
+                    }
+                    .disabled(viewModel.isLoadingTools)
+
+                    Button("Start Run") {
+                        viewModel.startJob()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!viewModel.canStart)
+
+                    Button("Cancel") {
+                        viewModel.cancelRun()
+                    }
+                    .disabled(!viewModel.canCancel)
+
+                    Button("Reset") {
+                        viewModel.resetRun()
+                    }
+                    .disabled(!viewModel.canReset)
+                }
+            }
+
             ScrollView {
                 AIConnectionRunInspectorView(viewModel: viewModel)
             }

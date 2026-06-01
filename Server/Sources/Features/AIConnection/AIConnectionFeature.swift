@@ -8,11 +8,13 @@ final class AIConnectionFeature: FeatureRuntime {
 
     private(set) var settings: AIConnectionSettingsWrapper
     private(set) var streamingService: AIConnectionStreamingService
+    private(set) var runtimeService: AIConnectionRuntimeService
 
     required init(context: FeatureContext) {
         let settings = AIConnectionSettingsWrapper(settings: context.settings.store)
         self.settings = settings
-        self.streamingService = AIConnectionStreamingService(
+
+        let streamingService = AIConnectionStreamingService(
             settingsProvider: {
                 await MainActor.run {
                     settings.providerConfiguration
@@ -29,6 +31,9 @@ final class AIConnectionFeature: FeatureRuntime {
                 }
             )
         )
+        self.streamingService = streamingService
+        self.runtimeService = AIConnectionRuntimeService(streamingService: streamingService)
+
         super.init(context: context)
 
         context.settings.sectionRegistry.register(
@@ -43,7 +48,7 @@ final class AIConnectionFeature: FeatureRuntime {
         context.services.serviceRegistry.register(service)
 
         context.status.statusRegistry.register(
-            AIConnectionRuntimeStatusProvider(service: service)
+            AIConnectionRuntimeStatusProvider(runtimeService: runtimeService)
         )
     }
 

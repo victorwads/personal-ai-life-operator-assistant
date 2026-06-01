@@ -5,14 +5,24 @@ struct AIConnectionRunInspectorView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            AIRunHeaderView(viewModel: viewModel)
-            AIRunUsagePanelView(usage: viewModel.usageState)
+            HStack(alignment: .top, spacing: 16) {
+                AIRunHeaderView(viewModel: viewModel)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                AIRunUsagePanelView(usage: viewModel.runtimeState.usage)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+
+            HStack(alignment: .top, spacing: 16) {
+                AIRunTextOutputPanelView(text: viewModel.runtimeState.assistantText)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                AIRunReasoningPanelView(text: viewModel.runtimeState.reasoningText)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+
+            AIToolCallTimelineView(toolCalls: viewModel.runtimeState.toolCalls)
+            AIToolDefinitionsPanelView(tools: viewModel.runtimeState.availableToolDefinitions)
+            AIRunDebugPanelView(debugEvents: viewModel.runtimeState.debugEvents)
             AIRunPromptPanelView(promptState: viewModel.promptState)
-            AIRunTextOutputPanelView(text: viewModel.assistantText)
-            AIRunReasoningPanelView(text: viewModel.reasoningText)
-            AIToolDefinitionsPanelView(tools: viewModel.tools)
-            AIToolCallTimelineView(toolCalls: viewModel.toolCalls)
-            AIRunDebugPanelView(debugEvents: viewModel.debugEvents)
         }
     }
 }
@@ -23,7 +33,7 @@ struct AIRunHeaderView: View {
     var body: some View {
         DSTitledSection(
             title: "Run",
-            subtitle: "Aggregated execution inspector for prompt, outputs, tool calls, usage, and errors.",
+            subtitle: "Runtime-owned execution inspector for prompt, outputs, tool calls, usage, and errors.",
             systemImage: "play.circle"
         ) {
             VStack(alignment: .leading, spacing: 10) {
@@ -31,55 +41,53 @@ struct AIRunHeaderView: View {
                     .textFieldStyle(.roundedBorder)
                     .autocorrectionDisabled()
 
-                HStack(spacing: 10) {
-                    Button("Load Tools") {
-                        Task { await viewModel.loadTools() }
-                    }
-                    .disabled(viewModel.isLoadingTools || viewModel.isStreaming)
-
-                    Button("Start Run") {
-                        viewModel.startJob()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(viewModel.isStreaming)
-
-                    Button("Cancel") {
-                        viewModel.cancelRun()
-                    }
-                    .disabled(!viewModel.isStreaming)
-
-                    Button("Clear") {
-                        viewModel.clear()
-                    }
-                    .disabled(viewModel.isStreaming)
-                }
-
                 HStack(spacing: 8) {
                     Text("Status")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    DSBadge(viewModel.runStatus.rawValue.capitalized, style: badgeStyle)
+                    AIRuntimeStatusBadge(status: viewModel.runtimeState.status)
                 }
 
-                if let providerError = viewModel.providerError {
-                    Text(providerError)
+                if let error = viewModel.runtimeState.errors.last {
+                    Text(error)
                         .font(.footnote)
                         .foregroundStyle(.red)
                 }
             }
         }
     }
+}
 
-    private var badgeStyle: DSBadge.Style {
-        switch viewModel.runStatus {
-        case .idle:
-            return .neutral
-        case .running:
-            return .info
-        case .completed:
-            return .success
-        case .failed, .cancelled:
-            return .danger
+private struct AIRuntimeStatusBadge: View {
+    let status: AIConnectionRuntimeStatus
+
+    var body: some View {
+        Label(status.displayName, systemImage: status.icon)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(status.color, in: Capsule())
+    }
+}
+
+private extension AIConnectionRuntimeStatus {
+    var color: Color {
+        switch self {
+        case .stopped, .cancelled:
+            return .gray
+        case .initializing, .promptProcessing:
+            return .blue
+        case .reasoning:
+            return .purple
+        case .executingTool, .waitingEvent, .paused:
+            return .orange
+        case .receivingOutput, .completed:
+            return .green
+        case .waitingUser:
+            return .yellow.opacity(0.85)
+        case .failed:
+            return .red
         }
     }
 }
@@ -193,31 +201,34 @@ struct AIRunReasoningPanelView: View {
 
 struct AIToolDefinitionsPanelView: View {
     let tools: [AIToolDefinition]
+    @State private var isExpanded = false
 
     var body: some View {
         DSTitledSection(
             title: "Tool Definitions",
-            subtitle: "Available MCP tools from AI Connection feature context.",
+            subtitle: "Available MCP tools from AI Connection runtime cache.",
             systemImage: "wrench.and.screwdriver"
         ) {
-            if tools.isEmpty {
-                Text("No tool definitions loaded.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            } else {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(tools, id: \.name) { tool in
-                        HStack(alignment: .top, spacing: 8) {
-                            Image(systemName: tool.icon ?? "hammer")
-                                .foregroundStyle(.secondary)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(tool.name)
-                                    .font(.subheadline.weight(.semibold))
-                                Text(tool.description.isEmpty ? "No description" : tool.description)
-                                    .font(.caption)
+            DisclosureGroup("Available tools (\(tools.count))", isExpanded: $isExpanded) {
+                if tools.isEmpty {
+                    Text("No tool definitions loaded.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(tools, id: \.name) { tool in
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: tool.icon ?? "hammer")
                                     .foregroundStyle(.secondary)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(tool.name)
+                                        .font(.subheadline.weight(.semibold))
+                                    Text(tool.description.isEmpty ? "No description" : tool.description)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
                             }
-                            Spacer()
                         }
                     }
                 }
@@ -254,50 +265,46 @@ struct AIToolCallTimelineRowView: View {
     let call: AIRunToolCallState
 
     var body: some View {
-        DisclosureGroup {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Tool call id")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text(call.id)
-                        .font(.caption.monospaced())
-                }
+        HStack(alignment: .center, spacing: 10) {
+            Image(systemName: call.icon ?? "hammer")
+                .foregroundStyle(.secondary)
 
-                DSCodableDebugInspector(title: "Tool call details", value: call)
-            }
-            .padding(.top, 6)
-        } label: {
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: call.icon ?? "hammer")
+            Text(call.name)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+
+            DSBadge(call.status.rawValue, style: statusStyle)
+
+            Text(call.durationText)
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 4) {
+                Text("args:")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(call.name)
-                            .font(.subheadline.weight(.semibold))
-                        DSBadge(call.status.rawValue, style: statusStyle)
-                    }
-
-                    Text(call.argumentsPreview)
-                        .font(.caption.monospaced())
-                        .lineLimit(2)
-                        .foregroundStyle(.secondary)
-
-                    Text("start: \(date(call.startedAt))  end: \(date(call.endedAt))  duration: \(call.durationText)")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
+                DSCodableDebugInspector(title: "Tool call arguments", value: argumentsPayload)
             }
+
+            HStack(spacing: 4) {
+                Text("result:")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                DSCodableDebugInspector(title: "Tool call response", value: responsePayload)
+            }
+
+            Spacer(minLength: 0)
+
+            Text(call.id)
+                .font(.caption2.monospaced())
+                .foregroundStyle(.tertiary)
+                .lineLimit(1)
         }
     }
 
     private var statusStyle: DSBadge.Style {
         switch call.status {
-        case .started, .argumentsStreaming:
+        case .started, .argumentsStreaming, .executing:
             return .info
         case .argumentsReady:
             return .warning
@@ -308,16 +315,24 @@ struct AIToolCallTimelineRowView: View {
         }
     }
 
-    private func date(_ value: Date?) -> String {
-        guard let value else { return "-" }
-        return Self.timeFormatter.string(from: value)
+    private var argumentsPayload: AIInspectorPayload {
+        AIInspectorPayload(raw: call.argumentsJSON, parsed: parsedJSONObject(from: call.argumentsJSON))
     }
 
-    private static let timeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
-        return formatter
-    }()
+    private var responsePayload: AIInspectorPayload {
+        AIInspectorPayload(raw: call.responseText ?? "", parsed: parsedJSONObject(from: call.responseText ?? ""))
+    }
+
+    private func parsedJSONObject(from jsonText: String) -> [String: AIJSONValue]? {
+        let trimmed = jsonText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return try? AIJSONValue.parseObject(from: trimmed)
+    }
+}
+
+private struct AIInspectorPayload: Encodable {
+    let raw: String
+    let parsed: [String: AIJSONValue]?
 }
 
 struct AIRunDebugPanelView: View {
