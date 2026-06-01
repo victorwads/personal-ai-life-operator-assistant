@@ -61,15 +61,19 @@ final class WhatsAppChatCrawlingOrchestrator {
             onStatusUpdate?("Listing chats")
             let headers = WhatsAppChatListParser.parse(from: rootObject)
             logStore.append(source: "ChatList", "Found \(headers.count) chats")
+            logStore.append(
+                source: "ChatList",
+                "Crawling order is bottom-to-top (oldest visible first); listOrder is preserved as visual top-to-bottom (top chat = 0)."
+            )
             onStatusUpdate?("Found \(headers.count) chats")
             let interactor = WebViewElementInteractor(webView: webView)
 
-            for (index, header) in headers.enumerated() {
+            for (reverseIndex, header) in headers.reversed().enumerated() {
                 guard shouldProceed() else { return .success(()) }
 
                 let existingChat = try await chatRepository.getChat(id: header.id)
                 let refreshByRule = shouldRefreshChatMessages(header: header, existingChat: existingChat)
-                let forcedRefresh = debugForceRefreshFirstChat && index == 0
+                let forcedRefresh = debugForceRefreshFirstChat && reverseIndex == 0
                 let shouldRefresh = forceRefreshAllChats || refreshByRule || forcedRefresh
                 logStore.append(
                     source: "Decision",
@@ -90,8 +94,24 @@ final class WhatsAppChatCrawlingOrchestrator {
                     continue
                 }
 
-                guard let openElement = header.openChatElement else {
-                    logStore.append(source: "Interactor", "Skip '\(header.title)': missing clickable handle")
+                if header.openChatElement != nil {
+                    logStore.append(
+                        source: "Interactor",
+                        "Refusing cached clickable handle for '\(header.title)'; resolving a fresh chat-row handle from latest extraction."
+                    )
+                } else {
+                    logStore.append(source: "Interactor", "No cached clickable handle for '\(header.title)'; resolving fresh handle.")
+                }
+
+                guard shouldProceed() else { return .success(()) }
+                guard let openElement = try await resolveFreshOpenChatElement(
+                    forTitle: header.title,
+                    webView: webView
+                ) else {
+                    logStore.append(
+                        source: "Interactor",
+                        "Skip '\(header.title)': fresh chat-row handle missing/stale after latest extraction."
+                    )
                     continue
                 }
 
@@ -101,7 +121,10 @@ final class WhatsAppChatCrawlingOrchestrator {
                 let clicked = try await interactor.click(openElement)
                 logStore.append(source: "Interactor", "Click result=\(clicked) for '\(header.title)'")
                 guard clicked else {
-                    logStore.append(source: "Interactor", "Skip '\(header.title)': click returned false")
+                    logStore.append(
+                        source: "Interactor",
+                        "Skip '\(header.title)': click returned false (handle missing/stale or element no longer attached)."
+                    )
                     continue
                 }
 
@@ -171,6 +194,50 @@ final class WhatsAppChatCrawlingOrchestrator {
         guard let data = text.data(using: .utf8) else { return nil }
         guard let object = try? JSONSerialization.jsonObject(with: data) else { return nil }
         return object as? [String: Any]
+    }
+
+    private func resolveFreshOpenChatElement(
+        forTitle title: String,
+        webView: WKWebView
+    ) async throws -> WebViewInteractiveElement? {
+        let latestExtractionJSON = try await WebYAMLExtractionRunner.run(yamlText: yamlText, in: webView)
+        guard let latestRootObject = parseJSONObject(from: latestExtractionJSON) else {
+            logStore.append(
+                source: "Interactor",
+                "Fresh chat-list extraction parse failed while resolving clickable handle for '\(title)'."
+            )
+            return nil
+        }
+
+        let latestHeaders = WhatsAppChatListParser.parse(from: latestRootObject)
+        let expectedNormalizedTitle = normalizedChatTitle(title)
+        guard let freshHeader = latestHeaders.first(where: {
+            normalizedChatTitle($0.title) == expectedNormalizedTitle
+        }) else {
+            logStore.append(
+                source: "Interactor",
+                "Fresh chat row not found for '\(title)' (normalized='\(expectedNormalizedTitle)')."
+            )
+            return nil
+        }
+
+        guard let freshHandle = freshHeader.openChatElement else {
+            logStore.append(
+                source: "Interactor",
+                "Fresh chat row found for '\(title)' but clickable handle is missing."
+            )
+            return nil
+        }
+
+        logStore.append(
+            source: "Interactor",
+            "Resolved fresh chat-row handle id=\(freshHandle.id) for '\(title)' from latest extraction."
+        )
+        return freshHandle
+    }
+
+    private func normalizedChatTitle(_ title: String) -> String {
+        WhatsAppCrawlingNormalizer.normalizeText(title)?.lowercased() ?? title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
     private func waitForSelectedChat(

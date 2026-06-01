@@ -18,7 +18,6 @@ enum WebViewJavaScripts {
 
   function resetElementRegistry() {
     elementRegistry = {};
-    elementCounter = 0;
   }
 
   function registerInteractiveElement(element) {
