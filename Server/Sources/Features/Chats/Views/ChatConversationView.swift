@@ -7,6 +7,7 @@ struct ChatConversationView: View {
     let errorMessage: String?
     let onRefresh: () -> Void
     let onDelete: () -> Void
+    let onPermissionChange: (ChatPermission?) -> Void
 
     @State private var isConfirmingDelete = false
 
@@ -66,13 +67,38 @@ struct ChatConversationView: View {
                         systemImage: "ellipsis.message"
                     )
                 } else {
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 10) {
-                            ForEach(Array(messages.enumerated()), id: \.offset) { _, message in
-                                ChatMessageBubbleView(message: message)
+                    VStack(alignment: .leading, spacing: 0) {
+                        if let chat {
+                            HStack(spacing: 12) {
+                                Text("Permission")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                Picker(
+                                    "Permission",
+                                    selection: Binding(
+                                        get: { ChatPermissionChoice(permission: chat.permission) },
+                                        set: { onPermissionChange($0.permission) }
+                                    )
+                                ) {
+                                    ForEach(ChatPermissionChoice.allCases) { choice in
+                                        Text(choice.title).tag(choice)
+                                    }
+                                }
+                                .pickerStyle(.segmented)
                             }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            Divider()
                         }
-                        .padding(16)
+
+                        ScrollView {
+                            LazyVStack(alignment: .leading, spacing: 10) {
+                                ForEach(Array(messages.enumerated()), id: \.offset) { _, message in
+                                    ChatMessageBubbleView(message: message)
+                                }
+                            }
+                            .padding(16)
+                        }
                     }
                 }
             }

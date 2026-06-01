@@ -30,7 +30,8 @@ struct ChatsScreen: View {
                 isLoading: isLoadingMessages || isDeletingSelectedChat,
                 errorMessage: errorMessage,
                 onRefresh: refreshSelection,
-                onDelete: beginDeleteSelectedChatAndMessages
+                onDelete: beginDeleteSelectedChatAndMessages,
+                onPermissionChange: beginSetSelectedChatPermission
             )
             .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -82,6 +83,10 @@ struct ChatsScreen: View {
 
     private func beginDeleteSelectedChatAndMessages() {
         Task { await deleteSelectedChatAndMessages() }
+    }
+
+    private func beginSetSelectedChatPermission(_ permission: ChatPermission?) {
+        Task { await setSelectedChatPermission(permission) }
     }
 
     private func loadChats(autoSelect: Bool = true) async {
@@ -163,6 +168,24 @@ struct ChatsScreen: View {
             messagesByChatId[chatId] = messages
         } catch {
             errorMessage = "Failed to load messages: \(error.localizedDescription)"
+        }
+    }
+
+    private func setSelectedChatPermission(_ permission: ChatPermission?) async {
+        guard let chatId = selectedChatId else { return }
+        guard let chatIndex = chats.firstIndex(where: { $0.id == chatId }) else { return }
+
+        let currentChat = chats[chatIndex]
+        guard currentChat.permission != permission else { return }
+
+        var updatedChat = currentChat
+        updatedChat.permission = permission
+
+        do {
+            try await feature.repository.upsertChat(updatedChat)
+            chats[chatIndex] = updatedChat
+        } catch {
+            errorMessage = "Failed to update chat permission: \(error.localizedDescription)"
         }
     }
 }

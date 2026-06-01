@@ -3,6 +3,7 @@ import Foundation
 struct Chat: PersistableModel, Equatable, Sendable {
     @DocumentID var id: String?
     var title: String
+    var permission: ChatPermission?
     var listOrder: Int?
     var lastMessagePreview: String?
     var lastMessageTimeText: String?

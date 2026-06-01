@@ -2,9 +2,14 @@ import Foundation
 
 struct ListChatMessagesTool: MCPToolDefinition {
     private let repository: any ChatRepository
+    private let permissionModeProvider: @MainActor () -> ChatPermissionMode
 
-    init(repository: any ChatRepository) {
+    init(
+        repository: any ChatRepository,
+        permissionModeProvider: @escaping @MainActor () -> ChatPermissionMode
+    ) {
         self.repository = repository
+        self.permissionModeProvider = permissionModeProvider
     }
 
     let name = "list_chat_messages"
@@ -31,6 +36,13 @@ struct ListChatMessagesTool: MCPToolDefinition {
     ) async throws -> MCPJSONValue {
         let chatId = try MCPSupport.string("chatId", from: call)
         let limit = MCPSupport.optionalLimit(from: call, default: 10)
+        let mode = await permissionModeProvider()
+        guard let chat = try await repository.getChat(id: chatId) else {
+            throw MCPServerError.invalidArguments("Chat '\(chatId)' was not found.")
+        }
+        guard ChatPermissionResolver.isChatAllowed(chat, mode: mode) else {
+            throw MCPServerError.invalidArguments("Chat '\(chat.title)' is not allowed by current chat permissions.")
+        }
         let messages = try await repository.listMessages(chatId: chatId, limit: limit)
 
         let unhandledIds: [String] = messages

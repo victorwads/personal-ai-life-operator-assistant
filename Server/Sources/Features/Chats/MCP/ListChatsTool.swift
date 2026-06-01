@@ -2,9 +2,14 @@ import Foundation
 
 struct ListChatsTool: MCPToolDefinition {
     private let repository: any ChatRepository
+    private let permissionModeProvider: @MainActor () -> ChatPermissionMode
 
-    init(repository: any ChatRepository) {
+    init(
+        repository: any ChatRepository,
+        permissionModeProvider: @escaping @MainActor () -> ChatPermissionMode
+    ) {
         self.repository = repository
+        self.permissionModeProvider = permissionModeProvider
     }
 
     let name = "list_chats"
@@ -27,7 +32,9 @@ struct ListChatsTool: MCPToolDefinition {
         context _: MCPServerContext
     ) async throws -> MCPJSONValue {
         let limit = MCPSupport.optionalLimit(from: call, default: 5)
+        let mode = await permissionModeProvider()
         let chats = try await repository.listChats()
+            .filter { ChatPermissionResolver.isChatAllowed($0, mode: mode) }
 
         return .object([
             "count": .int(min(chats.count, limit)),

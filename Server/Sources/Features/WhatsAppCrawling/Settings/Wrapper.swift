@@ -13,7 +13,8 @@ final class WhatsAppCrawlingSettingsWrapper {
     private enum Key {
         static let activeIntegration = "activeIntegration"
         static let pollingIntervalSeconds = "pollingIntervalSeconds"
-        static let accessPolicy = "accessPolicy"
+        static let chatPermissionMode = "chatPermissionMode"
+        static let legacyAccessPolicy = "accessPolicy"
         static let autoStart = "autoStart"
     }
 
@@ -36,13 +37,22 @@ final class WhatsAppCrawlingSettingsWrapper {
         }
     }
 
-    var accessPolicy: WhatsAppCrawlingAccessPolicy {
+    var chatPermissionMode: ChatPermissionMode {
         get {
-            let raw = settings.value(scope: Self.scopeName, key: Key.accessPolicy) ?? ""
-            return WhatsAppCrawlingAccessPolicy(rawValue: raw) ?? .allowAllExceptDenyList
+            let raw = settings.value(scope: Self.scopeName, key: Key.chatPermissionMode)
+                ?? settings.value(scope: Self.scopeName, key: Key.legacyAccessPolicy)
+                ?? ""
+            switch raw {
+            case ChatPermissionMode.allowAllExceptDenied.rawValue, "allowAllExceptDenyList":
+                return .allowAllExceptDenied
+            case ChatPermissionMode.denyAllExceptAllowed.rawValue, "denyAllExceptAllowList":
+                return .denyAllExceptAllowed
+            default:
+                return .allowAllExceptDenied
+            }
         }
         set {
-            settings.setValue(scope: Self.scopeName, key: Key.accessPolicy, value: newValue.rawValue)
+            settings.setValue(scope: Self.scopeName, key: Key.chatPermissionMode, value: newValue.rawValue)
         }
     }
 

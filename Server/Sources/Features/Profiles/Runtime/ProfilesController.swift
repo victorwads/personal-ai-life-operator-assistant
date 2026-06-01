@@ -120,8 +120,8 @@ final class ProfilesController: ObservableObject {
         objectWillChange.send()
     }
 
-    func stopAllRunningProfiles() async {
-        await runtimeController.stopAllProfiles()
+    func stopAllRunningProfiles(flushPendingSettings: Bool = true) async {
+        await runtimeController.stopAllProfiles(flushPendingSettings: flushPendingSettings)
         objectWillChange.send()
     }
 

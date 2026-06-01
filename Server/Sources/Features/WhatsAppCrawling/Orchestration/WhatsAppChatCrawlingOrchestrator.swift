@@ -4,6 +4,7 @@ import WebKit
 @MainActor
 final class WhatsAppChatCrawlingOrchestrator {
     private let chatRepository: any ChatRepository
+    private let permissionModeProvider: @MainActor () -> ChatPermissionMode
     private let yamlText: String
     private let logStore: WhatsAppCrawlingLogStore
     private var onStatusUpdate: ((String) -> Void)?
@@ -12,11 +13,13 @@ final class WhatsAppChatCrawlingOrchestrator {
 
     init(
         chatRepository: any ChatRepository,
+        permissionModeProvider: @escaping @MainActor () -> ChatPermissionMode,
         yamlText: String,
         logStore: WhatsAppCrawlingLogStore,
         onStatusUpdate: ((String) -> Void)? = nil
     ) {
         self.chatRepository = chatRepository
+        self.permissionModeProvider = permissionModeProvider
         self.yamlText = yamlText
         self.logStore = logStore
         self.onStatusUpdate = onStatusUpdate
@@ -72,6 +75,18 @@ final class WhatsAppChatCrawlingOrchestrator {
                 guard shouldProceed() else { return .success(()) }
 
                 let existingChat = try await chatRepository.getChat(id: header.id)
+                let mode = permissionModeProvider()
+                let rawPermission = existingChat?.permission
+                let effectiveAllowed = ChatPermissionResolver.isPermissionAllowed(rawPermission, mode: mode)
+                logStore.append(
+                    source: "Permission",
+                    "title='\(header.title)' rawPermission=\(rawPermission?.rawValue ?? "nil") mode=\(mode.rawValue) allowed=\(effectiveAllowed)"
+                )
+                guard effectiveAllowed else {
+                    logStore.append(source: "Permission", "Skip '\(header.title)': denied by permission policy.")
+                    continue
+                }
+
                 let refreshByRule = shouldRefreshChatMessages(header: header, existingChat: existingChat)
                 let forcedRefresh = debugForceRefreshFirstChat && reverseIndex == 0
                 let shouldRefresh = forceRefreshAllChats || refreshByRule || forcedRefresh
@@ -83,6 +98,7 @@ final class WhatsAppChatCrawlingOrchestrator {
                 let chat = Chat(
                     id: header.id,
                     title: header.title,
+                    permission: existingChat?.permission,
                     listOrder: header.listOrder,
                     lastMessagePreview: header.lastMessagePreview,
                     lastMessageTimeText: header.lastMessageTimeText,

@@ -6,7 +6,7 @@ struct WhatsAppCrawlingSettingsView: View {
 
     @State private var activeIntegration: WhatsAppCrawlingActiveIntegration = .webView
     @State private var pollingIntervalSeconds = 5
-    @State private var accessPolicy: WhatsAppCrawlingAccessPolicy = .allowAllExceptDenyList
+    @State private var chatPermissionMode: ChatPermissionMode = .allowAllExceptDenied
     @State private var autoStart = false
 
     var body: some View {
@@ -25,9 +25,9 @@ struct WhatsAppCrawlingSettingsView: View {
                 in: 1...300
             )
 
-            Picker("Access Policy", selection: accessPolicyBinding) {
-                ForEach(WhatsAppCrawlingAccessPolicy.allCases) { policy in
-                    Text(policy.title).tag(policy)
+            Picker("Chat Permission Mode", selection: chatPermissionModeBinding) {
+                ForEach(ChatPermissionMode.allCases) { mode in
+                    Text(mode.title).tag(mode)
                 }
             }
 
@@ -59,12 +59,12 @@ struct WhatsAppCrawlingSettingsView: View {
         }
     }
 
-    private var accessPolicyBinding: Binding<WhatsAppCrawlingAccessPolicy> {
+    private var chatPermissionModeBinding: Binding<ChatPermissionMode> {
         Binding {
-            accessPolicy
+            chatPermissionMode
         } set: { value in
-            accessPolicy = value
-            crawlingSettings.accessPolicy = value
+            chatPermissionMode = value
+            crawlingSettings.chatPermissionMode = value
         }
     }
 
@@ -80,7 +80,7 @@ struct WhatsAppCrawlingSettingsView: View {
     private func load() {
         activeIntegration = crawlingSettings.activeIntegration
         pollingIntervalSeconds = crawlingSettings.pollingIntervalSeconds
-        accessPolicy = crawlingSettings.accessPolicy
+        chatPermissionMode = crawlingSettings.chatPermissionMode
         autoStart = crawlingSettings.autoStart
     }
 }

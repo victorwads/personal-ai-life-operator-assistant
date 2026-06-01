@@ -90,12 +90,12 @@ final class ProfileRuntimeController: ObservableObject {
         objectWillChange.send()
     }
 
-    func stopAllProfiles() async {
+    func stopAllProfiles(flushPendingSettings: Bool = true) async {
         for runtime in registry.allRuntimes {
             if let profileId = runtime.context.profile.id {
                 windowManager?.hideProfileWindow(profileId: profileId)
             }
-            await runtime.stop()
+            await runtime.stop(flushPendingSettings: flushPendingSettings)
         }
         registry.clear()
         objectWillChange.send()

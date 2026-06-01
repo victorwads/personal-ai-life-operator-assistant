@@ -75,9 +75,9 @@ final class ProfileRuntime: ObservableObject {
         windowState = .hidden
     }
 
-    func stop() async {
+    func stop(flushPendingSettings: Bool = true) async {
         await stopServices()
-        await container?.stop()
+        await container?.stop(flushPendingSettings: flushPendingSettings)
         container = nil
     }
 

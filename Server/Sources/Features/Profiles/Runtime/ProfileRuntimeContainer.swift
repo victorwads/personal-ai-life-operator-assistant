@@ -55,10 +55,10 @@ final class ProfileRuntimeContainer {
         await appFeatures.executeForEachFeature { feature in await feature.stopServices()}
     }
 
-    func stop() async {
+    func stop(flushPendingSettings: Bool = true) async {
         await stopServices()
         await appFeatures.executeForEachFeature { feature in await feature.stopObserving() }
-        await settings.stop()
+        await settings.stop(flushPendingSaves: flushPendingSettings)
     }
 
 }

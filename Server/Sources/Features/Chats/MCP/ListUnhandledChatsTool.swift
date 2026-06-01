@@ -2,9 +2,14 @@ import Foundation
 
 struct ListUnhandledChatsTool: MCPToolDefinition {
     private let repository: any ChatRepository
+    private let permissionModeProvider: @MainActor () -> ChatPermissionMode
 
-    init(repository: any ChatRepository) {
+    init(
+        repository: any ChatRepository,
+        permissionModeProvider: @escaping @MainActor () -> ChatPermissionMode
+    ) {
         self.repository = repository
+        self.permissionModeProvider = permissionModeProvider
     }
 
     let name = "list_unhandled_chats"
@@ -28,10 +33,13 @@ struct ListUnhandledChatsTool: MCPToolDefinition {
         context _: MCPServerContext
     ) async throws -> MCPJSONValue {
         let limit = MCPSupport.optionalLimit(from: call, default: 10)
-        let chats = try await repository.listUnhandledChats(limit: limit)
+        let mode = await permissionModeProvider()
+        let chats = try await repository.listUnhandledChats(limit: nil)
+            .filter { ChatPermissionResolver.isChatAllowed($0, mode: mode) }
+        let limitedChats = Array(chats.prefix(max(1, limit)))
         return .object([
-            "count": .int(chats.count),
-            "chats": .array(chats.map(chatJSON))
+            "count": .int(limitedChats.count),
+            "chats": .array(limitedChats.map(chatJSON))
         ])
     }
 
