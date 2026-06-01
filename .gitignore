@@ -13,3 +13,5 @@ Package.resolved
 
 Backups/
 *.log
+firebase-emulator-data
+*.zip

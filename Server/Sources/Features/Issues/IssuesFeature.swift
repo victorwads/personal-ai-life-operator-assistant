@@ -29,7 +29,7 @@ enum IssueListFilter: String, CaseIterable, Identifiable, Sendable {
 protocol IssueRelatedDataProviding {
     func listSensitiveDataUsageByIssueId(_ issueId: String) async throws -> [SensitiveDataUsage]
     func listSentMessagesByIssueId(_ issueId: String) async throws -> [SentMessage]
-    func listClientVoiceMessagesByIssueId(_ issueId: String) async throws -> [ClientVoiceMessage]
+    func listClientInteractionRequestsByIssueId(_ issueId: String) async throws -> [ClientInteractionRequest]
 }
 
 @MainActor
@@ -114,7 +114,7 @@ final class IssuesFeature: FeatureRuntime, IssueReferenceValidating, IssueRelate
         try await context.feature(SentMessagesFeature.self).listByIssueId(issueId)
     }
 
-    func listClientVoiceMessagesByIssueId(_ issueId: String) async throws -> [ClientVoiceMessage] {
+    func listClientInteractionRequestsByIssueId(_ issueId: String) async throws -> [ClientInteractionRequest] {
         try await context.feature(ClientVoiceFeature.self).listByIssueId(issueId)
     }
 }

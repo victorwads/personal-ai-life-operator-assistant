@@ -15,7 +15,7 @@ struct IssueDetailScreen: View {
     @State private var timelineItems: [IssueTimelineItem] = []
     @State private var sensitiveDataUsage: [SensitiveDataUsage] = []
     @State private var sentMessages: [SentMessage] = []
-    @State private var clientVoiceMessages: [ClientVoiceMessage] = []
+    @State private var clientInteractionRequests: [ClientInteractionRequest] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
 
@@ -255,20 +255,27 @@ struct IssueDetailScreen: View {
     private var clientVoiceSection: some View {
         DSTitledSection(
             title: "Client Voice",
-            subtitle: "Client-facing voice/message records when the feature data source exists.",
+            subtitle: "Auditable client interaction requests linked to this issue.",
             systemImage: "waveform"
         ) {
-            if clientVoiceMessages.isEmpty {
+            if clientInteractionRequests.isEmpty {
                 emptySectionText("No client voice records are available for this issue yet.")
             } else {
                 VStack(alignment: .leading, spacing: 12) {
-                    ForEach(clientVoiceMessages, id: \.id) { message in
+                    ForEach(clientInteractionRequests, id: \.id) { request in
                         DSListCardRow(
-                            title: clientVoiceTitle(for: message.kind),
-                            subtitle: message.id ?? "No record id",
-                            description: clientVoiceDescription(for: message)
+                            title: clientVoiceTitle(for: request.kind),
+                            subtitle: request.id ?? "No record id",
+                            description: clientVoiceDescription(for: request)
                         ) {
-                            DSBadge("Kind", secondaryText: message.kind.rawValue, style: .info)
+                            HStack(spacing: 8) {
+                                DSBadge("Kind", secondaryText: request.kind.rawValue, style: .info)
+                                DSBadge(
+                                    "Status",
+                                    secondaryText: request.status.rawValue,
+                                    style: clientInteractionStatusBadgeStyle(for: request.status)
+                                )
+                            }
                         }
                     }
                 }
@@ -319,19 +326,19 @@ struct IssueDetailScreen: View {
             async let timelineTask = issuesFeature.listTimelineItems(issueId: issueId)
             async let sensitiveDataTask = loadSensitiveDataUsage()
             async let sentMessagesTask = loadSentMessages()
-            async let clientVoiceTask = loadClientVoiceMessages()
+            async let clientVoiceTask = loadClientInteractionRequests()
 
             issue = try await issueTask
             timelineItems = try await timelineTask
             sensitiveDataUsage = try await sensitiveDataTask
             sentMessages = try await sentMessagesTask
-            clientVoiceMessages = try await clientVoiceTask
+            clientInteractionRequests = try await clientVoiceTask
         } catch {
             issue = nil
             timelineItems = []
             sensitiveDataUsage = []
             sentMessages = []
-            clientVoiceMessages = []
+            clientInteractionRequests = []
             errorMessage = error.localizedDescription
         }
 
@@ -365,12 +372,12 @@ struct IssueDetailScreen: View {
         return try await relatedDataProvider.listSentMessagesByIssueId(issueId)
     }
 
-    private func loadClientVoiceMessages() async throws -> [ClientVoiceMessage] {
+    private func loadClientInteractionRequests() async throws -> [ClientInteractionRequest] {
         guard let relatedDataProvider else {
             return []
         }
 
-        return try await relatedDataProvider.listClientVoiceMessagesByIssueId(issueId)
+        return try await relatedDataProvider.listClientInteractionRequestsByIssueId(issueId)
     }
 
     private func formattedDate(_ date: Date?) -> String {
@@ -418,29 +425,27 @@ struct IssueDetailScreen: View {
         return "No thread reference recorded."
     }
 
-    private func clientVoiceTitle(for kind: ClientVoiceMessageKind) -> String {
+    private func clientVoiceTitle(for kind: ClientInteractionKind) -> String {
         switch kind {
-        case .speakToClient:
-            return "Speak To Client"
-        case .askToClient:
-            return "Ask To Client"
-        case .transcribedClientReply:
-            return "Transcribed Client Reply"
-        case .assistantPrompt:
-            return "Assistant Prompt"
+        case .ask:
+            return "Ask Request"
+        case .speak:
+            return "Speak Request"
         }
     }
 
-    private func clientVoiceDescription(for message: ClientVoiceMessage) -> String {
-        if let text = message.text, !text.isEmpty {
-            return text
+    private func clientVoiceDescription(for request: ClientInteractionRequest) -> String {
+        var lines: [String] = [request.promptText]
+
+        if let responseText = request.responseText?.trimmingCharacters(in: .whitespacesAndNewlines), !responseText.isEmpty {
+            lines.append("Response: \(responseText)")
         }
 
-        if let audioReference = message.audioReference, !audioReference.isEmpty {
-            return "Audio reference: \(audioReference)"
+        if let errorMessage = request.errorMessage?.trimmingCharacters(in: .whitespacesAndNewlines), !errorMessage.isEmpty {
+            lines.append("Error: \(errorMessage)")
         }
 
-        return "No text or audio reference stored."
+        return lines.joined(separator: "\n")
     }
 
     private func priorityText(for priority: IssuePriority) -> String {
@@ -491,6 +496,19 @@ struct IssueDetailScreen: View {
         case .save, .update:
             return .warning
         case .delete:
+            return .danger
+        }
+    }
+
+    private func clientInteractionStatusBadgeStyle(for status: ClientInteractionStatus) -> DSBadge.Style {
+        switch status {
+        case .pending:
+            return .info
+        case .delivered:
+            return .warning
+        case .completed:
+            return .success
+        case .cancelled, .failed:
             return .danger
         }
     }

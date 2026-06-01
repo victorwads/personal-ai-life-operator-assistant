@@ -67,6 +67,10 @@ struct CommandCenterHeaderView: View {
 
     private func iconName(for actionTitle: String) -> String {
         switch actionTitle {
+        case "Play":
+            return "play.fill"
+        case "Pause":
+            return "pause.fill"
         case "Start":
             return "play.fill"
         case "Stop":
