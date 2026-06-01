@@ -1,6 +1,6 @@
 import Foundation
 
-struct WebViewInteractiveElement: Codable, Equatable {
+struct WebViewInteractiveElement: Codable, Equatable, Sendable {
     let id: String
 
     private enum CodingKeys: String, CodingKey {

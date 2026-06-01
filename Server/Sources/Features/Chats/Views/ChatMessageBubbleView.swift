@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct ChatMessageBubbleView: View {
     let message: ChatMessage
@@ -45,9 +46,9 @@ struct ChatMessageBubbleView: View {
         case .text:
             Text(message.text ?? "(empty text message)")
         case .image:
-            Label(message.text ?? "Image message", systemImage: "photo")
+            mediaPreviewOrPlaceholder(placeholder: "[Image]")
         case .sticker:
-            Label(message.text ?? "Sticker message", systemImage: "face.smiling")
+            mediaPreviewOrPlaceholder(placeholder: "[Sticker]")
         case .audio:
             Label(message.text ?? "Audio message", systemImage: "waveform")
         case .unknown:
@@ -85,5 +86,24 @@ struct ChatMessageBubbleView: View {
         case .unknown:
             return DSBadge("Unknown", systemImage: "questionmark.circle", style: .warning)
         }
+    }
+
+    @ViewBuilder
+    private func mediaPreviewOrPlaceholder(placeholder: String) -> some View {
+        if let image = firstLocalMediaImage() {
+            Image(nsImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(maxWidth: 240, maxHeight: 240)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        } else {
+            Text(placeholder)
+        }
+    }
+
+    private func firstLocalMediaImage() -> NSImage? {
+        guard let firstPath = message.localMediaPaths.first else { return nil }
+        let absoluteURL = ChatMediaStorage.absoluteURL(forRelativePath: firstPath)
+        return NSImage(contentsOf: absoluteURL)
     }
 }

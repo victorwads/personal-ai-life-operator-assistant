@@ -280,17 +280,10 @@ struct AIToolCallTimelineRowView: View {
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 4) {
-                Text("args:")
+                Text("io:")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                DSCodableDebugInspector(title: "Tool call arguments", value: argumentsPayload)
-            }
-
-            HStack(spacing: 4) {
-                Text("result:")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                DSCodableDebugInspector(title: "Tool call response", value: responsePayload)
+                DSCodableDebugInspector(title: "Tool call I/O", value: ioPayload)
             }
 
             Spacer(minLength: 0)
@@ -315,24 +308,22 @@ struct AIToolCallTimelineRowView: View {
         }
     }
 
-    private var argumentsPayload: AIInspectorPayload {
-        AIInspectorPayload(raw: call.argumentsJSON, parsed: parsedJSONObject(from: call.argumentsJSON))
+    private var ioPayload: AIInspectorIOPayload {
+        AIInspectorIOPayload(
+            input: normalizedJSONText(call.argumentsJSON),
+            output: normalizedJSONText(call.responseText ?? "")
+        )
     }
 
-    private var responsePayload: AIInspectorPayload {
-        AIInspectorPayload(raw: call.responseText ?? "", parsed: parsedJSONObject(from: call.responseText ?? ""))
-    }
-
-    private func parsedJSONObject(from jsonText: String) -> [String: AIJSONValue]? {
+    private func normalizedJSONText(_ jsonText: String) -> String {
         let trimmed = jsonText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        return try? AIJSONValue.parseObject(from: trimmed)
+        return trimmed.isEmpty ? "{}" : trimmed
     }
 }
 
-private struct AIInspectorPayload: Encodable {
-    let raw: String
-    let parsed: [String: AIJSONValue]?
+private struct AIInspectorIOPayload: Encodable {
+    let input: String
+    let output: String
 }
 
 struct AIRunDebugPanelView: View {

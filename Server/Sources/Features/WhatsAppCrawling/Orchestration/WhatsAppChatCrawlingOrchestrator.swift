@@ -176,7 +176,12 @@ final class WhatsAppChatCrawlingOrchestrator {
                 onStatusUpdate?("Extracting messages from \(parsedCurrentChat.chatTitle)")
 
                 guard shouldProceed() else { return .success(()) }
-                let insertedMessages = try await chatRepository.insertMessages(parsedCurrentChat.messages)
+                let messagesToPersist = try await enrichMessagesWithLocalMedia(
+                    parsedCurrentChat.messages,
+                    mediaElementsByMessageId: parsedCurrentChat.mediaElementsByMessageId,
+                    in: webView
+                )
+                let insertedMessages = try await chatRepository.insertMessages(messagesToPersist)
                 if insertedMessages.isEmpty {
                     if existingChat == nil {
                         logStore.append(
@@ -194,7 +199,12 @@ final class WhatsAppChatCrawlingOrchestrator {
                 }
 
                 // TODO: review double saving chat
-                try await chatRepository.upsertChat(chat)
+                var persistedChat = chat
+                if let latestMessage = latestMessage(in: insertedMessages) {
+                    persistedChat.lastMessagePreview = previewText(for: latestMessage, fallback: chat.lastMessagePreview)
+                    persistedChat.lastMessageLocalMediaPath = latestMessage.localMediaPaths.first
+                }
+                try await chatRepository.upsertChat(persistedChat)
                 try await chatRepository.updateUnhandledCount(chatId: chat.id ?? header.id, count: nil)
                 logStore.append(
                     source: "Repository",
@@ -311,5 +321,73 @@ final class WhatsAppChatCrawlingOrchestrator {
             try? await Task.sleep(nanoseconds: 300_000_000)
         }
         return nil
+    }
+
+    private func enrichMessagesWithLocalMedia(
+        _ messages: [ChatMessage],
+        mediaElementsByMessageId: [String: WebViewInteractiveElement],
+        in webView: WKWebView
+    ) async throws -> [ChatMessage] {
+        guard let chatId = messages.first?.chatId else {
+            return messages
+        }
+
+        let existingIds = try await chatRepository.existingMessageIds(chatId: chatId)
+        var enrichedMessages = messages
+        let imageExtractor = WebViewImageExtractor(webView: webView)
+
+        for index in enrichedMessages.indices {
+            guard let messageId = enrichedMessages[index].id else { continue }
+            guard !existingIds.contains(messageId) else { continue }
+            guard enrichedMessages[index].kind == .image || enrichedMessages[index].kind == .sticker else { continue }
+
+            if let existingPaths = try? ChatMediaStorage.existingRelativeMediaPaths(forMessageId: messageId),
+               !existingPaths.isEmpty {
+                enrichedMessages[index].localMediaPaths = existingPaths
+                logStore.append(source: "Media", "Reused \(existingPaths.count) local media file(s) for \(messageId).")
+                continue
+            }
+
+            guard let mediaElement = mediaElementsByMessageId[messageId] else {
+                logStore.append(source: "Media", "No media handle available for \(messageId); saving message without local media.")
+                continue
+            }
+
+            do {
+                guard let resolved = try await imageExtractor.extractImage(from: mediaElement) else {
+                    logStore.append(source: "Media", "Extraction returned no media for \(messageId); saving message without local media.")
+                    continue
+                }
+                let relativePaths = try ChatMediaStorage.savePNGData([resolved.pngData], forMessageId: messageId)
+                enrichedMessages[index].localMediaPaths = relativePaths
+                logStore.append(source: "Media", "Saved \(relativePaths.count) local media file(s) for \(messageId).")
+            } catch {
+                logStore.append(source: "Media", "Failed extracting media for \(messageId): \(error.localizedDescription)")
+            }
+        }
+
+        return enrichedMessages
+    }
+
+    private func latestMessage(in messages: [ChatMessage]) -> ChatMessage? {
+        messages.max { lhs, rhs in
+            if lhs.listOrder != rhs.listOrder {
+                return lhs.listOrder < rhs.listOrder
+            }
+            let leftDate = lhs.dateTime ?? .distantPast
+            let rightDate = rhs.dateTime ?? .distantPast
+            return leftDate < rightDate
+        }
+    }
+
+    private func previewText(for message: ChatMessage, fallback: String?) -> String? {
+        switch message.kind {
+        case .image:
+            return "[Image]"
+        case .sticker:
+            return "[Sticker]"
+        case .text, .audio, .unknown:
+            return fallback
+        }
     }
 }

@@ -24,8 +24,7 @@ struct ChatMessage: PersistableModel, Equatable, Sendable {
     var dateTime: Date?
     var quotedMessageText: String?
     var quotedMessageAuthor: String?
+    var localMediaPaths: [String] = []
     var handled: Bool = false
 
-    var _createdAt: Date? = nil
-    var _updatedAt: Date? = nil
 }

@@ -10,8 +10,6 @@ final class AIConnectionRuntimeService: ObservableObject {
     private var activeConversationMessages: [AIConversationMessage] = []
 
     private static let maxDebugEvents = 200
-    private static let maxToolLoopIterations = 6
-
     init(streamingService: AIConnectionStreamingService) {
         self.streamingService = streamingService
     }
@@ -44,7 +42,7 @@ final class AIConnectionRuntimeService: ObservableObject {
             guard let self else { return }
             do {
                 var currentLoop = 0
-                while currentLoop < Self.maxToolLoopIterations, !Task.isCancelled {
+                while !Task.isCancelled {
                     await MainActor.run {
                         self.transitionStatus(.initializing)
                     }
@@ -70,18 +68,22 @@ final class AIConnectionRuntimeService: ObservableObject {
                     }
 
                     await self.executeToolCallsAndContinue(toolCalls, assistantResponseText: response.text)
+                    if toolCalls.contains(where: { $0.name == "wait_for_event" }) {
+                        await MainActor.run {
+                            self.transitionStatus(.waitingEvent)
+                            self.appendDebug(
+                                kind: "tool.loop.wait_for_event",
+                                summary: "Stopping loop after wait_for_event tool call."
+                            )
+                        }
+                        break
+                    }
                     currentLoop += 1
                 }
 
                 await MainActor.run {
-                    if currentLoop >= Self.maxToolLoopIterations {
-                        self.appendDebug(
-                            kind: "tool.loop.limit_reached",
-                            summary: "Stopped after \(Self.maxToolLoopIterations) tool-call rounds."
-                        )
-                    }
                     self.finalizeUsageOnRunEnd()
-                    if self.state.status.isRunningLike {
+                    if self.shouldAutoCompleteCurrentRun {
                         self.transitionStatus(.completed)
                         self.state.endedAt = Date()
                     }
@@ -120,6 +122,15 @@ final class AIConnectionRuntimeService: ObservableObject {
         toolCallIndexByID = [:]
         activeConversationMessages = []
         state = .initial(availableToolDefinitions: state.availableToolDefinitions)
+    }
+
+    private var shouldAutoCompleteCurrentRun: Bool {
+        switch state.status {
+        case .initializing, .promptProcessing, .reasoning, .executingTool, .receivingOutput:
+            return true
+        case .waitingUser, .waitingEvent, .paused, .stopped, .completed, .failed, .cancelled:
+            return false
+        }
     }
 
     private func prepareStateForNewRun(userPrompt: String) {

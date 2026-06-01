@@ -6,6 +6,7 @@ struct Chat: PersistableModel, Equatable, Sendable {
     var permission: ChatPermission?
     var listOrder: Int?
     var lastMessagePreview: String?
+    var lastMessageLocalMediaPath: String? = nil
     var lastMessageTimeText: String?
     var unreadCount: Int
     var unhandledCount: Int = 0

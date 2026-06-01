@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct ChatListRowView: View {
     let chat: Chat
@@ -22,7 +23,13 @@ struct ChatListRowView: View {
                 DSCodableDebugInspector(title: "Chat JSON", value: chat)
             }
 
-            if let preview = chat.lastMessagePreview, !preview.isEmpty {
+            if let image = previewImage() {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxWidth: 72, maxHeight: 72, alignment: .leading)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            } else if let preview = chat.lastMessagePreview, !preview.isEmpty {
                 Text(preview)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -46,5 +53,11 @@ struct ChatListRowView: View {
             }
         }
         .padding(.vertical, 4)
+    }
+
+    private func previewImage() -> NSImage? {
+        guard let relativePath = chat.lastMessageLocalMediaPath, !relativePath.isEmpty else { return nil }
+        let absoluteURL = ChatMediaStorage.absoluteURL(forRelativePath: relativePath)
+        return NSImage(contentsOf: absoluteURL)
     }
 }

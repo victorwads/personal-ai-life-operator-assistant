@@ -8,6 +8,7 @@ struct ParsedCurrentChat: Sendable {
     let chatId: String
     let chatTitle: String
     let messages: [ChatMessage]
+    let mediaElementsByMessageId: [String: WebViewInteractiveElement]
 }
 
 enum WhatsAppCurrentChatParser {
@@ -23,6 +24,7 @@ enum WhatsAppCurrentChatParser {
         let chatId = WhatsAppCrawlingNormalizer.makeWhatsAppChatId(title: title)
         let rawMessages = currentChat["chatMessages"] as? [Any] ?? []
 
+        var mediaElementsByMessageId: [String: WebViewInteractiveElement] = [:]
         let messages: [ChatMessage] = rawMessages.enumerated().compactMap { index, raw in
             guard let rawObject = raw as? [String: Any] else { return nil }
             guard let messageId = WhatsAppCrawlingNormalizer.makeWhatsAppMessageId(messageId: rawObject["messageId"] as? String) else {
@@ -43,12 +45,17 @@ enum WhatsAppCurrentChatParser {
                 rawObject: rawObject
             )
 
+            let kind = WhatsAppCrawlingNormalizer.detectMessageKind(rawMessage: rawObject)
+            if let mediaElement = mediaElement(for: kind, rawObject: rawObject) {
+                mediaElementsByMessageId[messageId] = mediaElement
+            }
+
             return ChatMessage(
                 id: messageId,
                 chatId: chatId,
                 author: author,
                 text: WhatsAppCrawlingNormalizer.normalizeText(rawObject["messageText"] as? String),
-                kind: WhatsAppCrawlingNormalizer.detectMessageKind(rawMessage: rawObject),
+                kind: kind,
                 direction: direction,
                 listOrder: index,
                 dateTime: parsedDateTime,
@@ -57,7 +64,12 @@ enum WhatsAppCurrentChatParser {
             )
         }
 
-        return ParsedCurrentChat(chatId: chatId, chatTitle: title, messages: messages)
+        return ParsedCurrentChat(
+            chatId: chatId,
+            chatTitle: title,
+            messages: messages,
+            mediaElementsByMessageId: mediaElementsByMessageId
+        )
     }
 
     private static func detectDirection(
@@ -67,5 +79,19 @@ enum WhatsAppCurrentChatParser {
             return sent ? .sent : .received
         }
         return .received
+    }
+
+    private static func mediaElement(
+        for kind: ChatMessage.Kind,
+        rawObject: [String: Any]
+    ) -> WebViewInteractiveElement? {
+        switch kind {
+        case .image:
+            return WebViewInteractiveElementDetector.from(rawObject["image"] as Any)
+        case .sticker:
+            return WebViewInteractiveElementDetector.from(rawObject["sticker"] as Any)
+        case .text, .audio, .unknown:
+            return nil
+        }
     }
 }
