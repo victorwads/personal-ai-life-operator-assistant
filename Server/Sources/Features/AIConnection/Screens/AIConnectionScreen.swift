@@ -1,16 +1,25 @@
 import SwiftUI
 
 struct AIConnectionScreen: View {
+    @StateObject private var viewModel: AIConnectionPlaygroundViewModel
+
+    init(feature: AIConnectionFeature) {
+        _viewModel = StateObject(
+            wrappedValue: AIConnectionPlaygroundViewModel(feature: feature)
+        )
+    }
+
     var body: some View {
         FeatureScreenContainer(
             title: "AI Connection",
-            subtitle: "AI provider status, model execution, assistant prompts, streaming output, tool calls, and traces."
+            subtitle: "Aggregated AI run inspector for prompts, output, reasoning, tools, usage, and errors."
         ) {
-            EmptyStateView(
-                title: "AI connection workspace is not implemented yet",
-                message: "Provider status, model execution, assistant prompts, streaming output, tool calls, and traces will appear here.",
-                systemImage: "cpu"
-            )
+            ScrollView {
+                AIConnectionRunInspectorView(viewModel: viewModel)
+            }
+            .task {
+                await viewModel.loadTools()
+            }
         }
     }
 }

@@ -13,6 +13,7 @@ final class MCPToolCatalogBridge: AIConnectionToolCataloging {
             AIToolDefinition(
                 name: definition.name,
                 description: definition.description,
+                icon: definition.icon,
                 inputSchema: Self.aiValue(definition.inputSchema)
             )
         }
