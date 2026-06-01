@@ -48,6 +48,11 @@ struct ListChatMessagesTool: MCPToolDefinition {
         ])
     }
 
+    // ListChatMessagesTool
+    // TODO remove null fields from info, end refactor to make the tool response por "human"
+    // - send a text plain response for all mcp tools
+    // - group per _createAt date (date from crawnled) + time insiede message
+    // - make clear about "sent/received" and sent from client/ from assistant
     private func messageJSON(_ message: ChatMessage) -> MCPJSONValue {
         let iso8601Formatter = ISO8601DateFormatter()
         return .object([
@@ -56,6 +61,8 @@ struct ListChatMessagesTool: MCPToolDefinition {
             "author": message.author.map(MCPJSONValue.string) ?? .null,
             "text": message.text.map(MCPJSONValue.string) ?? .null,
             "kind": .string(message.kind.rawValue),
+            "direction": .string(message.direction.rawValue),
+            "listOrder": .int(message.listOrder),
             "dateTime": message.dateTime.map { .string(iso8601Formatter.string(from: $0)) } ?? .null,
             "quotedMessageText": message.quotedMessageText.map(MCPJSONValue.string) ?? .null,
             "quotedMessageAuthor": message.quotedMessageAuthor.map(MCPJSONValue.string) ?? .null,

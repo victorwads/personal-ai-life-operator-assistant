@@ -2,7 +2,7 @@ import Foundation
 
 private enum ChatMessageField {
     static let chatId = "chatId"
-    static let dateTime = "dateTime"
+    static let listOrder = "listOrder"
     static let handled = "handled"
 }
 
@@ -82,16 +82,16 @@ final class FirestoreChatRepository: ChatRepository {
             matching: [ChatMessageField.chatId: chatId],
             sortedBy: [
                 FirestoreRepositorySort(field: "_createdAt", descending: true),
-                FirestoreRepositorySort(field: ChatMessageField.dateTime, descending: true)
+                FirestoreRepositorySort(field: ChatMessageField.listOrder, descending: true)
             ],
             limit: effectiveLimit
         )
-        return Array(messages.reversed())
+        return messages
     }
 
-    func insertMessages(_ messages: [ChatMessage]) async throws {
+    func insertMessages(_ messages: [ChatMessage]) async throws -> [ChatMessage] {
         guard !messages.isEmpty else {
-            return
+            return []
         }
 
         let chatIds = Set(messages.map(\.chatId))
@@ -107,17 +107,18 @@ final class FirestoreChatRepository: ChatRepository {
             return !existingIds.contains(id)
         }
 
-        guard !newMessages.isEmpty else {
-            return
+        if newMessages.isEmpty {
+            return []
         }
 
         try await messageStore.saveAll(newMessages)
-
-        // New messages may change the cached Chat.unhandledCount.
         let affectedChatIds = Set(newMessages.map(\.chatId))
         for chatId in affectedChatIds {
-            try await updateUnhandledCount(chatId: chatId, count: nil)
+            if try await getChat(id: chatId) != nil {
+                try await updateUnhandledCount(chatId: chatId, count: nil)
+            }
         }
+        return newMessages
     }
 
     func markMessagesHandled(ids: [String]) async throws {

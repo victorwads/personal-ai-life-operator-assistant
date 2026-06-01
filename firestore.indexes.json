@@ -29,17 +29,9 @@
           "order": "DESCENDING"
         },
         {
-          "fieldPath": "dateTime",
+          "fieldPath": "listOrder",
           "order": "DESCENDING"
         }
-      ]
-    },
-    {
-      "collectionGroup": "ChatMessages",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "handled", "order": "ASCENDING" },
-        { "fieldPath": "dateTime", "order": "ASCENDING" }
       ]
     },
     {

@@ -85,11 +85,6 @@ final class WhatsAppChatCrawlingOrchestrator {
                     unreadCount: header.unreadCount,
                     stateHash: header.stateHash
                 )
-                // `stateHash` is the write guard for chat metadata: unchanged chats should not be rewritten every crawl cycle.
-                // `listOrder` is persisted only when chat state changes, to avoid writing all chats when only the visual order changes.
-                if existingChat == nil || existingChat?.stateHash != chat.stateHash {
-                    try await chatRepository.upsertChat(chat)
-                }
                 guard shouldRefresh else {
                     logStore.append(source: "Decision", "Skip '\(header.title)': shouldRefresh=false")
                     continue
@@ -132,8 +127,22 @@ final class WhatsAppChatCrawlingOrchestrator {
                 onStatusUpdate?("Extracting messages from \(parsedCurrentChat.chatTitle)")
 
                 guard shouldProceed() else { return .success(()) }
-                try await chatRepository.insertMessages(parsedCurrentChat.messages)
-                logStore.append(source: "Repository", "Inserted new messages from \(parsedCurrentChat.messages.count) parsed messages for '\(parsedCurrentChat.chatTitle)'")
+                let insertedMessages = try await chatRepository.insertMessages(parsedCurrentChat.messages)
+                if insertedMessages.isEmpty {
+                    logStore.append(
+                        source: "Repository",
+                        "No new messages inserted for '\(parsedCurrentChat.chatTitle)'; skipping chat save."
+                    )
+                    continue
+                }
+
+                // TODO: review double saving chat
+                try await chatRepository.upsertChat(chat)
+                try await chatRepository.updateUnhandledCount(chatId: chat.id ?? header.id, count: nil)
+                logStore.append(
+                    source: "Repository",
+                    "Inserted \(insertedMessages.count) new messages (from \(parsedCurrentChat.messages.count) parsed) for '\(parsedCurrentChat.chatTitle)' and saved chat."
+                )
                 onStatusUpdate?("Persisted new messages")
             }
 

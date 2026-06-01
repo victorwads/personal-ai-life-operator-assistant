@@ -52,24 +52,9 @@ enum WhatsAppCrawlingNormalizer {
         if let fullDateTime = parseDateTime(fromMessageDateTimeAndAuthor: messageDateTimeAndAuthor) {
             return fullDateTime
         }
-
-        guard let timeText = normalizeText(messageTime) else { return nil }
-        let components = timeText.split(separator: ":")
-        guard components.count == 2 else { return nil }
-        guard
-            let hour = Int(components[0]), (0...23).contains(hour),
-            let minute = Int(components[1]), (0...59).contains(minute)
-        else {
-            return nil
-        }
-
-        var calendar = Calendar.current
-        calendar.timeZone = .current
-        var dayComponents = calendar.dateComponents([.year, .month, .day], from: referenceDate)
-        dayComponents.hour = hour
-        dayComponents.minute = minute
-        dayComponents.second = 0
-        return calendar.date(from: dayComponents)
+        _ = messageTime
+        _ = referenceDate
+        return nil
     }
 
     static func detectMessageKind(rawMessage: [String: Any]) -> ChatMessage.Kind {

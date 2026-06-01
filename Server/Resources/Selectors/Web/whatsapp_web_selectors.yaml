@@ -94,6 +94,10 @@ web:
         type: elements
         selector: '[role="row"]'
         extract:
+          sent:
+            selector: '.message-out'
+            type: boolean
+
           messageId:
             selector: '[data-id]'
             type: text

@@ -8,36 +8,24 @@ struct ChatMessage: PersistableModel, Equatable, Sendable {
         case audio
         case unknown
     }
+    
+    enum Direction: String, Codable, Sendable {
+        case sent
+        case received
+    }
 
     @DocumentID var id: String?
     var chatId: String
     var author: String?
     var text: String?
     var kind: Kind
+    var direction: Direction = .received
+    var listOrder: Int = 0
     var dateTime: Date?
     var quotedMessageText: String?
     var quotedMessageAuthor: String?
     var handled: Bool = false
 
-    init(
-        id: String?,
-        chatId: String,
-        author: String?,
-        text: String?,
-        kind: Kind,
-        dateTime: Date?,
-        quotedMessageText: String?,
-        quotedMessageAuthor: String?,
-        handled: Bool = false
-    ) {
-        self.id = id
-        self.chatId = chatId
-        self.author = author
-        self.text = text
-        self.kind = kind
-        self.dateTime = dateTime
-        self.quotedMessageText = quotedMessageText
-        self.quotedMessageAuthor = quotedMessageAuthor
-        self.handled = handled
-    }
+    var _createdAt: Date? = nil
+    var _updatedAt: Date? = nil
 }

@@ -56,15 +56,7 @@ struct ChatMessageBubbleView: View {
     }
 
     private var alignment: DSMessageBubbleAlignment {
-        guard let author = message.author?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !author.isEmpty else {
-            return .leading
-        }
-
-        if author == "you" || author == "me" || author == "assistant" || author == "você" || author == "voce" {
-            return .trailing
-        }
-
-        return .leading
+        message.direction == .sent ? .trailing : .leading
     }
 
     private var subtitle: String? {

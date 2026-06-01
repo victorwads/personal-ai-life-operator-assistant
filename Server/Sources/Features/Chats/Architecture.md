@@ -25,7 +25,7 @@ This document owns chat/message domain model and repository rules.
 - New crawled messages default to `handled = false`.
 - Existing messages should not be upserted as full records.
 - The only supported existing-message state transition is marking messages as handled.
-- Message listing reads from Firestore local cache and returns the latest messages by repository `_createdAt`, using message `dateTime` only as a tie-breaker.
+- Message listing reads from Firestore local cache and orders messages by `_createdAt DESC`, then `listOrder DESC` so newest messages stay at the top.
 
 ## MCP tool boundaries
 
@@ -34,10 +34,10 @@ This document owns chat/message domain model and repository rules.
 - `list_chats_by_search` stays deferred until repository-backed search exists.
 - `wait_for_event` belongs to runtime/orchestration and is intentionally deferred until late-stage integration across Issues, Chats, SentMessages, SensitiveData, ClientVoice, and event queues.
 
-## Future direction/ownership field
+## Direction ownership field
 
-- `author` alone is not enough to determine message ownership.
-- A future model revision should add message direction/ownership (`incoming`, `outgoing`, `unknown`) for UI alignment, auditing, and assistant send tracking.
+- `ChatMessage.direction` (`sent`/`received`) is the source of truth for bubble alignment.
+- Parser-level direction detection may use provider metadata when available; unknown direction defaults to `received`.
 - SentMessages/provider message IDs may later help reconcile outbound assistant messages when they are observed back from WhatsApp.
 
 ## Repository rules
