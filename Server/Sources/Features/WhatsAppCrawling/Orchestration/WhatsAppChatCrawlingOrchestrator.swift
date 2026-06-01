@@ -75,6 +75,26 @@ final class WhatsAppChatCrawlingOrchestrator {
                 guard shouldProceed() else { return .success(()) }
 
                 let existingChat = try await chatRepository.getChat(id: header.id)
+                let chat = Chat(
+                    id: header.id,
+                    title: header.title,
+                    permission: existingChat?.permission,
+                    listOrder: header.listOrder,
+                    lastMessagePreview: header.lastMessagePreview,
+                    lastMessageTimeText: header.lastMessageTimeText,
+                    unreadCount: header.unreadCount,
+                    stateHash: header.stateHash,
+                    lastDigestedAt: Date()
+                )
+
+                if existingChat == nil {
+                    try await chatRepository.upsertChat(chat)
+                    logStore.append(
+                        source: "Repository",
+                        "Discovered new chat '\(header.title)'; saved chat before permission gating."
+                    )
+                }
+
                 let mode = permissionModeProvider()
                 let rawPermission = existingChat?.permission
                 let effectiveAllowed = ChatPermissionResolver.isPermissionAllowed(rawPermission, mode: mode)
@@ -95,16 +115,6 @@ final class WhatsAppChatCrawlingOrchestrator {
                     "title='\(header.title)' id=\(header.id) unread=\(header.unreadCount) stateHash=\(header.stateHash) existing=\(existingChat != nil) existingStateHash=\(existingChat?.stateHash ?? "nil") refresh=\(shouldRefresh) clickable=\(header.openChatElement != nil)"
                 )
 
-                let chat = Chat(
-                    id: header.id,
-                    title: header.title,
-                    permission: existingChat?.permission,
-                    listOrder: header.listOrder,
-                    lastMessagePreview: header.lastMessagePreview,
-                    lastMessageTimeText: header.lastMessageTimeText,
-                    unreadCount: header.unreadCount,
-                    stateHash: header.stateHash
-                )
                 guard shouldRefresh else {
                     logStore.append(source: "Decision", "Skip '\(header.title)': shouldRefresh=false")
                     continue
@@ -168,6 +178,14 @@ final class WhatsAppChatCrawlingOrchestrator {
                 guard shouldProceed() else { return .success(()) }
                 let insertedMessages = try await chatRepository.insertMessages(parsedCurrentChat.messages)
                 if insertedMessages.isEmpty {
+                    if existingChat == nil {
+                        logStore.append(
+                            source: "Repository",
+                            "No new messages inserted for new chat '\(parsedCurrentChat.chatTitle)'; chat was already saved during discovery."
+                        )
+                        continue
+                    }
+
                     logStore.append(
                         source: "Repository",
                         "No new messages inserted for '\(parsedCurrentChat.chatTitle)'; skipping chat save."

@@ -44,13 +44,14 @@ final class FirestoreChatRepository: ChatRepository {
     }
 
     func listChats() async throws -> [Chat] {
-        try await chatStore.query(
+        let chats = try await chatStore.query(
             sortedBy: [
-                FirestoreRepositorySort(field: "_updatedAt", descending: true),
+                FirestoreRepositorySort(field: "lastDigestedAt", descending: true),
                 FirestoreRepositorySort(field: "listOrder", descending: false)
             ],
             includeDeleted: false
         )
+        return chats.sorted(by: compareChatsForListOrder)
     }
 
     func upsertChat(_ chat: Chat) async throws {
@@ -166,5 +167,30 @@ final class FirestoreChatRepository: ChatRepository {
             ids: [chatId],
             data: [ChatField.unhandledCount: max(0, resolvedCount)]
         )
+    }
+
+    private func compareChatsForListOrder(_ lhs: Chat, _ rhs: Chat) -> Bool {
+        switch (lhs.lastDigestedAt, rhs.lastDigestedAt) {
+        case let (left?, right?):
+            if left != right {
+                return left > right
+            }
+        case (.some, .none):
+            return true
+        case (.none, .some):
+            return false
+        case (.none, .none):
+            break
+        }
+
+        let leftOrder = lhs.listOrder ?? Int.max
+        let rightOrder = rhs.listOrder ?? Int.max
+        if leftOrder != rightOrder {
+            return leftOrder < rightOrder
+        }
+
+        let leftId = lhs.id ?? ""
+        let rightId = rhs.id ?? ""
+        return leftId < rightId
     }
 }

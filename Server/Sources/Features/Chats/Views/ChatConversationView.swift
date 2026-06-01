@@ -42,55 +42,55 @@ struct ChatConversationView: View {
 
             Divider()
 
-            Group {
-                if let errorMessage {
-                    EmptyStateView(
-                        title: "Unable to load messages",
-                        message: errorMessage,
-                        systemImage: "exclamationmark.triangle",
-                        actionTitle: "Retry",
-                        action: onRefresh
-                    )
-                } else if chat == nil {
-                    EmptyStateView(
-                        title: "Select a chat",
-                        message: "Choose a chat in the sidebar to view its conversation.",
-                        systemImage: "sidebar.left"
-                    )
-                } else if isLoading && messages.isEmpty {
-                    ProgressView("Loading messages...")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if messages.isEmpty {
-                    EmptyStateView(
-                        title: "No messages yet",
-                        message: "This chat does not have persisted messages in the local cache.",
-                        systemImage: "ellipsis.message"
-                    )
-                } else {
-                    VStack(alignment: .leading, spacing: 0) {
-                        if let chat {
-                            HStack(spacing: 12) {
-                                Text("Permission")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                Picker(
-                                    "Permission",
-                                    selection: Binding(
-                                        get: { ChatPermissionChoice(permission: chat.permission) },
-                                        set: { onPermissionChange($0.permission) }
-                                    )
-                                ) {
-                                    ForEach(ChatPermissionChoice.allCases) { choice in
-                                        Text(choice.title).tag(choice)
-                                    }
-                                }
-                                .pickerStyle(.segmented)
+            VStack(alignment: .leading, spacing: 0) {
+                if let chat {
+                    HStack(spacing: 12) {
+                        Text("Permission")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Picker(
+                            "Permission",
+                            selection: Binding(
+                                get: { ChatPermissionChoice(permission: chat.permission) },
+                                set: { onPermissionChange($0.permission) }
+                            )
+                        ) {
+                            ForEach(ChatPermissionChoice.allCases) { choice in
+                                Text(choice.title).tag(choice)
                             }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                            Divider()
                         }
+                        .pickerStyle(.segmented)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    Divider()
+                }
 
+                Group {
+                    if let errorMessage {
+                        EmptyStateView(
+                            title: "Unable to load messages",
+                            message: errorMessage,
+                            systemImage: "exclamationmark.triangle",
+                            actionTitle: "Retry",
+                            action: onRefresh
+                        )
+                    } else if chat == nil {
+                        EmptyStateView(
+                            title: "Select a chat",
+                            message: "Choose a chat in the sidebar to view its conversation.",
+                            systemImage: "sidebar.left"
+                        )
+                    } else if isLoading && messages.isEmpty {
+                        ProgressView("Loading messages...")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if messages.isEmpty {
+                        EmptyStateView(
+                            title: "No messages yet",
+                            message: "This chat does not have persisted messages in the local cache.",
+                            systemImage: "ellipsis.message"
+                        )
+                    } else {
                         ScrollView {
                             LazyVStack(alignment: .leading, spacing: 10) {
                                 ForEach(Array(messages.enumerated()), id: \.offset) { _, message in
@@ -101,8 +101,8 @@ struct ChatConversationView: View {
                         }
                     }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 

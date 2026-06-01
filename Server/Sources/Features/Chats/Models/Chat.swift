@@ -10,7 +10,5 @@ struct Chat: PersistableModel, Equatable, Sendable {
     var unreadCount: Int
     var unhandledCount: Int = 0
     var stateHash: String
-
-    var _createdAt: Date? = nil
-    var _updatedAt: Date? = nil
+    var lastDigestedAt: Date? = nil
 }

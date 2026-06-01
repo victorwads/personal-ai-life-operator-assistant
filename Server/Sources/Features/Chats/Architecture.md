@@ -45,7 +45,7 @@ This document owns chat/message domain model and repository rules.
 - Chat/message repositories may include feature-specific persistence rules when they are true domain/application semantics.
 - Do not move those rules into shared model-level merge helpers.
 - Generic Firebase timestamp/cache/serialization behavior belongs in infrastructure, not in chat models.
-- Chat list ordering uses `_updatedAt DESC` and `listOrder ASC`. `_updatedAt` brings recently changed chats first, and `listOrder` preserves WhatsApp visual order for chats updated in the same crawl cycle.
+- Chat list ordering uses `lastDigestedAt DESC` and `listOrder ASC`. `lastDigestedAt` tracks when crawling actually persisted new chat/message content, while `_updatedAt` remains technical metadata for any write.
 
 ## Screen ownership
 

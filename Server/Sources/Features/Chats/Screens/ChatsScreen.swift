@@ -16,6 +16,7 @@ struct ChatsScreen: View {
         HSplitView {
             ChatListView(
                 chats: chats,
+                permissionMode: feature.crawlingSettings.chatPermissionMode,
                 selectedChatId: $selectedChatId,
                 isLoading: isLoadingChats || isDeletingAllChats,
                 errorMessage: errorMessage,
@@ -95,10 +96,18 @@ struct ChatsScreen: View {
         defer { isLoadingChats = false }
 
         do {
+            let previousSelectedChat = selectedChat
             let loaded = try await feature.repository.listChats()
             chats = loaded
 
             if let current = selectedChatId, loaded.contains(where: { $0.id == current }) {
+                if let updatedSelectedChat = loaded.first(where: { $0.id == current }),
+                   shouldReloadMessages(
+                    previous: previousSelectedChat,
+                    current: updatedSelectedChat
+                   ) {
+                    await loadMessages(chatId: current, force: true)
+                }
                 return
             }
             selectedChatId = autoSelect ? loaded.first?.id : nil
@@ -187,5 +196,16 @@ struct ChatsScreen: View {
         } catch {
             errorMessage = "Failed to update chat permission: \(error.localizedDescription)"
         }
+    }
+
+    private func shouldReloadMessages(previous: Chat?, current: Chat) -> Bool {
+        guard let previous else {
+            return true
+        }
+
+        return previous.stateHash != current.stateHash
+            || previous.unreadCount != current.unreadCount
+            || previous.lastMessagePreview != current.lastMessagePreview
+            || previous.lastMessageTimeText != current.lastMessageTimeText
     }
 }

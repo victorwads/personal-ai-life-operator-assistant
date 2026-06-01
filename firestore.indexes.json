@@ -54,7 +54,7 @@
       "collectionGroup": "Chats",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "_updatedAt", "order": "DESCENDING" },
+        { "fieldPath": "lastDigestedAt", "order": "DESCENDING" },
         { "fieldPath": "listOrder", "order": "ASCENDING" }
       ]
     }
