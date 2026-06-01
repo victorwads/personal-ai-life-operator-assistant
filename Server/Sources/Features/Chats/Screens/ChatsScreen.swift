@@ -11,7 +11,7 @@ struct ChatsScreen: View {
     @State private var errorMessage: String?
 
     var body: some View {
-        NavigationSplitView {
+        HSplitView {
             ChatListView(
                 chats: chats,
                 selectedChatId: $selectedChatId,
@@ -19,8 +19,8 @@ struct ChatsScreen: View {
                 errorMessage: errorMessage,
                 onRefresh: loadChats
             )
-            .navigationSplitViewColumnWidth(min: 280, ideal: 340)
-        } detail: {
+            .frame(minWidth: 280, idealWidth: 340, maxWidth: 420)
+
             ChatConversationView(
                 chat: selectedChat,
                 messages: selectedMessages,
@@ -28,6 +28,7 @@ struct ChatsScreen: View {
                 errorMessage: errorMessage,
                 onRefresh: refreshSelection
             )
+            .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
         }
         .task {
             guard chats.isEmpty else { return }

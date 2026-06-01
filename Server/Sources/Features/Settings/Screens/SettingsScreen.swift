@@ -25,6 +25,7 @@ struct SettingsScreen: View {
                     emptyState(message: "Runtime container not available.")
                 }
             }
+            .dsFeatureHeaderContentInsets(DSFeatureHeaderContentInsets.none)
             .padding(24)
             .frame(maxWidth: .infinity, alignment: .leading)
         }

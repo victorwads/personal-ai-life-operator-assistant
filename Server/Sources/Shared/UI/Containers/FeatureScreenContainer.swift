@@ -24,6 +24,7 @@ struct FeatureScreenContainer<Content: View>: View {
             content
         }
         .padding(24)
+        .dsFeatureHeaderContentInsets(DSFeatureHeaderContentInsets.none)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 

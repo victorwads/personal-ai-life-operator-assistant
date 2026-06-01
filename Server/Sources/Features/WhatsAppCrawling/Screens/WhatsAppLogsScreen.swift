@@ -45,6 +45,7 @@ private struct WhatsAppLogsContent: View {
                 }
             }
         }
+        .dsFeatureHeaderContentInsets(DSFeatureHeaderContentInsets.none)
         .padding()
     }
 

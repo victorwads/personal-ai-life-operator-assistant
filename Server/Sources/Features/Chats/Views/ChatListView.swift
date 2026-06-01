@@ -36,6 +36,7 @@ struct ChatListView: View {
                     message: "Chats will appear here after crawling syncs message history.",
                     systemImage: "tray"
                 )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List(chats, selection: $selectedChatId) { chat in
                     ChatListRowView(chat: chat)
