@@ -17,11 +17,18 @@ public final class TrayMenuBuilder {
 
     public struct Actions {
         public let openDefaultWindow: () -> Void
+        public let clearFirestoreCacheAndQuit: () -> Void
         public let signOut: (() -> Void)?
         public let quit: () -> Void
 
-        public init(openProfiles: @escaping () -> Void, signOut: (() -> Void)?, quit: @escaping () -> Void) {
+        public init(
+            openProfiles: @escaping () -> Void,
+            clearFirestoreCacheAndQuit: @escaping () -> Void,
+            signOut: (() -> Void)?,
+            quit: @escaping () -> Void
+        ) {
             self.openDefaultWindow = openProfiles
+            self.clearFirestoreCacheAndQuit = clearFirestoreCacheAndQuit
             self.signOut = signOut
             self.quit = quit
         }
@@ -79,6 +86,8 @@ public final class TrayMenuBuilder {
             }
         }
 
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(actionItem(title: "Clear Local Cache and Quit", action: actions.clearFirestoreCacheAndQuit))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(actionItem(title: "Quit", action: actions.quit))
 

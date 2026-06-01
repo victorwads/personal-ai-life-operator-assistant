@@ -83,6 +83,11 @@ final class AppModel: ObservableObject {
                 openProfiles: { [weak self] in
                     self?.openDefaultWindowForCurrentState()
                 },
+                clearFirestoreCacheAndQuit: { [weak self] in
+                    Task { @MainActor in
+                        await self?.clearFirestoreCacheAndQuitFromTray()
+                    }
+                },
                 signOut: { [weak self] in
                     Task { @MainActor in
                         await self?.signOutFromTray()
@@ -148,6 +153,22 @@ final class AppModel: ObservableObject {
 
     private func quitFromTray() async {
         await prepareForTermination()
+        NSApp.terminate(nil)
+    }
+
+    private func clearFirestoreCacheAndQuitFromTray() async {
+        await coordinator.stop(flushPendingSettings: false)
+        windowManager.hideProfilesHomeWindow()
+        windowManager.clearProfileWindows()
+        windowManager.hideAllWindows()
+        isPreparedForTermination = true
+
+        do {
+            try await FirestoreCacheResetCoordinator.clearActivePersistence()
+        } catch {
+            print("Failed to clear local data cache before quit: \(error.localizedDescription)")
+        }
+
         NSApp.terminate(nil)
     }
 

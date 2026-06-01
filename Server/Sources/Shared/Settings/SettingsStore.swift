@@ -36,12 +36,18 @@ final class SettingsStore {
         isStarted = true
     }
 
-    func stop() async {
+    func stop(flushPendingSaves: Bool = true) async {
         // Stop listening first. We don't want remote snapshots racing shutdown.
         stopListening()
 
+        guard flushPendingSaves else {
+            cancelPendingSaves()
+            dirtyScopes.removeAll()
+            return
+        }
+
         // Flush any pending local changes so an immediate shutdown does not lose updates.
-        await flushPendingSaves()
+        await flushPendingSavesNow()
     }
 
     private func startListening() {
@@ -148,13 +154,17 @@ final class SettingsStore {
         }
     }
 
-    private func flushPendingSaves() async {
+    private func cancelPendingSaves() {
         // Cancel debounced tasks; we'll persist the latest in-memory values explicitly.
         for (_, task) in pendingSaveTasks {
             task.cancel()
         }
         pendingSaveTasks.removeAll()
         pendingSaveIDs.removeAll()
+    }
+
+    private func flushPendingSavesNow() async {
+        cancelPendingSaves()
 
         let scopesToFlush = Array(dirtyScopes)
         dirtyScopes.removeAll()

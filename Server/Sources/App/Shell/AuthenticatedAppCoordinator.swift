@@ -23,8 +23,8 @@ final class AuthenticatedAppCoordinator: ObservableObject {
         profilesController.loadProfiles()
     }
 
-    func stop() async {
-        await profilesController.stopAllRunningProfiles()
+    func stop(flushPendingSettings: Bool = true) async {
+        await profilesController.stopAllRunningProfiles(flushPendingSettings: flushPendingSettings)
         profilesController.reset()
         currentSession = nil
     }
