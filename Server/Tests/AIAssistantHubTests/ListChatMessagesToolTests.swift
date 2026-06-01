@@ -4,6 +4,16 @@ import XCTest
 final class ListChatMessagesToolTests: XCTestCase {
     func testExecuteReturnsMessagesInRepositoryOrderWithDirectionAndListOrder() async throws {
         let repository = ChatRepositorySpy()
+        repository.chatToReturn = Chat(
+            id: "chat-1",
+            title: "Chat 1",
+            permission: nil,
+            listOrder: nil,
+            lastMessagePreview: nil,
+            lastMessageTimeText: nil,
+            unreadCount: 0,
+            stateHash: "hash-1"
+        )
         repository.messagesToReturn = [
             ChatMessage(
                 id: "m11",
@@ -46,7 +56,10 @@ final class ListChatMessagesToolTests: XCTestCase {
             )
         ]
 
-        let tool = ListChatMessagesTool(repository: repository)
+        let tool = ListChatMessagesTool(
+            repository: repository,
+            permissionModeProvider: { .allowAllExceptDenied }
+        )
         let call = MCPToolCall(name: "list_chat_messages", arguments: [
             "chatId": .string("chat-1"),
             "limit": .int(6)
@@ -82,6 +95,16 @@ final class ListChatMessagesToolTests: XCTestCase {
 
     func testExecuteMarksUnhandledMessagesAsHandled() async throws {
         let repository = ChatRepositorySpy()
+        repository.chatToReturn = Chat(
+            id: "chat-2",
+            title: "Chat 2",
+            permission: nil,
+            listOrder: nil,
+            lastMessagePreview: nil,
+            lastMessageTimeText: nil,
+            unreadCount: 0,
+            stateHash: "hash-2"
+        )
         repository.messagesToReturn = [
             ChatMessage(
                 id: "m1",
@@ -111,12 +134,39 @@ final class ListChatMessagesToolTests: XCTestCase {
             )
         ]
 
-        let tool = ListChatMessagesTool(repository: repository)
+        let tool = ListChatMessagesTool(
+            repository: repository,
+            permissionModeProvider: { .allowAllExceptDenied }
+        )
         let call = MCPToolCall(name: "list_chat_messages", arguments: ["chatId": .string("chat-2")])
         _ = try await tool.execute(call, context: MCPServerContext())
 
         XCTAssertEqual(repository.markedHandledIds, ["m1"])
         XCTAssertEqual(repository.updatedUnhandledCountChatId, "chat-2")
+    }
+
+    func testExecuteThrowsWhenChatIsDeniedByPermissions() async throws {
+        let repository = ChatRepositorySpy()
+        repository.chatToReturn = Chat(
+            id: "chat-3",
+            title: "Chat 3",
+            permission: .denied,
+            listOrder: nil,
+            lastMessagePreview: nil,
+            lastMessageTimeText: nil,
+            unreadCount: 0,
+            stateHash: "hash-3"
+        )
+
+        let tool = ListChatMessagesTool(
+            repository: repository,
+            permissionModeProvider: { .allowAllExceptDenied }
+        )
+        let call = MCPToolCall(name: "list_chat_messages", arguments: ["chatId": .string("chat-3")])
+
+        await XCTAssertThrowsErrorAsync {
+            _ = try await tool.execute(call, context: MCPServerContext())
+        }
     }
 
     private func messageField(_ value: MCPJSONValue, _ key: String) -> MCPJSONValue? {
@@ -125,13 +175,27 @@ final class ListChatMessagesToolTests: XCTestCase {
     }
 }
 
+private extension XCTestCase {
+    func XCTAssertThrowsErrorAsync(
+        _ expression: @escaping () async throws -> Void,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async {
+        do {
+            try await expression()
+            XCTFail("Expected error but expression succeeded.", file: file, line: line)
+        } catch {}
+    }
+}
+
 private final class ChatRepositorySpy: ChatRepository {
+    var chatToReturn: Chat?
     var messagesToReturn: [ChatMessage] = []
     var listMessagesLimit: Int?
     var markedHandledIds: [String] = []
     var updatedUnhandledCountChatId: String?
 
-    func getChat(id _: String) async throws -> Chat? { nil }
+    func getChat(id _: String) async throws -> Chat? { chatToReturn }
     func listChats() async throws -> [Chat] { [] }
     func upsertChat(_: Chat) async throws {}
     func deleteChat(id _: String) async throws {}

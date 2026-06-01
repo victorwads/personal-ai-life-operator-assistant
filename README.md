@@ -44,6 +44,25 @@ cd Server
 
 That script is the expected developer entry point for the app lifecycle. It is the safest default because the repo treats generated Xcode project files as build output.
 
+To run the app against local Firebase emulators from this project:
+
+```sh
+firebase emulators:start
+```
+
+In another terminal:
+
+```sh
+cd Server
+FIREBASE_USE_EMULATORS=1 ./Scripts/check_build_and_restart.sh
+```
+
+Optional environment variables:
+
+- `FIREBASE_EMULATOR_HOST` (default: `127.0.0.1`)
+- `FIRESTORE_EMULATOR_PORT` (default: `8080`)
+- `FIREBASE_AUTH_EMULATOR_PORT` (default: `9099`)
+
 Notes:
 
 - V2 currently uses capitalized `Scripts/`
