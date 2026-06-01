@@ -11,11 +11,14 @@ struct DSCodeBlock: View {
         ScrollView([.vertical, .horizontal]) {
             Text(text)
                 .font(.system(.caption, design: .monospaced))
+                .lineLimit(nil)
+                .fixedSize(horizontal: true, vertical: true)
                 .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(alignment: .topLeading)
                 .padding(10)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .lineLimit(nil)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }

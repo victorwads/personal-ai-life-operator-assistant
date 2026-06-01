@@ -27,6 +27,7 @@ Preferred shared components:
 - Use `DSBadge` for generic simple pills, groups, traits, and lightweight metadata.
 - Use `DSRuntimeStatusBadge` for runtime/service status capsules with state dots, secondary status text, and optional start/stop action icons.
 - Use `DSCodeBlock` for JSON, code, schema, payload, and result displays.
+- Use `DSCodableDebugInspector` as a debug helper for inspecting `Encodable` model state via lazy JSON generation.
 - Use `DSListCardRow` for consistent list-like cards across feature indexes.
 - Use `DSMessageBubbleRow` for chat-like conversation UIs and voice interaction histories.
 

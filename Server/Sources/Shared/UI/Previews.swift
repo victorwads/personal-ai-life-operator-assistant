@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 struct SharedUIPreviews: View {
@@ -13,6 +14,7 @@ struct SharedUIPreviews: View {
                 messageBubblesPreview
                 listRowsPreview
                 codeBlocksPreview
+                debugInspectorsPreview
                 formFieldsPreview
                 statesPreview
             }
@@ -222,6 +224,33 @@ struct SharedUIPreviews: View {
                 """
             )
             .frame(height: 96)
+            .previewBounds()
+        }
+    }
+
+    private var debugInspectorsPreview: some View {
+        struct SampleValue: Codable {
+            let id: UUID
+            let name: String
+            let createdAt: Date
+            let tags: [String]
+        }
+
+        return previewSection("Debug Inspectors") {
+            HStack(spacing: 12) {
+                Text("Open JSON popover")
+                    .foregroundStyle(.secondary)
+
+                DSCodableDebugInspector(
+                    title: "Sample JSON",
+                    value: SampleValue(
+                        id: UUID(),
+                        name: "Example",
+                        createdAt: Date(timeIntervalSince1970: 1_700_000_000),
+                        tags: ["debug", "shared-ui"]
+                    )
+                )
+            }
             .previewBounds()
         }
     }

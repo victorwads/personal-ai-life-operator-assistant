@@ -31,6 +31,10 @@ struct ChatMessageBubbleView: View {
                 } else {
                     DSBadge("Unhandled", systemImage: "clock.badge.exclamationmark", style: .warning)
                 }
+
+                Spacer(minLength: 8)
+
+                DSCodableDebugInspector(title: "Message JSON", value: message)
             }
         }
     }

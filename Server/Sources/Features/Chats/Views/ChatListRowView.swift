@@ -18,6 +18,8 @@ struct ChatListRowView: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
+
+                DSCodableDebugInspector(title: "Chat JSON", value: chat)
             }
 
             if let preview = chat.lastMessagePreview, !preview.isEmpty {
