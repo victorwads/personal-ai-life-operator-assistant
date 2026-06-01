@@ -139,11 +139,15 @@ final class FirestoreChatRepository: ChatRepository {
     }
 
     func updateUnhandledCount(chatId: String, count: Int?) async throws {
-        let resolvedCount = try await (count ?? countUnhandledMessages(chatId: chatId))
+        let resolvedCount: Int
+        if let count {
+            resolvedCount = count
+        } else {
+            resolvedCount = try await countUnhandledMessages(chatId: chatId)
+        }
         try await chatStore.updateAll(
             ids: [chatId],
             data: [ChatField.unhandledCount: max(0, resolvedCount)]
         )
     }
-
 }

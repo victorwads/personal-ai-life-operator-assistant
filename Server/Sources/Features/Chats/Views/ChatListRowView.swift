@@ -36,6 +36,10 @@ struct ChatListRowView: View {
                     DSBadge("Unread", secondaryText: "\(chat.unreadCount)", systemImage: "envelope.badge", style: .warning)
                 }
 
+                if chat.unhandledCount > 0 {
+                    DSBadge("Unhandled", secondaryText: "\(chat.unhandledCount)", systemImage: "exclamationmark.circle", style: .warning)
+                }
+
                 DSBadge("WhatsApp", systemImage: "message", style: .info)
             }
         }

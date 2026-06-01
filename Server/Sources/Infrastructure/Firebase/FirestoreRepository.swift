@@ -118,16 +118,14 @@ open class FirestoreRepository<Model: PersistableModel> {
             query = query.whereField(field, isEqualTo: value)
         }
 
-        let source: AggregateSource
         switch readSource {
         case .default:
-            source = .server
+            let snapshot = try await query.count.getAggregation(source: .server)
+            return Int(truncating: snapshot.count)
         case .cacheOnly:
-            source = .cache
+            let snapshot: QuerySnapshot = try await query.getDocuments(source: .cache)
+            return snapshot.documents.count
         }
-
-        let snapshot = try await query.count.getAggregation(source: source)
-        return Int(truncating: snapshot.count)
     }
 
     open func existingIds(matching filters: [String: Any]) async throws -> Set<String> {

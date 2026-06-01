@@ -33,10 +33,9 @@ struct ListChatMessagesTool: MCPToolDefinition {
         let limit = MCPSupport.optionalLimit(from: call, default: 10)
         let messages = try await repository.listMessages(chatId: chatId, limit: limit)
 
-        let unhandledIds = messages.compactMap { message in
-            guard !message.handled else { return nil }
-            return message.id
-        }
+        let unhandledIds: [String] = messages
+            .filter { !$0.handled }
+            .compactMap { $0.id }
         if !unhandledIds.isEmpty {
             try await repository.markMessagesHandled(ids: unhandledIds)
             try await repository.updateUnhandledCount(chatId: chatId, count: nil)

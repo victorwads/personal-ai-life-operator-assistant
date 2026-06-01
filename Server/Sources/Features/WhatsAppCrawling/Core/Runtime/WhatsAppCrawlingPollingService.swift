@@ -121,7 +121,7 @@ final class WhatsAppCrawlingPollingService: ObservableObject, WhatsAppCrawlingSe
                             guard let self else { return false }
                             return self.state == .started
                                 && self.pauseReasons.isEmpty
-                                && !Task.isCancelled
+                                && !(self.pollingTask?.isCancelled ?? false)
                         }
                     )
 

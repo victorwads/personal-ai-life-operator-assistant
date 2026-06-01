@@ -11,6 +11,7 @@ This document owns chat/message domain model and repository rules.
 - `Chat.unhandledCount` is a cached count of messages with `handled == false`. The source of truth remains `ChatMessages`; the repository can recompute it via `updateUnhandledCount(chatId:count:)`, using Firestore count aggregation (not document reads).
 - When new messages are inserted, the repository recomputes `Chat.unhandledCount` for affected chats. This avoids recalculating counts on every chat list read.
 - `list_chats` exposes `unhandledCount`, and `list_unhandled_chats` uses cached `Chat.unhandledCount` to avoid scanning `ChatMessages` during listing. The source of truth remains `ChatMessage.handled`.
+- Existing data may have missing or stale cached counts; the MCP tool `backfill_unhandled_counts` recomputes `Chat.unhandledCount` for all persisted chats by calling `updateUnhandledCount(chatId:count:)` per chat.
 
 ## ID format rules
 
