@@ -29,6 +29,7 @@ enum CommandCenterMenuRegistry {
             items: [
                 CommandCenterMenuItem(title: "My Profile", icon: "person.crop.circle", route: .myProfile),
                 CommandCenterMenuItem(title: "Issues", icon: "exclamationmark.circle", route: .issues),
+                CommandCenterMenuItem(title: "Chats", icon: "message", route: .chats),
                 CommandCenterMenuItem(title: "Memories", icon: "brain.head.profile", route: .memories),
                 CommandCenterMenuItem(title: "Sensitive Data", icon: "lock.shield", route: .sensitiveData),
                 CommandCenterMenuItem(title: "Client Voice", icon: "waveform", route: .clientVoice),
@@ -36,10 +37,11 @@ enum CommandCenterMenuRegistry {
             ]
         ),
         CommandCenterSection(
-            id: "whatsapp-integration",
-            title: "WhatsApp Integration",
+            id: "integrations",
+            title: "Integrations",
             items: [
-                CommandCenterMenuItem(title: "Chats", icon: "message", route: .chats),
+                CommandCenterMenuItem(title: "Email", icon: "envelope", route: .email),
+                CommandCenterMenuItem(title: "Calendar", icon: "calendar", route: .calendar),
                 CommandCenterMenuItem(
                     title: "WebView",
                     icon: "globe",

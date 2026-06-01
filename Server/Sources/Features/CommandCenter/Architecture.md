@@ -54,12 +54,15 @@ The initial menu registry is static and intentionally small:
 My Data
 ├── My Profile -> Profiles/MyProfileScreen
 ├── Issues -> Issues/IssuesScreen
+├── Chats -> Chats/ChatsScreen
 ├── Memories -> Memories/MemoriesScreen
 ├── Sensitive Data -> SensitiveData/SensitiveDataScreen
-└── Client Voice -> ClientVoice/ClientVoiceScreen
+├── Client Voice -> ClientVoice/ClientVoiceScreen
+└── Sent Messages -> SentMessages/SentMessagesScreen
 
-WhatsApp Integration
-├── Chats -> Chats/ChatsScreen
+Integrations
+├── Email -> EmailIntegration/EmailIntegrationScreen
+├── Calendar -> CalendarIntegration/CalendarIntegrationScreen
 ├── WebView -> WhatsAppCrawling/Integrations/WebView/Screens/WhatsAppWebViewScreen
 ├── Web YAML Debug -> WhatsAppCrawling/Integrations/WebView/Screens/WhatsAppWebYAMLDebugScreen
 ├── Native YAML Debug -> WhatsAppCrawling/Integrations/Native/Screens/WhatsAppNativeYAMLDebugScreen

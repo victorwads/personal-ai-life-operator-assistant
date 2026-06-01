@@ -19,6 +19,8 @@ struct CommandCenterScreenRegistry {
                 feature: appFeatures.feature(IssuesFeature.self),
                 onOpenIssueDetail: onOpenIssueDetail
             )
+        case .chats:
+            ChatsScreen(feature: appFeatures.feature(ChatsFeature.self))
         case .memories:
             MemoriesScreen(feature: appFeatures.feature(MemoriesFeature.self))
         case .sensitiveData:
@@ -27,8 +29,10 @@ struct CommandCenterScreenRegistry {
             ClientVoiceScreen()
         case .sentMessages:
             SentMessagesScreen(feature: appFeatures.feature(SentMessagesFeature.self))
-        case .chats:
-            ChatsScreen(feature: appFeatures.feature(ChatsFeature.self))
+        case .email:
+            EmailIntegrationScreen()
+        case .calendar:
+            CalendarIntegrationScreen()
         case .whatsappWebView:
             WhatsAppWebViewScreen(feature: appFeatures.feature(WhatsAppCrawlingFeature.self))
         case .whatsappWebYAMLDebug:
