@@ -7,7 +7,7 @@ struct AIAssistantHubApp: App {
     private var runtime: AIAssistantHubRuntime?
 
     init() {
-        if RuntimeEnvironment.isXcodePreview {
+        if !RuntimeEnvironment.isStandardAppRuntime {
             runtime = nil
             return
         }

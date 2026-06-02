@@ -93,12 +93,14 @@ extension AIJSONValue {
         switch value {
         case is NSNull:
             self = .null
-        case let value as Bool:
-            self = .bool(value)
-        case let value as Int:
-            self = .int(value)
-        case let value as Double:
-            self = .double(value)
+        case let value as NSNumber:
+            if CFGetTypeID(value) == CFBooleanGetTypeID() {
+                self = .bool(value.boolValue)
+            } else if CFNumberIsFloatType(value) {
+                self = .double(value.doubleValue)
+            } else {
+                self = .int(value.intValue)
+            }
         case let value as String:
             self = .string(value)
         case let value as [Any]:
@@ -142,19 +144,171 @@ extension AIJSONValue {
     }
 
     static func parseObject(from jsonString: String) throws -> [String: AIJSONValue] {
-        let data = Data(jsonString.utf8)
-        let object = try JSONSerialization.jsonObject(with: data)
-        guard let dictionary = object as? [String: Any] else {
-            throw AIJSONValueError.expectedObjectRoot
+        let candidateStrings = normalizedObjectCandidates(from: jsonString)
+        var lastParsingError: Error?
+
+        for candidate in candidateStrings {
+            do {
+                if let dictionary = try parseJSONObjectCandidate(candidate) {
+                    return try dictionary.mapValues(AIJSONValue.init(any:))
+                }
+            } catch {
+                lastParsingError = error
+            }
         }
 
-        return try dictionary.mapValues(AIJSONValue.init(any:))
+        if let lastParsingError {
+            throw AIJSONValueError.invalidJSONObject(lastParsingError.localizedDescription)
+        }
+
+        throw AIJSONValueError.expectedObjectRoot
+    }
+
+    private static func parseJSONObjectCandidate(_ jsonString: String) throws -> [String: Any]? {
+        let data = Data(jsonString.utf8)
+        let object: Any
+        do {
+            object = try JSONSerialization.jsonObject(with: data)
+        } catch {
+            if let decodedString = try? JSONDecoder().decode(String.self, from: data) {
+                return try parseNestedJSONObjectString(decodedString)
+            }
+            throw error
+        }
+
+        if let dictionary = object as? [String: Any] {
+            return dictionary
+        }
+
+        // Some providers/models double-encode the tool arguments as a JSON string.
+        if let nestedJSONString = object as? String {
+            return try parseNestedJSONObjectString(nestedJSONString)
+        }
+
+        return nil
+    }
+
+    private static func parseNestedJSONObjectString(_ nestedJSONString: String) throws -> [String: Any]? {
+        let nestedCandidates = normalizedObjectCandidates(from: nestedJSONString)
+        for nestedCandidate in nestedCandidates {
+            let nestedData = Data(nestedCandidate.utf8)
+            let nestedObject = try JSONSerialization.jsonObject(with: nestedData)
+            if let nestedDictionary = nestedObject as? [String: Any] {
+                return nestedDictionary
+            }
+        }
+
+        // Some payloads arrive wrapped as a quoted string but are not decoded
+        // cleanly by the first pass, so we try to unquote them once more.
+        if nestedJSONString.hasPrefix("\""), nestedJSONString.hasSuffix("\"") {
+            let requotedData = Data(nestedJSONString.utf8)
+            let decodedString = try JSONDecoder().decode(String.self, from: requotedData)
+            let decodedCandidates = normalizedObjectCandidates(from: decodedString)
+            for decodedCandidate in decodedCandidates {
+                let decodedData = Data(decodedCandidate.utf8)
+                let decodedObject = try JSONSerialization.jsonObject(with: decodedData)
+                if let decodedDictionary = decodedObject as? [String: Any] {
+                    return decodedDictionary
+                }
+            }
+        }
+
+        return nil
+    }
+
+    private static func normalizedObjectCandidates(from rawText: String) -> [String] {
+        let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return ["{}"] }
+        if trimmed == "null" {
+            return ["{}"]
+        }
+
+        var candidates: [String] = [trimmed]
+
+        if let strippedFence = stripMarkdownCodeFence(from: trimmed), strippedFence != trimmed {
+            candidates.append(strippedFence)
+        }
+
+        if let extractedJSONObject = extractFirstJSONObject(from: trimmed), extractedJSONObject != trimmed {
+            candidates.append(extractedJSONObject)
+        }
+
+        if let strippedFence = stripMarkdownCodeFence(from: trimmed),
+           let extractedJSONObject = extractFirstJSONObject(from: strippedFence),
+           extractedJSONObject != strippedFence {
+            candidates.append(extractedJSONObject)
+        }
+
+        var uniqueCandidates: [String] = []
+        for candidate in candidates where !uniqueCandidates.contains(candidate) {
+            uniqueCandidates.append(candidate)
+        }
+        return uniqueCandidates
+    }
+
+    private static func stripMarkdownCodeFence(from text: String) -> String? {
+        guard text.hasPrefix("```"), text.hasSuffix("```") else {
+            return nil
+        }
+
+        var lines = text.components(separatedBy: .newlines)
+        guard !lines.isEmpty else { return nil }
+        lines.removeFirst()
+        if !lines.isEmpty, lines.last?.trimmingCharacters(in: .whitespacesAndNewlines) == "```" {
+            lines.removeLast()
+        }
+        return lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func extractFirstJSONObject(from text: String) -> String? {
+        guard let startIndex = text.firstIndex(of: "{") else {
+            return nil
+        }
+
+        var depth = 0
+        var isInsideString = false
+        var isEscaping = false
+
+        for index in text[startIndex...].indices {
+            let character = text[index]
+
+            if isEscaping {
+                isEscaping = false
+                continue
+            }
+
+            if character == "\\" {
+                isEscaping = true
+                continue
+            }
+
+            if character == "\"" {
+                isInsideString.toggle()
+                continue
+            }
+
+            if isInsideString {
+                continue
+            }
+
+            if character == "{" {
+                depth += 1
+            } else if character == "}" {
+                depth -= 1
+                if depth == 0 {
+                    return String(text[startIndex...index])
+                }
+            }
+        }
+
+        return nil
     }
 }
 
 private enum AIJSONValueError: LocalizedError {
     case unsupportedValueType(String)
     case invalidUTF8Encoding
+    case invalidJSONObject(String)
     case expectedObjectRoot
 
     var errorDescription: String? {
@@ -163,6 +317,8 @@ private enum AIJSONValueError: LocalizedError {
             return "Unsupported JSON value type: \(typeName)"
         case .invalidUTF8Encoding:
             return "Failed to encode JSON as UTF-8."
+        case let .invalidJSONObject(message):
+            return "Failed to parse tool call arguments as JSON: \(message)"
         case .expectedObjectRoot:
             return "Expected a JSON object at the root."
         }

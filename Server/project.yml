@@ -12,6 +12,7 @@ fileGroups:
   - Docs
   - Sources
   - Scripts
+  - Tests
 packages:
   MCP:
     url: https://github.com/modelcontextprotocol/swift-sdk.git
@@ -68,6 +69,11 @@ targets:
     platform: macOS
     sources:
       - path: Tests
+        excludes:
+          - "AIAssistantHubTests/Fixtures/**"
+          - "**/*.md"
+    resources:
+      - path: Tests/AIAssistantHubTests/Fixtures
     dependencies:
       - target: AIAssistantHub
     settings:
