@@ -7,10 +7,10 @@ struct FeatureContext {
     let mcp: MCPContext
     let services: FeatureServicesContext
     let status: FeatureStatusContext
+    let sharedLocks: SharedLockRegistry
     let featureResolver: FeatureResolverBox
 
     func feature<T: FeatureRuntime>(_ type: T.Type) -> T {
         featureResolver.feature(type)
     }
 }
-

@@ -29,12 +29,14 @@ final class ProfileRuntimeContainer {
         self.statusRegistry = ProfileRuntimeStatusRegistry()
 
         let featureResolver = FeatureResolverBox()
+        let sharedLocks = SharedLockRegistry()
         let featureContext = FeatureContext(
             profileContext: context,
             settings: SettingsContext(store: settings, sectionRegistry: settingsSectionRegistry),
             mcp: MCPContext(toolRegistry: mcpToolRegistry),
             services: FeatureServicesContext(serviceRegistry: serviceRegistry),
             status: FeatureStatusContext(statusRegistry: statusRegistry),
+            sharedLocks: sharedLocks,
             featureResolver: featureResolver
         )
         self.appFeatures = AppFeatures(context: featureContext)
