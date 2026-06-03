@@ -3,18 +3,17 @@ import XCTest
 
 @MainActor
 final class AIConnectionRuntimeServiceTests: XCTestCase {
-    func testStartRunKeepsCyclingWithFreshContextAfterNormalCompletion() async throws {
+    func testStartRunKeepsCyclingWithFreshContextAfterEmptyProviderCompletion() async throws {
         let streamingService = FakeAIConnectionStreamingService(
             streamPlans: [
                 .events([
-                    .textDelta("First cycle"),
                     .completed(
                         AIProviderResponse(
                             id: "response-1",
                             model: "model-1",
                             provider: .openRouter,
                             finishReason: "stop",
-                            text: "First cycle",
+                            text: "",
                             reasoning: "",
                             toolCalls: [],
                             usage: nil
@@ -22,14 +21,13 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
                     )
                 ]),
                 .events([
-                    .textDelta("Second cycle"),
                     .completed(
                         AIProviderResponse(
                             id: "response-2",
                             model: "model-1",
                             provider: .openRouter,
                             finishReason: "stop",
-                            text: "Second cycle",
+                            text: "",
                             reasoning: "",
                             toolCalls: [],
                             usage: nil
@@ -53,6 +51,78 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
         XCTAssertEqual(recordedRequests[2].messages.count, 2)
         XCTAssertTrue(service.state.isRunning)
         XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "cycle.completed" }))
+
+        service.cancelRun()
+
+        try await waitUntil {
+            service.state.status == .cancelled
+        }
+    }
+
+    func testPlainAssistantTextAppendsCorrectionAndRetriesInSameContext() async throws {
+        let speakToolCall = AIRequestedToolCall(
+            id: "tool-speak",
+            name: "speak_to_client",
+            argumentsJSON: "{\"message\":\"I am checking now.\"}"
+        )
+        let invalidAssistantText = "I will tell the client I am checking now."
+        let streamingService = FakeAIConnectionStreamingService(
+            streamPlans: [
+                .events([
+                    .textDelta(invalidAssistantText),
+                    .completed(
+                        AIProviderResponse(
+                            id: "response-1",
+                            model: "model-1",
+                            provider: .openRouter,
+                            finishReason: "stop",
+                            text: invalidAssistantText,
+                            reasoning: "",
+                            toolCalls: [],
+                            usage: nil
+                        )
+                    )
+                ]),
+                .events([
+                    .toolCallStarted(id: speakToolCall.id, name: speakToolCall.name),
+                    .toolCallCompleted(speakToolCall),
+                    .completed(
+                        AIProviderResponse(
+                            id: "response-2",
+                            model: "model-1",
+                            provider: .openRouter,
+                            finishReason: "tool_calls",
+                            text: "",
+                            reasoning: "",
+                            toolCalls: [speakToolCall],
+                            usage: nil
+                        )
+                    )
+                ]),
+                .waitUntilCancelled
+            ]
+        )
+        let service = AIConnectionRuntimeService(streamingService: streamingService)
+
+        service.startRun(userPrompt: "stay operational")
+
+        try await waitUntil {
+            streamingService.recordedRequestCount() >= 3
+        }
+
+        let recordedRequests = streamingService.recordedRequestsSnapshot()
+        XCTAssertEqual(recordedRequests[0].messages.count, 2)
+        XCTAssertEqual(recordedRequests[1].messages.count, 4)
+        XCTAssertEqual(recordedRequests[1].messages[2].role, .assistant)
+        XCTAssertEqual(recordedRequests[1].messages[2].content, invalidAssistantText)
+        XCTAssertEqual(recordedRequests[1].messages[3].role, .user)
+        XCTAssertTrue(recordedRequests[1].messages[3].content?.contains("Runtime correction:") == true)
+        XCTAssertTrue(recordedRequests[1].messages[3].content?.contains(invalidAssistantText) == true)
+        XCTAssertEqual(recordedRequests[2].messages.count, 6)
+        XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "assistant.invalid_text.detected" }))
+        XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "assistant.correction.user_message_appended" }))
+        XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "assistant.correction.retry_started" }))
+        XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "assistant.correction.context_preserved" }))
 
         service.cancelRun()
 
@@ -86,21 +156,7 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
                         )
                     )
                 ]),
-                .events([
-                    .textDelta("Fresh cycle after event"),
-                    .completed(
-                        AIProviderResponse(
-                            id: "response-2",
-                            model: "model-1",
-                            provider: .openRouter,
-                            finishReason: "stop",
-                            text: "Fresh cycle after event",
-                            reasoning: "",
-                            toolCalls: [],
-                            usage: nil
-                        )
-                    )
-                ]),
+                .waitUntilCancelled,
                 .waitUntilCancelled
             ],
             executeToolCallHandler: { toolCall in
@@ -137,6 +193,7 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
         XCTAssertEqual(recordedRequests[0].messages.count, 2)
         XCTAssertEqual(recordedRequests[1].messages.count, 2)
         XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "cycle.idle_boundary" }))
+        XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "context.cleared.wait_for_event" }))
 
         service.cancelRun()
 
@@ -148,6 +205,11 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
     func testFailureDoesNotStopRuntimeAndNextCycleStartsAutomatically() async throws {
         let logsDirectoryURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let followupToolCall = AIRequestedToolCall(
+            id: "tool-followup",
+            name: "get_current_datetime",
+            argumentsJSON: "{\"timezone\":\"UTC\"}"
+        )
         let streamingService = FakeAIConnectionStreamingService(
             streamPlans: [
                 .events([
@@ -168,16 +230,17 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
                     )
                 ]),
                 .events([
-                    .textDelta("Recovered cycle"),
+                    .toolCallStarted(id: followupToolCall.id, name: followupToolCall.name),
+                    .toolCallCompleted(followupToolCall),
                     .completed(
                         AIProviderResponse(
                             id: "response-2",
                             model: "model-1",
                             provider: .openRouter,
-                            finishReason: "stop",
-                            text: "Recovered cycle",
+                            finishReason: "tool_calls",
+                            text: "",
                             reasoning: "",
-                            toolCalls: [],
+                            toolCalls: [followupToolCall],
                             usage: nil
                         )
                     )
@@ -201,8 +264,8 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
         XCTAssertEqual(service.state.errors.last, "AI provider request failed with status code 500.")
         XCTAssertEqual(service.state.lastProviderFailure?.statusCode, 500)
         XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "cycle.failed" }))
+        XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "context.cleared.error" }))
         XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "provider.failed" }))
-        XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "cycle.completed" }))
         XCTAssertNotEqual(service.state.status, .failed)
 
         let logFiles = try FileManager.default.contentsOfDirectory(
@@ -215,6 +278,89 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
         XCTAssertTrue(logText.contains("\"statusCode\" : 500"))
         XCTAssertTrue(logText.contains("provider.example/v1/chat/completions"))
         XCTAssertTrue(logText.contains("\\\"boom\\\""))
+
+        service.cancelRun()
+
+        try await waitUntil {
+            service.state.status == .cancelled
+        }
+    }
+
+    func testCorrectionRetriesAreCappedAndFreshCycleStartsAfterExhaustion() async throws {
+        let invalidAssistantTexts = [
+            "I can answer without tools.",
+            "I still will not call a tool.",
+            "I am ignoring the runtime rules again."
+        ]
+        let streamingService = FakeAIConnectionStreamingService(
+            streamPlans: [
+                .events([
+                    .textDelta(invalidAssistantTexts[0]),
+                    .completed(
+                        AIProviderResponse(
+                            id: "response-1",
+                            model: "model-1",
+                            provider: .openRouter,
+                            finishReason: "stop",
+                            text: invalidAssistantTexts[0],
+                            reasoning: "",
+                            toolCalls: [],
+                            usage: nil
+                        )
+                    )
+                ]),
+                .events([
+                    .textDelta(invalidAssistantTexts[1]),
+                    .completed(
+                        AIProviderResponse(
+                            id: "response-2",
+                            model: "model-1",
+                            provider: .openRouter,
+                            finishReason: "stop",
+                            text: invalidAssistantTexts[1],
+                            reasoning: "",
+                            toolCalls: [],
+                            usage: nil
+                        )
+                    )
+                ]),
+                .events([
+                    .textDelta(invalidAssistantTexts[2]),
+                    .completed(
+                        AIProviderResponse(
+                            id: "response-3",
+                            model: "model-1",
+                            provider: .openRouter,
+                            finishReason: "stop",
+                            text: invalidAssistantTexts[2],
+                            reasoning: "",
+                            toolCalls: [],
+                            usage: nil
+                        )
+                    )
+                ]),
+                .waitUntilCancelled
+            ]
+        )
+        let service = AIConnectionRuntimeService(streamingService: streamingService)
+
+        service.startRun(userPrompt: "do not speak directly")
+
+        try await waitUntil(timeoutNanoseconds: 4_000_000_000) {
+            streamingService.recordedRequestCount() >= 4
+        }
+
+        let recordedRequests = streamingService.recordedRequestsSnapshot()
+        XCTAssertEqual(recordedRequests[0].messages.count, 2)
+        XCTAssertEqual(recordedRequests[1].messages.count, 4)
+        XCTAssertEqual(recordedRequests[2].messages.count, 6)
+        XCTAssertEqual(recordedRequests[3].messages.count, 2)
+        XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "assistant.correction.retry_exhausted" }))
+        XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "context.cleared.error" }))
+        XCTAssertEqual(
+            service.state.errors.last,
+            "Model returned invalid plain assistant text after 2 corrective retries: \(invalidAssistantTexts[2])"
+        )
 
         service.cancelRun()
 

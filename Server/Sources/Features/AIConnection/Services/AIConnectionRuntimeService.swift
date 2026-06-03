@@ -13,6 +13,7 @@ final class AIConnectionRuntimeService: ObservableObject {
 
     private static let maxDebugEvents = 200
     private static let interCycleDelayNanoseconds: UInt64 = 500_000_000
+    private static let maxCorrectionRetriesPerCycle = 2
 
     init(
         streamingService: any AIConnectionStreamingServing,
@@ -135,6 +136,7 @@ final class AIConnectionRuntimeService: ObservableObject {
             }
 
             await MainActor.run {
+                self.persistCycleCompletionLog(cycleOutcome, cycleNumber: cycleNumber)
                 self.transitionStatus(.cycleCompleted)
                 self.appendDebug(
                     kind: "cycle.completed",
@@ -169,6 +171,7 @@ final class AIConnectionRuntimeService: ObservableObject {
             self.bootstrapConversationMessages()
         }
         var requestIndex = 0
+        var correctionRetryCount = 0
 
         while !Task.isCancelled {
             requestIndex += 1
@@ -189,21 +192,66 @@ final class AIConnectionRuntimeService: ObservableObject {
                 requestIndex: requestIndex
             )
             let toolCalls = response.toolCalls
-            conversationMessages.append(
-                await MainActor.run {
-                    self.assistantConversationMessage(text: response.text, toolCalls: toolCalls)
+            let assistantMessage = await MainActor.run {
+                self.assistantConversationMessage(text: response.text, toolCalls: toolCalls)
+            }
+            conversationMessages.append(assistantMessage)
+
+            if !toolCalls.isEmpty {
+                let toolOutcome = await self.executeToolCalls(toolCalls, conversationMessages: conversationMessages)
+                conversationMessages = toolOutcome.conversationMessages
+                if toolOutcome.endsCycleAtIdleBoundary {
+                    return .waitedForEvent
                 }
-            )
 
-            guard !toolCalls.isEmpty else {
-                return .completed
+                continue
             }
 
-            let toolOutcome = await self.executeToolCalls(toolCalls, conversationMessages: conversationMessages)
-            conversationMessages = toolOutcome.conversationMessages
-            if toolOutcome.endsCycleAtIdleBoundary {
-                return .waitedForEvent
+            if let invalidAssistantText = Self.invalidOperationalAssistantText(in: response) {
+                await MainActor.run {
+                    self.appendDebug(
+                        kind: "assistant.invalid_text.detected",
+                        summary: "Cycle \(cycleNumber), request \(requestIndex) returned plain assistant text without tool calls."
+                    )
+                }
+
+                if correctionRetryCount >= Self.maxCorrectionRetriesPerCycle {
+                    await MainActor.run {
+                        self.appendDebug(
+                            kind: "assistant.correction.retry_exhausted",
+                            summary: "Cycle \(cycleNumber) exhausted \(Self.maxCorrectionRetriesPerCycle) corrective retr\(Self.maxCorrectionRetriesPerCycle == 1 ? "y" : "ies")."
+                        )
+                    }
+                    throw AIConnectionRuntimeLoopError.invalidAssistantText(
+                        invalidAssistantText,
+                        retriesExhausted: correctionRetryCount
+                    )
+                }
+
+                correctionRetryCount += 1
+                let correctiveMessage = await MainActor.run {
+                    self.runtimeCorrectionMessage(for: invalidAssistantText)
+                }
+                conversationMessages.append(correctiveMessage)
+
+                await MainActor.run {
+                    self.appendDebug(
+                        kind: "assistant.correction.context_preserved",
+                        summary: "Preserving the current conversation context for corrective retry \(correctionRetryCount)."
+                    )
+                    self.appendDebug(
+                        kind: "assistant.correction.user_message_appended",
+                        summary: "Appended runtime correction message after invalid assistant text."
+                    )
+                    self.appendDebug(
+                        kind: "assistant.correction.retry_started",
+                        summary: "Starting corrective retry \(correctionRetryCount) in the same conversation context."
+                    )
+                }
+                continue
             }
+
+            return .completed
         }
 
         throw CancellationError()
@@ -347,6 +395,10 @@ final class AIConnectionRuntimeService: ObservableObject {
                         kind: "cycle.idle_boundary",
                         summary: "wait_for_event returned; the next cycle will start with fresh context."
                     )
+                    self.appendDebug(
+                        kind: "context.cleared.wait_for_event",
+                        summary: "Clearing conversation context because wait_for_event reached the idle boundary."
+                    )
                 }
                 return ToolExecutionOutcome(
                     conversationMessages: updatedConversationMessages,
@@ -449,6 +501,10 @@ final class AIConnectionRuntimeService: ObservableObject {
         }
         state.errors.append(message)
         appendDebug(kind: "cycle.failed", summary: "Cycle \(cycleNumber) failed: \(message)")
+        appendDebug(
+            kind: "context.cleared.error",
+            summary: "Clearing conversation context because cycle \(cycleNumber) failed."
+        )
         if let providerFailure {
             appendDebug(kind: "provider.failed", summary: providerFailureSummary(providerFailure))
         }
@@ -714,6 +770,35 @@ final class AIConnectionRuntimeService: ObservableObject {
         )
     }
 
+    private func runtimeCorrectionMessage(for invalidAssistantText: String) -> AIConversationMessage {
+        AIConversationMessage(
+            role: .user,
+            content: """
+            Runtime correction:
+
+            You responded with plain assistant text, but this runtime does not allow operational plain-text output.
+
+            Your previous assistant text was:
+
+            \"\"\"
+            \(invalidAssistantText)
+            \"\"\"
+
+            This output was NOT delivered to the client.
+
+            You must now choose the correct tool call.
+
+            Rules:
+
+            * If you need to tell the client something, call speak_to_client(...).
+            * If you need a client answer, call ask_to_client(...).
+            * If this belongs to an operational thread, call create_issue(...) or update_issue(...).
+            * If there is nothing else to do, call wait_for_event(...).
+            * Do not answer in plain text again.
+            """
+        )
+    }
+
     private func statusForToolExecution(named toolName: String) -> AIConnectionRuntimeStatus {
         guard let tool = toolDefinition(named: toolName) else {
             return .executingTool
@@ -735,6 +820,12 @@ final class AIConnectionRuntimeService: ObservableObject {
         return max(1, Int((Double(chars) / 4.0).rounded(.up)))
     }
 
+    private static func invalidOperationalAssistantText(in response: AIProviderResponse) -> String? {
+        guard response.toolCalls.isEmpty else { return nil }
+        let trimmed = response.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     private enum CycleOutcome: Equatable {
         case completed
         case waitedForEvent
@@ -745,6 +836,15 @@ final class AIConnectionRuntimeService: ObservableObject {
                 return "Cycle \(cycleNumber) completed normally."
             case .waitedForEvent:
                 return "Cycle \(cycleNumber) ended at the wait_for_event idle boundary."
+            }
+        }
+
+        var completionReason: String {
+            switch self {
+            case .completed:
+                return "request_finished_clearing_context"
+            case .waitedForEvent:
+                return "wait_for_event_clearing_context"
             }
         }
     }
@@ -929,20 +1029,23 @@ final class AIConnectionRuntimeService: ObservableObject {
                 metadataPayload: responseMetadataPayload(response, requestContext: currentRequestLogContext)
             )
         }
+    }
 
-        if response.toolCalls.isEmpty, state.status != .cancelled {
-            log(
-                kind: .sessionCompleted,
-                severity: .success,
-                title: "AI Connection cycle completed",
-                summary: "Cycle \(currentRequestLogContext?.cycleNumber ?? 0) completed without additional tool calls.",
-                sessionId: currentSessionIdentifier,
-                runId: currentRunIdentifier,
-                cycleNumber: currentRequestLogContext?.cycleNumber,
-                success: true,
-                metadataPayload: responseMetadataPayload(response, requestContext: currentRequestLogContext)
-            )
-        }
+    private func persistCycleCompletionLog(_ outcome: CycleOutcome, cycleNumber: Int) {
+        log(
+            kind: .sessionCompleted,
+            severity: .success,
+            title: "AI Connection cycle completed",
+            summary: outcome.completedSummary(cycleNumber: cycleNumber),
+            sessionId: currentSessionIdentifier,
+            runId: currentRunIdentifier,
+            cycleNumber: cycleNumber,
+            success: true,
+            metadataPayload: ServerLogPayloadEncoder.objectString([
+                ("completionReason", .string(outcome.completionReason)),
+                ("status", .string(state.status.rawValue))
+            ])
+        )
     }
 
     private func responseMetadataPayload(
@@ -1037,6 +1140,7 @@ final class AIConnectionRuntimeService: ObservableObject {
 private enum AIConnectionRuntimeLoopError: LocalizedError {
     case missingCompletedResponse
     case providerFailure(AIProviderFailure)
+    case invalidAssistantText(String, retriesExhausted: Int)
 
     var errorDescription: String? {
         switch self {
@@ -1044,6 +1148,8 @@ private enum AIConnectionRuntimeLoopError: LocalizedError {
             return "Provider stream ended without a completed response event."
         case let .providerFailure(failure):
             return failure.message
+        case let .invalidAssistantText(text, retriesExhausted):
+            return "Model returned invalid plain assistant text after \(retriesExhausted) corrective retr\(retriesExhausted == 1 ? "y" : "ies"): \(text)"
         }
     }
 }
