@@ -425,7 +425,7 @@ struct IssueDetailScreen: View {
         return "No thread reference recorded."
     }
 
-    private func clientVoiceTitle(for kind: ClientInteractionKind) -> String {
+    private func clientVoiceTitle(for kind: ClientInteractionRequest.Kind) -> String {
         switch kind {
         case .ask:
             return "Ask Request"
@@ -439,10 +439,6 @@ struct IssueDetailScreen: View {
 
         if let responseText = request.responseText?.trimmingCharacters(in: .whitespacesAndNewlines), !responseText.isEmpty {
             lines.append("Response: \(responseText)")
-        }
-
-        if let errorMessage = request.errorMessage?.trimmingCharacters(in: .whitespacesAndNewlines), !errorMessage.isEmpty {
-            lines.append("Error: \(errorMessage)")
         }
 
         return lines.joined(separator: "\n")
@@ -500,15 +496,15 @@ struct IssueDetailScreen: View {
         }
     }
 
-    private func clientInteractionStatusBadgeStyle(for status: ClientInteractionStatus) -> DSBadge.Style {
+    private func clientInteractionStatusBadgeStyle(for status: ClientInteractionRequest.Status) -> DSBadge.Style {
         switch status {
-        case .pending:
+        case .initialized:
             return .info
-        case .delivered:
+        case .waitingAgent:
             return .warning
         case .completed:
             return .success
-        case .cancelled, .failed:
+        case .cancelled:
             return .danger
         }
     }

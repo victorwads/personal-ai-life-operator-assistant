@@ -5,7 +5,10 @@ struct ClientVoiceScreen: View {
 
     init(feature: ClientVoiceFeature) {
         _viewModel = StateObject(
-            wrappedValue: ClientVoiceScreenViewModel(repository: feature.repository)
+            wrappedValue: ClientVoiceScreenViewModel(
+                repository: feature.repository,
+                sharedLocks: feature.context.sharedLocks
+            )
         )
     }
 
@@ -14,7 +17,7 @@ struct ClientVoiceScreen: View {
             VStack(alignment: .leading, spacing: 16) {
                 DSFeatureHeader(
                     title: "Voice Client",
-                    subtitle: "Auditable ask and speak requests between the assistant and the client."
+                    subtitle: "Manual and auditable interaction requests for the client."
                 ) {
                     DSRefreshButton(isLoading: viewModel.isLoading) {
                         viewModel.refresh()
@@ -22,7 +25,8 @@ struct ClientVoiceScreen: View {
                 }
 
                 HStack(spacing: 8) {
-                    DSBadge("Pending", secondaryText: "\(viewModel.pendingRequests.count)", style: .info)
+                    DSBadge("Initialized", secondaryText: "\(viewModel.initializedRequests.count)", style: .info)
+                    DSBadge("Waiting Agent", secondaryText: "\(viewModel.waitingAgentRequests.count)", style: .warning)
                     DSBadge("History", secondaryText: "\(viewModel.historyRequests.count)", style: .neutral)
                 }
 
@@ -42,24 +46,32 @@ struct ClientVoiceScreen: View {
                 } else if viewModel.requests.isEmpty {
                     EmptyStateView(
                         title: "No client interaction requests yet",
-                        message: "Pending asks and speak requests will appear here once Voice Client starts creating audit records.",
-                        systemImage: "waveform"
+                        message: "Ask and speak records will appear here as auditable requests.",
+                        systemImage: "text.bubble"
                     )
                 } else {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 20) {
-                            if !viewModel.pendingRequests.isEmpty {
+                            if !viewModel.initializedRequests.isEmpty {
                                 requestSection(
-                                    title: "Pending",
-                                    subtitle: "Pending requests are shown first and ordered from oldest to newest.",
-                                    requests: viewModel.pendingRequests
+                                    title: "Initialized",
+                                    subtitle: "Requests waiting for a manual client or device action.",
+                                    requests: viewModel.initializedRequests
+                                )
+                            }
+
+                            if !viewModel.waitingAgentRequests.isEmpty {
+                                requestSection(
+                                    title: "Answered / Waiting Agent",
+                                    subtitle: "The client already answered and the agent can now consume the response.",
+                                    requests: viewModel.waitingAgentRequests
                                 )
                             }
 
                             if !viewModel.historyRequests.isEmpty {
                                 requestSection(
                                     title: "History",
-                                    subtitle: "Delivered, completed, cancelled, and failed requests.",
+                                    subtitle: "Completed, failed, and cancelled interaction records.",
                                     requests: viewModel.historyRequests
                                 )
                             }
@@ -82,7 +94,7 @@ struct ClientVoiceScreen: View {
         DSTitledSection(
             title: title,
             subtitle: subtitle,
-            systemImage: title == "Pending" ? "clock.badge.exclamationmark" : "clock.arrow.circlepath"
+            systemImage: sectionIcon(for: title)
         ) {
             VStack(alignment: .leading, spacing: 12) {
                 ForEach(requests, id: \.id) { request in
@@ -94,31 +106,28 @@ struct ClientVoiceScreen: View {
 
     private func requestCard(_ request: ClientInteractionRequest) -> some View {
         DSCard(
-            title: requestTitle(for: request),
+            title: request.kind == .ask ? "Ask Client" : "Speak To Client",
             systemImage: request.kind == .ask ? "questionmark.bubble" : "speaker.wave.2"
         ) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
                     DSBadge("Kind", secondaryText: request.kind.rawValue, style: .info)
-                    DSBadge(
-                        "Status",
-                        secondaryText: request.status.rawValue,
-                        style: badgeStyle(for: request.status)
-                    )
-                    DSBadge(
-                        "Presence",
-                        secondaryText: request.clientPresenceAtCreation.rawValue,
-                        style: badgeStyle(for: request.clientPresenceAtCreation)
-                    )
+                    DSBadge("Status", secondaryText: statusText(for: request.status), style: badgeStyle(for: request.status))
                 }
 
                 Text(nonEmpty(request.promptText, fallback: "No prompt text recorded."))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .textSelection(.enabled)
 
+                if request.kind == .ask, request.status == .initialized {
+                    initializedAskComposer(for: request)
+                } else if request.kind == .speak, request.status == .initialized {
+                    initializedSpeakActions(for: request)
+                }
+
                 if let responseText = trimmed(request.responseText) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Response")
+                        Text(request.status == .waitingAgent ? "Client Response" : "Response")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.secondary)
 
@@ -128,89 +137,94 @@ struct ClientVoiceScreen: View {
                     }
                 }
 
-                if let errorMessage = trimmed(request.errorMessage) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Error")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-
-                        Text(errorMessage)
-                            .foregroundStyle(.red)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .textSelection(.enabled)
-                    }
-                }
-
                 VStack(alignment: .leading, spacing: 10) {
                     metadataRow("Issue ID", nonEmpty(request.issueId, fallback: "Not recorded"))
-                    metadataRow("Created", formattedDate(request.requestedAt, fallback: "Not recorded"))
-
-                    if request.completedAt != nil {
-                        metadataRow("Completed", formattedDate(request.completedAt, fallback: "Not recorded"))
-                    }
-
-                    metadataRow("Source", sourceSummary(for: request))
-
-                    if let answeredByDeviceId = trimmed(request.answeredByDeviceId) {
-                        metadataRow("Answered By Device", answeredByDeviceId)
-                    }
-
-                    if !request.metadata.isEmpty {
-                        metadataRow("Metadata", metadataSummary(for: request.metadata))
-                    }
+                    metadataRow("Source", request.source?.rawValue ?? "Not recorded")
                 }
             }
         }
     }
 
-    private func requestTitle(for request: ClientInteractionRequest) -> String {
-        switch request.kind {
-        case .ask:
-            return "Ask Client"
-        case .speak:
-            return "Speak To Client"
+    private func initializedAskComposer(for request: ClientInteractionRequest) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Manual Response")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            HStack(alignment: .top, spacing: 8) {
+                TextField(
+                    "Type the client response and press Enter",
+                    text: viewModel.bindingForResponseDraft(requestID: request.id)
+                )
+                .textFieldStyle(.roundedBorder)
+                .onSubmit {
+                    viewModel.submitResponse(for: request)
+                }
+
+                Button("Submit") {
+                    viewModel.submitResponse(for: request)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!viewModel.canSubmitResponse(for: request))
+            }
+
+            if let submissionError = viewModel.submissionError(for: request.id) {
+                Text(submissionError)
+                    .foregroundStyle(.red)
+            }
         }
     }
 
-    private func badgeStyle(for status: ClientInteractionStatus) -> DSBadge.Style {
+    private func initializedSpeakActions(for request: ClientInteractionRequest) -> some View {
+        HStack(spacing: 8) {
+            Button("Mark as completed/read") {
+                viewModel.markSpeakCompleted(request)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(viewModel.isSubmitting(requestID: request.id))
+
+            if let actionError = viewModel.submissionError(for: request.id) {
+                Text(actionError)
+                    .foregroundStyle(.red)
+            }
+        }
+    }
+
+    private func sectionIcon(for title: String) -> String {
+        switch title {
+        case "Initialized":
+            return "clock.badge.exclamationmark"
+        case "Answered / Waiting Agent":
+            return "bubble.left.and.text.bubble.right"
+        default:
+            return "clock.arrow.circlepath"
+        }
+    }
+
+    private func statusText(for status: ClientInteractionRequest.Status) -> String {
         switch status {
-        case .pending:
+        case .initialized:
+            return "initialized"
+        case .waitingAgent:
+            return "answered / waiting agent"
+        case .completed:
+            return "completed"
+        case .cancelled:
+            return "cancelled"
+        }
+    }
+
+    private func badgeStyle(for status: ClientInteractionRequest.Status) -> DSBadge.Style {
+        switch status {
+        case .initialized:
             return .info
-        case .delivered:
+        case .waitingAgent:
             return .warning
         case .completed:
             return .success
-        case .cancelled, .failed:
+        case .cancelled:
             return .danger
         }
-    }
-
-    private func badgeStyle(for presence: ClientPresenceState) -> DSBadge.Style {
-        switch presence {
-        case .present:
-            return .success
-        case .absent:
-            return .warning
-        case .unknown:
-            return .neutral
-        }
-    }
-
-    private func sourceSummary(for request: ClientInteractionRequest) -> String {
-        var components = [request.source.rawValue]
-
-        if let targetDeviceId = trimmed(request.targetDeviceId) {
-            components.append("target \(targetDeviceId)")
-        }
-
-        return components.joined(separator: " • ")
-    }
-
-    private func metadataSummary(for metadata: [String: String]) -> String {
-        metadata
-            .sorted { $0.key < $1.key }
-            .map { "\($0.key)=\($0.value)" }
-            .joined(separator: ", ")
     }
 
     private func metadataRow(_ title: String, _ value: String) -> some View {
@@ -225,14 +239,6 @@ struct ClientVoiceScreen: View {
         }
     }
 
-    private func formattedDate(_ date: Date?, fallback: String) -> String {
-        guard let date else {
-            return fallback
-        }
-
-        return date.formatted(date: .abbreviated, time: .shortened)
-    }
-
     private func trimmed(_ value: String?) -> String? {
         guard let value else {
             return nil
@@ -245,60 +251,5 @@ struct ClientVoiceScreen: View {
     private func nonEmpty(_ value: String, fallback: String) -> String {
         let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedValue.isEmpty ? fallback : value
-    }
-}
-
-@MainActor
-final class ClientVoiceScreenViewModel: ObservableObject {
-    @Published private(set) var requests: [ClientInteractionRequest] = []
-    @Published private(set) var isLoading = false
-    @Published private(set) var errorMessage: String?
-
-    var pendingRequests: [ClientInteractionRequest] {
-        requests.filter { $0.status == .pending }
-    }
-
-    var historyRequests: [ClientInteractionRequest] {
-        requests.filter { $0.status != .pending }
-    }
-
-    private let repository: ClientInteractionRequestRepository
-    private var listenerToken: FirestoreListenerToken?
-    private var hasLoaded = false
-
-    init(repository: ClientInteractionRequestRepository) {
-        self.repository = repository
-    }
-
-    func loadIfNeeded() {
-        guard !hasLoaded else { return }
-        refresh()
-    }
-
-    func refresh() {
-        Task {
-            isLoading = true
-            errorMessage = nil
-
-            do {
-                requests = try await repository.listRequests()
-                hasLoaded = true
-                isLoading = false
-                ensureObservation()
-            } catch {
-                errorMessage = error.localizedDescription
-                requests = []
-                isLoading = false
-            }
-        }
-    }
-
-    private func ensureObservation() {
-        guard listenerToken == nil else { return }
-        listenerToken = repository.observeRequests { [weak self] requests in
-            Task { @MainActor in
-                self?.requests = requests
-            }
-        }
     }
 }

@@ -16,6 +16,12 @@ Concrete feature classes inherit from `FeatureRuntime`; they should not include 
 
 Feature screens should receive their owning feature runtime explicitly rather than loose repositories, services, or stores pulled from `ProfileRuntimeContainer`.
 
+Keep feature files entity-focused and easy to navigate:
+
+- One primary type per file.
+- Do not keep ViewModel classes inside SwiftUI View files.
+- Screen-specific ViewModels may live beside their screen in the same `Screens/` folder.
+
 If a feature has specific rules, document them in `Sources/Features/<FeatureName>/Architecture.md`.
 Current local feature docs include [Sent Messages](SentMessages/Architecture.md) for cross-channel outbound audit ownership and [Sensitive Data](SensitiveData/Architecture.md) for protected-value access rules.
 
