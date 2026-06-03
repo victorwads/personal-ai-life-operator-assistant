@@ -53,8 +53,8 @@ struct AskToClientTool: MCPToolDefinition {
             return .string("error: ask_to_client created a request without an id, so the response cannot be awaited.")
         }
 
-        let isClientPresent = true
         // TODO: Read real client presence from the proper runtime/service state.
+        let isClientPresent = true
 
         guard isClientPresent else {
             return .string("pending: question registered for the client. The client will answer when available. Continue autonomously if possible or wait for an event. You will be notified when the client responds.")
@@ -68,6 +68,11 @@ struct AskToClientTool: MCPToolDefinition {
         guard !responseText.isEmpty else {
             return .string("error: the client response for request \(requestID) is missing after the wait ended.")
         }
+
+        _ = try await repository.markCompleted(
+            id: requestID,
+            source: updatedRequest.source
+        )
 
         return .string(responseText)
     }
