@@ -496,15 +496,17 @@ enum WebViewJavaScripts {
             } catch (_) {}
           }
 
-          try {
-            element.dispatchEvent(new InputEvent("input", {
-              inputType: "insertText",
-              data: text,
-              bubbles: true,
-              cancelable: true,
-              composed: true
-            }));
-          } catch (_) {}
+          if (!insertSucceeded) {
+            try {
+              element.dispatchEvent(new InputEvent("input", {
+                inputType: "insertText",
+                data: text,
+                bubbles: true,
+                cancelable: true,
+                composed: true
+              }));
+            } catch (_) {}
+          }
           return true;
         }
 
