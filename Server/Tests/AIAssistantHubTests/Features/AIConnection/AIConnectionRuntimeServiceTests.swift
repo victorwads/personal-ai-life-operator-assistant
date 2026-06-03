@@ -3,7 +3,7 @@ import XCTest
 
 @MainActor
 final class AIConnectionRuntimeServiceTests: XCTestCase {
-    func testStartRunKeepsCyclingAfterNormalCompletion() async throws {
+    func testStartRunKeepsCyclingWithFreshContextAfterNormalCompletion() async throws {
         let streamingService = FakeAIConnectionStreamingService(
             streamPlans: [
                 .events([
@@ -49,12 +49,94 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
 
         let recordedRequests = streamingService.recordedRequestsSnapshot()
         XCTAssertEqual(recordedRequests[0].messages.count, 2)
-        XCTAssertEqual(recordedRequests[1].messages.last?.role, .assistant)
-        XCTAssertEqual(recordedRequests[1].messages.last?.content, "First cycle")
-        XCTAssertEqual(recordedRequests[2].messages.last?.role, .assistant)
-        XCTAssertEqual(recordedRequests[2].messages.last?.content, "Second cycle")
+        XCTAssertEqual(recordedRequests[1].messages.count, 2)
+        XCTAssertEqual(recordedRequests[2].messages.count, 2)
         XCTAssertTrue(service.state.isRunning)
         XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "cycle.completed" }))
+
+        service.cancelRun()
+
+        try await waitUntil {
+            service.state.status == .cancelled
+        }
+    }
+
+    func testWaitForEventEndsCycleAndRestartsWithFreshContext() async throws {
+        let waitController = WaitForEventExecutionController()
+        let waitToolCall = AIRequestedToolCall(
+            id: "tool-wait",
+            name: "wait_for_event",
+            argumentsJSON: "{}"
+        )
+        let streamingService = FakeAIConnectionStreamingService(
+            streamPlans: [
+                .events([
+                    .toolCallStarted(id: waitToolCall.id, name: waitToolCall.name),
+                    .toolCallCompleted(waitToolCall),
+                    .completed(
+                        AIProviderResponse(
+                            id: "response-1",
+                            model: "model-1",
+                            provider: .openRouter,
+                            finishReason: "tool_calls",
+                            text: "",
+                            reasoning: "",
+                            toolCalls: [waitToolCall],
+                            usage: nil
+                        )
+                    )
+                ]),
+                .events([
+                    .textDelta("Fresh cycle after event"),
+                    .completed(
+                        AIProviderResponse(
+                            id: "response-2",
+                            model: "model-1",
+                            provider: .openRouter,
+                            finishReason: "stop",
+                            text: "Fresh cycle after event",
+                            reasoning: "",
+                            toolCalls: [],
+                            usage: nil
+                        )
+                    )
+                ]),
+                .waitUntilCancelled
+            ],
+            executeToolCallHandler: { toolCall in
+                if toolCall.name == "wait_for_event" {
+                    await waitController.waitUntilReleased()
+                }
+
+                return AIToolExecutionResult(
+                    toolName: toolCall.name,
+                    success: true,
+                    payload: .string("event: something changed. Start a new cycle and inspect active chats, issues, and client interactions."),
+                    errorMessage: nil,
+                    suggestedAction: nil,
+                    durationMilliseconds: nil
+                )
+            }
+        )
+        let service = AIConnectionRuntimeService(streamingService: streamingService)
+
+        service.startRun(userPrompt: "stay alive and keep watching")
+
+        try await waitUntil {
+            streamingService.recordedRequestCount() >= 1
+        }
+        XCTAssertEqual(streamingService.recordedRequestsSnapshot().count, 1)
+
+        await waitController.release()
+
+        try await waitUntil {
+            streamingService.recordedRequestCount() >= 2
+        }
+
+        let recordedRequests = streamingService.recordedRequestsSnapshot()
+        XCTAssertEqual(recordedRequests[0].messages.count, 2)
+        XCTAssertEqual(recordedRequests[1].messages.count, 2)
+        XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "cycle.idle_boundary" }))
 
         service.cancelRun()
 
@@ -71,12 +153,26 @@ private final class FakeAIConnectionStreamingService: AIConnectionStreamingServi
     }
 
     private let streamPlans: [StreamPlan]
+    private let executeToolCallHandler: @Sendable (AIRequestedToolCall) async -> AIToolExecutionResult
     private let lock = NSLock()
     private var recordedRequests: [AIProviderRequest] = []
     private var nextIndex = 0
 
-    init(streamPlans: [StreamPlan]) {
+    init(
+        streamPlans: [StreamPlan],
+        executeToolCallHandler: @escaping @Sendable (AIRequestedToolCall) async -> AIToolExecutionResult = { toolCall in
+            AIToolExecutionResult(
+                toolName: toolCall.name,
+                success: true,
+                payload: nil,
+                errorMessage: nil,
+                suggestedAction: nil,
+                durationMilliseconds: nil
+            )
+        }
+    ) {
         self.streamPlans = streamPlans
+        self.executeToolCallHandler = executeToolCallHandler
     }
 
     func streamEvents(for request: AIProviderRequest) -> AsyncThrowingStream<AIStreamEvent, Error> {
@@ -110,14 +206,7 @@ private final class FakeAIConnectionStreamingService: AIConnectionStreamingServi
     func availableTools() async -> [AIToolDefinition] { [] }
 
     func executeToolCall(_ toolCall: AIRequestedToolCall) async -> AIToolExecutionResult {
-        AIToolExecutionResult(
-            toolName: toolCall.name,
-            success: true,
-            payload: nil,
-            errorMessage: nil,
-            suggestedAction: nil,
-            durationMilliseconds: nil
-        )
+        await executeToolCallHandler(toolCall)
     }
 
     func recordedRequestCount() -> Int {
@@ -140,6 +229,28 @@ private final class FakeAIConnectionStreamingService: AIConnectionStreamingServi
         let plan = streamPlans[nextIndex]
         nextIndex += 1
         return plan
+    }
+}
+
+private actor WaitForEventExecutionController {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var isReleased = false
+
+    func waitUntilReleased() async {
+        if isReleased {
+            return
+        }
+
+        await withCheckedContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func release() {
+        guard !isReleased else { return }
+        isReleased = true
+        continuation?.resume()
+        continuation = nil
     }
 }
 

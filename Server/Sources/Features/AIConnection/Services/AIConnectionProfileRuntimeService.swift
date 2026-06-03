@@ -5,27 +5,58 @@ final class AIConnectionProfileRuntimeService: ProfileRuntimeService {
     let id: String
     let title: String
 
-    private(set) var state: ProfileRuntimeServiceState = .stopped
+    private let runtimeService: AIConnectionRuntimeService
 
-    init(id: String, title: String) {
+    init(
+        id: String,
+        title: String,
+        runtimeService: AIConnectionRuntimeService
+    ) {
         self.id = id
         self.title = title
+        self.runtimeService = runtimeService
+    }
+
+    var state: ProfileRuntimeServiceState {
+        switch runtimeService.state.status {
+        case .stopped, .completed, .cancelled:
+            return .stopped
+        case .initializing, .promptProcessing:
+            return .starting
+        case .reasoning, .executingTool, .receivingOutput, .cycleCompleted, .waitingUser, .waitingEvent:
+            return .running
+        case .paused:
+            return .stopping
+        case .failed:
+            return .failed(runtimeService.state.errors.last ?? "AI Connection failed.")
+        }
     }
 
     func start() async {
-        guard state == .stopped || isFailed else { return }
-        state = .starting
-        state = .running
+        guard canStart else { return }
+        runtimeService.startRun(userPrompt: "start your job")
     }
 
     func stop() async {
-        guard state == .running || state == .starting || isFailed else { return }
-        state = .stopping
-        state = .stopped
+        guard canStop else { return }
+        runtimeService.cancelRun()
     }
 
-    private var isFailed: Bool {
-        if case .failed = state { return true }
-        return false
+    private var canStart: Bool {
+        switch state {
+        case .stopped, .failed:
+            return true
+        case .starting, .running, .stopping:
+            return false
+        }
+    }
+
+    private var canStop: Bool {
+        switch state {
+        case .starting, .running:
+            return true
+        case .stopped, .stopping, .failed:
+            return false
+        }
     }
 }

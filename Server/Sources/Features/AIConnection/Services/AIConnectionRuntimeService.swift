@@ -7,7 +7,6 @@ final class AIConnectionRuntimeService: ObservableObject {
     private let streamingService: any AIConnectionStreamingServing
     private var activeStreamingTask: Task<Void, Never>?
     private var toolCallIndexByID: [String: Int] = [:]
-    private var activeConversationMessages: [AIConversationMessage] = []
 
     private static let maxDebugEvents = 200
     private static let interCycleDelayNanoseconds: UInt64 = 500_000_000
@@ -71,7 +70,6 @@ final class AIConnectionRuntimeService: ObservableObject {
         activeStreamingTask?.cancel()
         activeStreamingTask = nil
         toolCallIndexByID = [:]
-        activeConversationMessages = []
         state = .initial(availableToolDefinitions: state.availableToolDefinitions)
     }
 
@@ -81,41 +79,25 @@ final class AIConnectionRuntimeService: ObservableObject {
         while !Task.isCancelled {
             let cycleNumber = currentCycle + 1
             await MainActor.run {
-                self.transitionStatus(.initializing)
-                self.appendDebug(kind: "cycle.started", summary: "Cycle \(cycleNumber) started.")
+                self.prepareStateForCycle(cycleNumber: cycleNumber)
             }
 
-            let request = await MainActor.run {
-                AIProviderRequest(
-                    model: "",
-                    messages: self.activeConversationMessages,
-                    tools: self.state.availableToolDefinitions,
-                    temperature: 0.7,
-                    maxOutputTokens: nil,
-                    cacheMode: .automatic
-                )
-            }
-
-            let response = try await self.streamSingleResponse(request: request, loopIndex: currentCycle)
-            let toolCalls = response.toolCalls
-            await MainActor.run {
-                self.appendAssistantResponse(text: response.text, toolCalls: toolCalls)
-            }
-
-            if !toolCalls.isEmpty {
-                await self.executeToolCallsAndContinue(toolCalls)
-            }
+            let cycleOutcome = try await self.runSingleCycle(cycleNumber: cycleNumber)
 
             await MainActor.run {
                 self.transitionStatus(.cycleCompleted)
                 self.appendDebug(
                     kind: "cycle.completed",
-                    summary: "Cycle \(cycleNumber) completed with \(toolCalls.count) tool call(s)."
+                    summary: cycleOutcome.completedSummary(cycleNumber: cycleNumber)
                 )
             }
 
             currentCycle += 1
             try Task.checkCancellation()
+
+            guard cycleOutcome == .completed else {
+                continue
+            }
 
             await MainActor.run {
                 self.appendDebug(
@@ -130,9 +112,55 @@ final class AIConnectionRuntimeService: ObservableObject {
         throw CancellationError()
     }
 
+    private func runSingleCycle(cycleNumber: Int) async throws -> CycleOutcome {
+        var conversationMessages = await MainActor.run {
+            self.bootstrapConversationMessages()
+        }
+        var requestIndex = 0
+
+        while !Task.isCancelled {
+            requestIndex += 1
+            let request = await MainActor.run {
+                AIProviderRequest(
+                    model: "",
+                    messages: conversationMessages,
+                    tools: self.state.availableToolDefinitions,
+                    temperature: 0.7,
+                    maxOutputTokens: nil,
+                    cacheMode: .automatic
+                )
+            }
+
+            let response = try await self.streamSingleResponse(
+                request: request,
+                cycleNumber: cycleNumber,
+                requestIndex: requestIndex
+            )
+            let toolCalls = response.toolCalls
+            conversationMessages.append(
+                await MainActor.run {
+                    self.assistantConversationMessage(text: response.text, toolCalls: toolCalls)
+                }
+            )
+
+            guard !toolCalls.isEmpty else {
+                return .completed
+            }
+
+            let toolOutcome = await self.executeToolCalls(toolCalls, conversationMessages: conversationMessages)
+            conversationMessages = toolOutcome.conversationMessages
+            if toolOutcome.endsCycleAtIdleBoundary {
+                return .waitedForEvent
+            }
+        }
+
+        throw CancellationError()
+    }
+
     private func prepareStateForNewRun(userPrompt: String) {
+        let runStartedAt = Date()
         state.runId = UUID()
-        state.startedAt = Date()
+        state.startedAt = runStartedAt
         state.endedAt = nil
         state.systemPrompt = AIConnectionRuntimeService.systemPrompt
         state.userPrompt = userPrompt
@@ -140,25 +168,48 @@ final class AIConnectionRuntimeService: ObservableObject {
         state.reasoningText = ""
         state.toolCalls = []
         state.usage = AIRunUsageState()
-        state.usage.runStartedAt = state.startedAt
+        state.usage.runStartedAt = runStartedAt
         state.errors = []
         state.debugEvents = []
-        state.currentPhaseStartedAt = state.startedAt
+        state.currentPhaseStartedAt = runStartedAt
 
         toolCallIndexByID = [:]
-        activeConversationMessages = [
-            AIConversationMessage(role: .system, content: state.systemPrompt),
-            AIConversationMessage(role: .user, content: userPrompt)
-        ]
 
-        appendDebug(kind: "request.created", summary: "Built streaming request.")
+        appendDebug(kind: "runtime.started", summary: "Continuous runtime loop started.")
         transitionStatus(.initializing)
     }
 
-    private func streamSingleResponse(request: AIProviderRequest, loopIndex: Int) async throws -> AIProviderResponse {
+    private func prepareStateForCycle(cycleNumber: Int) {
+        let cycleStartedAt = Date()
+        state.assistantText = ""
+        state.reasoningText = ""
+        state.toolCalls = []
+        state.usage = AIRunUsageState()
+        state.usage.runStartedAt = cycleStartedAt
+        toolCallIndexByID = [:]
+
+        transitionStatus(.initializing)
+        appendDebug(kind: "cycle.started", summary: "Cycle \(cycleNumber) started.")
+    }
+
+    private func bootstrapConversationMessages() -> [AIConversationMessage] {
+        [
+            AIConversationMessage(role: .system, content: state.systemPrompt),
+            AIConversationMessage(role: .user, content: state.userPrompt)
+        ]
+    }
+
+    private func streamSingleResponse(
+        request: AIProviderRequest,
+        cycleNumber: Int,
+        requestIndex: Int
+    ) async throws -> AIProviderResponse {
         await MainActor.run {
             self.transitionStatus(.promptProcessing)
-            self.appendDebug(kind: "tool.loop.request", summary: "Streaming cycle \(loopIndex + 1).")
+            self.appendDebug(
+                kind: "tool.loop.request",
+                summary: "Streaming cycle \(cycleNumber), request \(requestIndex)."
+            )
         }
 
         var completedResponse: AIProviderResponse?
@@ -177,12 +228,26 @@ final class AIConnectionRuntimeService: ObservableObject {
             return completedResponse
         }
 
+        if Task.isCancelled {
+            throw CancellationError()
+        }
+
         throw AIConnectionRuntimeLoopError.missingCompletedResponse
     }
 
-    private func executeToolCallsAndContinue(_ toolCalls: [AIRequestedToolCall]) async {
+    private func executeToolCalls(
+        _ toolCalls: [AIRequestedToolCall],
+        conversationMessages: [AIConversationMessage]
+    ) async -> ToolExecutionOutcome {
+        var updatedConversationMessages = conversationMessages
+
         for toolCall in toolCalls {
-            if Task.isCancelled { return }
+            if Task.isCancelled {
+                return ToolExecutionOutcome(
+                    conversationMessages: updatedConversationMessages,
+                    endsCycleAtIdleBoundary: false
+                )
+            }
 
             await MainActor.run {
                 self.transitionStatus(self.statusForToolExecution(named: toolCall.name))
@@ -196,17 +261,36 @@ final class AIConnectionRuntimeService: ObservableObject {
             }
 
             await MainActor.run {
-                self.activeConversationMessages.append(
-                    AIConversationMessage(
-                        role: .tool,
-                        content: toolMessage,
-                        name: toolCall.name,
-                        toolCallID: toolCall.id
-                    )
-                )
                 self.applyToolExecutionResult(toolCallID: toolCall.id, result: result)
             }
+
+            if toolCall.name == "wait_for_event", result.success {
+                await MainActor.run {
+                    self.appendDebug(
+                        kind: "cycle.idle_boundary",
+                        summary: "wait_for_event returned; the next cycle will start with fresh context."
+                    )
+                }
+                return ToolExecutionOutcome(
+                    conversationMessages: updatedConversationMessages,
+                    endsCycleAtIdleBoundary: true
+                )
+            }
+
+            updatedConversationMessages.append(
+                AIConversationMessage(
+                    role: .tool,
+                    content: toolMessage,
+                    name: toolCall.name,
+                    toolCallID: toolCall.id
+                )
+            )
         }
+
+        return ToolExecutionOutcome(
+            conversationMessages: updatedConversationMessages,
+            endsCycleAtIdleBoundary: false
+        )
     }
 
     private func handle(event: AIStreamEvent) -> AIProviderResponse? {
@@ -364,7 +448,7 @@ final class AIConnectionRuntimeService: ObservableObject {
 
     private func recordFirstTokenIfNeeded(at time: Date) {
         guard state.usage.timeToFirstToken == nil else { return }
-        if let runStartedAt = state.startedAt {
+        if let runStartedAt = state.usage.runStartedAt ?? state.startedAt {
             state.usage.timeToFirstToken = time.timeIntervalSince(runStartedAt)
         }
     }
@@ -388,7 +472,7 @@ final class AIConnectionRuntimeService: ObservableObject {
     }
 
     private func updateUsageLiveMetrics(at time: Date) {
-        guard let runStartedAt = state.startedAt else { return }
+        guard let runStartedAt = state.usage.runStartedAt ?? state.startedAt else { return }
         state.usage.runDuration = time.timeIntervalSince(runStartedAt)
 
         if let outputTokens = state.usage.outputTokens,
@@ -409,13 +493,14 @@ final class AIConnectionRuntimeService: ObservableObject {
         state.availableToolDefinitions.first(where: { $0.name == name })
     }
 
-    private func appendAssistantResponse(text: String, toolCalls: [AIRequestedToolCall]) {
-        activeConversationMessages.append(
-            AIConversationMessage(
-                role: .assistant,
-                content: text.isEmpty ? nil : text,
-                toolCalls: toolCalls
-            )
+    private func assistantConversationMessage(
+        text: String,
+        toolCalls: [AIRequestedToolCall]
+    ) -> AIConversationMessage {
+        AIConversationMessage(
+            role: .assistant,
+            content: text.isEmpty ? nil : text,
+            toolCalls: toolCalls
         )
     }
 
@@ -438,6 +523,25 @@ final class AIConnectionRuntimeService: ObservableObject {
     private static func estimateTokenCount(text: String) -> Int {
         let chars = max(text.count, 0)
         return max(1, Int((Double(chars) / 4.0).rounded(.up)))
+    }
+
+    private enum CycleOutcome: Equatable {
+        case completed
+        case waitedForEvent
+
+        func completedSummary(cycleNumber: Int) -> String {
+            switch self {
+            case .completed:
+                return "Cycle \(cycleNumber) completed normally."
+            case .waitedForEvent:
+                return "Cycle \(cycleNumber) ended at the wait_for_event idle boundary."
+            }
+        }
+    }
+
+    private struct ToolExecutionOutcome {
+        let conversationMessages: [AIConversationMessage]
+        let endsCycleAtIdleBoundary: Bool
     }
 
     private func appendDebug(kind: String, summary: String) {

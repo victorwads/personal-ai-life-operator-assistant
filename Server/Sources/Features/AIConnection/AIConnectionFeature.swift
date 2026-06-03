@@ -42,7 +42,8 @@ final class AIConnectionFeature: FeatureRuntime {
 
         let service = AIConnectionProfileRuntimeService(
             id: Self.serviceId,
-            title: "AI Connection"
+            title: "AI Connection",
+            runtimeService: runtimeService
         )
 
         context.services.serviceRegistry.register(service)
