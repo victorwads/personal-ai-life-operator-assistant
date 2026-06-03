@@ -46,7 +46,7 @@ struct CommandCenterScreenRegistry {
         case .aiConnection:
             AIConnectionScreen(feature: appFeatures.feature(AIConnectionFeature.self))
         case .serverLogs:
-            ServerLogsScreen()
+            ServerLogsScreen(feature: appFeatures.feature(ServerLogsFeature.self))
         case .settings:
             SettingsScreen(
                 settingsSectionRegistry: appFeatures.feature(SettingsFeature.self).settingsSectionRegistry

@@ -222,6 +222,85 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
             service.state.status == .cancelled
         }
     }
+
+    func testPersistsStructuredMilestoneLogs() async throws {
+        let databaseURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+            .appendingPathComponent("ServerLogs.sqlite", isDirectory: false)
+        let repository = SQLiteServerLogRepository(
+            profileId: "test-profile",
+            databaseURL: databaseURL,
+            retentionLimit: 100
+        )
+        let serverLogsService = ServerLogsService(repository: repository)
+        let toolCall = AIRequestedToolCall(
+            id: "tool-1",
+            name: "get_current_datetime",
+            argumentsJSON: "{\"timezone\":\"UTC\"}"
+        )
+        let streamingService = FakeAIConnectionStreamingService(
+            streamPlans: [
+                .events([
+                    .requestStarted(provider: .openRouter, model: "model-1"),
+                    .reasoningDelta("Thinking"),
+                    .toolCallStarted(id: toolCall.id, name: toolCall.name),
+                    .toolCallCompleted(toolCall),
+                    .completed(
+                        AIProviderResponse(
+                            id: "response-1",
+                            model: "model-1",
+                            provider: .openRouter,
+                            finishReason: "tool_calls",
+                            text: "Need a timestamp.",
+                            reasoning: "Thinking",
+                            toolCalls: [toolCall],
+                            usage: nil
+                        )
+                    )
+                ]),
+                .waitUntilCancelled
+            ],
+            executeToolCallHandler: { toolCall in
+                AIToolExecutionResult(
+                    toolName: toolCall.name,
+                    success: true,
+                    payload: .object(["timestamp": .string("2026-06-03T12:00:00Z")]),
+                    errorMessage: nil,
+                    suggestedAction: nil,
+                    durationMilliseconds: 18
+                )
+            }
+        )
+        let service = AIConnectionRuntimeService(
+            streamingService: streamingService,
+            serverLogsProvider: { serverLogsService }
+        )
+
+        service.startRun(userPrompt: "Check the current time.")
+
+        try await waitUntil {
+            let entries = try? await repository.list(ServerLogQuery(limit: 20))
+            guard let entries else { return false }
+            let kinds = Set(entries.map(\.kind))
+            return kinds.contains(.sessionStarted)
+                && kinds.contains(.promptProcessingCompleted)
+                && kinds.contains(.reasoningCompleted)
+                && kinds.contains(.assistantOutputCompleted)
+                && kinds.contains(.toolCallCompleted)
+        }
+
+        let entries = try await repository.list(ServerLogQuery(limit: 20))
+        XCTAssertTrue(entries.contains(where: {
+            $0.kind == .toolCallCompleted
+                && $0.toolCallId == "tool-1"
+                && $0.toolName == "get_current_datetime"
+                && $0.durationMilliseconds == 18
+                && $0.success == true
+                && $0.outputPayload?.contains("\"timestamp\":\"2026-06-03T12:00:00Z\"") == true
+        }))
+
+        service.cancelRun()
+    }
 }
 
 private final class FakeAIConnectionStreamingService: AIConnectionStreamingServing, @unchecked Sendable {

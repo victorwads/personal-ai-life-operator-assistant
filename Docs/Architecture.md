@@ -165,6 +165,7 @@ Feature- and infrastructure-specific architecture rules live close to the code t
 - [Server/Sources/Features/Memories/Architecture.md](../Server/Sources/Features/Memories/Architecture.md)
 - [Server/Sources/Features/SensitiveData/Architecture.md](../Server/Sources/Features/SensitiveData/Architecture.md)
 - [Server/Sources/Features/MCPServers/Architecture.md](../Server/Sources/Features/MCPServers/Architecture.md)
+- [Server/Sources/Features/ServerLogs/Architecture.md](../Server/Sources/Features/ServerLogs/Architecture.md)
 - [Server/Sources/Features/ToolsBrowser/Architecture.md](../Server/Sources/Features/ToolsBrowser/Architecture.md)
 - [Server/Sources/Features/WhatsAppCrawling/Architecture.md](../Server/Sources/Features/WhatsAppCrawling/Architecture.md)
 - [Server/Sources/Features/Chats/Architecture.md](../Server/Sources/Features/Chats/Architecture.md)

@@ -6,18 +6,24 @@ final class AIConnectionRuntimeService: ObservableObject {
 
     private let streamingService: any AIConnectionStreamingServing
     private let errorLogStore: AIConnectionErrorLogStore
+    private let serverLogsProvider: @MainActor () -> ServerLogsService
     private var activeStreamingTask: Task<Void, Never>?
     private var toolCallIndexByID: [String: Int] = [:]
+    private var currentRequestLogContext: RequestLogContext?
 
     private static let maxDebugEvents = 200
     private static let interCycleDelayNanoseconds: UInt64 = 500_000_000
 
     init(
         streamingService: any AIConnectionStreamingServing,
-        errorLogStore: AIConnectionErrorLogStore = AIConnectionErrorLogStore()
+        errorLogStore: AIConnectionErrorLogStore = AIConnectionErrorLogStore(),
+        serverLogsProvider: @escaping @MainActor () -> ServerLogsService = {
+            AIConnectionRuntimeService.defaultServerLogsService
+        }
     ) {
         self.streamingService = streamingService
         self.errorLogStore = errorLogStore
+        self.serverLogsProvider = serverLogsProvider
     }
 
     func loadTools() async {
@@ -205,7 +211,8 @@ final class AIConnectionRuntimeService: ObservableObject {
 
     private func prepareStateForNewRun(userPrompt: String) {
         let runStartedAt = Date()
-        state.runId = UUID()
+        let runId = UUID()
+        state.runId = runId
         state.startedAt = runStartedAt
         state.endedAt = nil
         state.systemPrompt = AIConnectionRuntimeService.systemPrompt
@@ -223,6 +230,21 @@ final class AIConnectionRuntimeService: ObservableObject {
         toolCallIndexByID = [:]
 
         appendDebug(kind: "runtime.started", summary: "Continuous runtime loop started.")
+        log(
+            kind: .sessionStarted,
+            severity: .info,
+            title: "AI Connection session started",
+            summary: "Continuous runtime loop started.",
+            sessionId: runId.uuidString,
+            runId: runId.uuidString,
+            inputPayload: ServerLogPayloadEncoder.objectString([
+                ("systemPrompt", .string(state.systemPrompt)),
+                ("userPrompt", .string(userPrompt))
+            ]),
+            metadataPayload: ServerLogPayloadEncoder.objectString([
+                ("availableToolCount", .int(state.availableToolDefinitions.count))
+            ])
+        )
         transitionStatus(.initializing)
     }
 
@@ -252,6 +274,11 @@ final class AIConnectionRuntimeService: ObservableObject {
         requestIndex: Int
     ) async throws -> AIProviderResponse {
         await MainActor.run {
+            self.currentRequestLogContext = RequestLogContext(
+                cycleNumber: cycleNumber,
+                requestIndex: requestIndex,
+                startedAt: Date()
+            )
             self.transitionStatus(.promptProcessing)
             self.appendDebug(
                 kind: "tool.loop.request",
@@ -347,29 +374,39 @@ final class AIConnectionRuntimeService: ObservableObject {
         let now = Date()
         switch event {
         case let .requestStarted(provider, model):
+            currentRequestLogContext?.provider = provider
+            currentRequestLogContext?.model = model
             appendDebug(kind: "stream.request_started", summary: "\(provider.displayName) / \(model)")
         case let .responseStarted(id):
+            markPromptProcessingCompletedIfNeeded(at: now)
+            currentRequestLogContext?.responseId = id
             appendDebug(kind: "stream.response_started", summary: "responseId=\(id ?? "nil")")
         case let .textDelta(delta):
+            markPromptProcessingCompletedIfNeeded(at: now)
             transitionStatus(.receivingOutput)
             state.assistantText += delta
             recordFirstTokenIfNeeded(at: now)
             updateUsageEstimates(at: now)
         case let .reasoningDelta(delta):
+            markPromptProcessingCompletedIfNeeded(at: now)
             transitionStatus(.reasoning)
             state.reasoningText += delta
             recordFirstTokenIfNeeded(at: now)
             updateUsageEstimates(at: now)
         case let .toolCallStarted(id, name):
+            markPromptProcessingCompletedIfNeeded(at: now)
             transitionStatus(.executingTool)
             upsertToolCallStarted(id: id, name: name, at: now)
         case let .toolCallArgumentsDelta(id, delta):
+            markPromptProcessingCompletedIfNeeded(at: now)
             transitionStatus(.executingTool)
             upsertToolCallArgumentsDelta(id: id, delta: delta)
         case let .toolCallCompleted(toolCall):
+            markPromptProcessingCompletedIfNeeded(at: now)
             transitionStatus(.executingTool)
             upsertToolCallCompleted(toolCall: toolCall, at: now)
         case let .usage(usage):
+            markPromptProcessingCompletedIfNeeded(at: now)
             state.usage.inputTokens = usage.promptTokens
             state.usage.outputTokens = usage.completionTokens
             state.usage.totalTokens = usage.totalTokens
@@ -390,6 +427,8 @@ final class AIConnectionRuntimeService: ObservableObject {
             state.usage.lastUpdatedAt = now
             updateUsageLiveMetrics(at: now)
             appendDebug(kind: "stream.completed", summary: "finishReason=\(response.finishReason ?? "nil"), toolCalls=\(response.toolCalls.count)")
+            persistCompletedResponseLogs(response, at: now)
+            currentRequestLogContext = nil
             transitionStatus(.waitingUser)
             return response
         case .failed:
@@ -413,9 +452,34 @@ final class AIConnectionRuntimeService: ObservableObject {
         if let providerFailure {
             appendDebug(kind: "provider.failed", summary: providerFailureSummary(providerFailure))
         }
+        log(
+            kind: .sessionFailed,
+            severity: .error,
+            title: "AI Connection session failed",
+            summary: "Cycle \(cycleNumber) failed: \(message)",
+            sessionId: currentSessionIdentifier,
+            runId: currentRunIdentifier,
+            cycleNumber: cycleNumber,
+            success: false,
+            inputPayload: ServerLogPayloadEncoder.objectString([
+                ("userPrompt", .string(state.userPrompt))
+            ]),
+            outputPayload: ServerLogPayloadEncoder.objectString([
+                ("assistantText", state.assistantText.isEmpty ? nil : .string(state.assistantText)),
+                ("reasoningText", state.reasoningText.isEmpty ? nil : .string(state.reasoningText))
+            ]),
+            errorPayload: providerFailure.map(ServerLogPayloadEncoder.jsonString) ?? message,
+            metadataPayload: ServerLogPayloadEncoder.objectString([
+                ("status", .string(state.status.rawValue)),
+                ("requestIndex", currentRequestLogContext.map { .int($0.requestIndex) }),
+                ("provider", currentRequestLogContext?.provider.map { .string($0.rawValue) }),
+                ("model", currentRequestLogContext?.model.map { .string($0) })
+            ])
+        )
         persistCycleFailureLog(cycleNumber: cycleNumber, message: message)
         finalizeToolCallsAsFailedIfNeeded(message: message)
         finalizeUsageOnCycleEnd()
+        currentRequestLogContext = nil
         transitionStatus(.recovering)
     }
 
@@ -425,8 +489,24 @@ final class AIConnectionRuntimeService: ObservableObject {
         appendDebug(kind: "stream.cancelled", summary: "Run was cancelled.")
         finalizeToolCallsAsCancelledIfNeeded()
         finalizeUsageOnCycleEnd()
+        let endedAt = Date()
+        state.endedAt = endedAt
+        log(
+            kind: .sessionCompleted,
+            severity: .success,
+            title: "AI Connection session completed",
+            summary: "Runtime stopped by user.",
+            sessionId: currentSessionIdentifier,
+            runId: currentRunIdentifier,
+            durationMilliseconds: state.startedAt.map { endedAt.timeIntervalSince($0) * 1_000 },
+            success: true,
+            metadataPayload: ServerLogPayloadEncoder.objectString([
+                ("completionReason", .string("cancelled")),
+                ("errorCount", .int(state.errors.count))
+            ])
+        )
+        currentRequestLogContext = nil
         transitionStatus(.cancelled)
-        state.endedAt = Date()
     }
 
     private func upsertToolCallStarted(id: String, name: String, at time: Date) {
@@ -738,6 +818,30 @@ final class AIConnectionRuntimeService: ObservableObject {
             appendDebug(kind: "tool.execution.failed", summary: "\(result.toolName) failed: \(result.errorMessage ?? "unknown error")")
         }
         state.toolCalls[index].endedAt = Date()
+        let callState = state.toolCalls[index]
+        log(
+            kind: .toolCallCompleted,
+            severity: result.success ? .success : .error,
+            title: "Tool call completed",
+            summary: result.success
+                ? "\(result.toolName) completed successfully."
+                : "\(result.toolName) failed: \(result.errorMessage ?? "Unknown error")",
+            sessionId: currentSessionIdentifier,
+            runId: currentRunIdentifier,
+            cycleNumber: currentRequestLogContext?.cycleNumber,
+            toolCallId: toolCallID,
+            toolName: result.toolName,
+            durationMilliseconds: result.durationMilliseconds,
+            success: result.success,
+            inputPayload: callState.argumentsJSON.isEmpty ? nil : callState.argumentsJSON,
+            outputPayload: toolResultMessage(result: result),
+            errorPayload: result.errorMessage,
+            metadataPayload: ServerLogPayloadEncoder.objectString([
+                ("suggestedAction", result.suggestedAction.map { .string($0) }),
+                ("responseText", callState.responseText.map { .string($0) }),
+                ("toolStatus", .string(callState.status.rawValue))
+            ])
+        )
     }
 
     private func toolResultMessage(result: AIToolExecutionResult) -> String {
@@ -767,7 +871,142 @@ final class AIConnectionRuntimeService: ObservableObject {
         return (try? AIJSONValue.object(response).jsonString(prettyPrinted: false)) ?? "{\"success\":false}"
     }
 
+    private func markPromptProcessingCompletedIfNeeded(at time: Date) {
+        guard var context = currentRequestLogContext, !context.didPersistPromptProcessing else {
+            return
+        }
+
+        context.didPersistPromptProcessing = true
+        currentRequestLogContext = context
+        log(
+            kind: .promptProcessingCompleted,
+            severity: .info,
+            title: "Prompt processing completed",
+            summary: "Provider accepted the request and started producing output.",
+            sessionId: currentSessionIdentifier,
+            runId: currentRunIdentifier,
+            cycleNumber: context.cycleNumber,
+            durationMilliseconds: time.timeIntervalSince(context.startedAt) * 1_000,
+            success: true,
+            metadataPayload: ServerLogPayloadEncoder.objectString([
+                ("requestIndex", .int(context.requestIndex)),
+                ("provider", context.provider.map { .string($0.rawValue) }),
+                ("model", context.model.map { .string($0) }),
+                ("responseId", context.responseId.map { .string($0) })
+            ])
+        )
+    }
+
+    private func persistCompletedResponseLogs(_ response: AIProviderResponse, at _: Date) {
+        let finalReasoning = response.reasoning.isEmpty ? state.reasoningText : response.reasoning
+        if !finalReasoning.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            log(
+                kind: .reasoningCompleted,
+                severity: .success,
+                title: "Reasoning completed",
+                summary: "Final reasoning payload captured for this provider response.",
+                sessionId: currentSessionIdentifier,
+                runId: currentRunIdentifier,
+                cycleNumber: currentRequestLogContext?.cycleNumber,
+                success: true,
+                outputPayload: finalReasoning,
+                metadataPayload: responseMetadataPayload(response, requestContext: currentRequestLogContext)
+            )
+        }
+
+        let finalOutput = response.text.isEmpty ? state.assistantText : response.text
+        if !finalOutput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            log(
+                kind: .assistantOutputCompleted,
+                severity: .success,
+                title: "Assistant output completed",
+                summary: "Final assistant output captured for this provider response.",
+                sessionId: currentSessionIdentifier,
+                runId: currentRunIdentifier,
+                cycleNumber: currentRequestLogContext?.cycleNumber,
+                success: true,
+                outputPayload: finalOutput,
+                metadataPayload: responseMetadataPayload(response, requestContext: currentRequestLogContext)
+            )
+        }
+
+        if response.toolCalls.isEmpty, state.status != .cancelled {
+            log(
+                kind: .sessionCompleted,
+                severity: .success,
+                title: "AI Connection cycle completed",
+                summary: "Cycle \(currentRequestLogContext?.cycleNumber ?? 0) completed without additional tool calls.",
+                sessionId: currentSessionIdentifier,
+                runId: currentRunIdentifier,
+                cycleNumber: currentRequestLogContext?.cycleNumber,
+                success: true,
+                metadataPayload: responseMetadataPayload(response, requestContext: currentRequestLogContext)
+            )
+        }
+    }
+
+    private func responseMetadataPayload(
+        _ response: AIProviderResponse,
+        requestContext: RequestLogContext?
+    ) -> String? {
+        ServerLogPayloadEncoder.objectString([
+            ("requestIndex", requestContext.map { .int($0.requestIndex) }),
+            ("provider", .string(response.provider.rawValue)),
+            ("model", .string(response.model)),
+            ("responseId", response.id.map { .string($0) }),
+            ("finishReason", response.finishReason.map { .string($0) }),
+            ("toolCallCount", .int(response.toolCalls.count))
+        ])
+    }
+
+    private func log(
+        kind: ServerLogKind,
+        severity: ServerLogSeverity,
+        title: String,
+        summary: String,
+        sessionId: String? = nil,
+        runId: String? = nil,
+        cycleNumber: Int? = nil,
+        toolCallId: String? = nil,
+        toolName: String? = nil,
+        durationMilliseconds: Double? = nil,
+        success: Bool? = nil,
+        inputPayload: String? = nil,
+        outputPayload: String? = nil,
+        errorPayload: String? = nil,
+        metadataPayload: String? = nil
+    ) {
+        serverLogsProvider().record(
+            kind: kind,
+            severity: severity,
+            title: title,
+            summary: summary,
+            sessionId: sessionId,
+            runId: runId,
+            cycleNumber: cycleNumber,
+            toolCallId: toolCallId,
+            toolName: toolName,
+            durationMilliseconds: durationMilliseconds,
+            success: success,
+            inputPayload: inputPayload,
+            outputPayload: outputPayload,
+            errorPayload: errorPayload,
+            metadataPayload: metadataPayload
+        )
+    }
+
+    private var currentRunIdentifier: String? {
+        state.runId?.uuidString
+    }
+
+    private var currentSessionIdentifier: String? {
+        currentRunIdentifier
+    }
+
     static let systemPrompt = loadSystemPrompt()
+    private static let defaultServerLogsService = ServerLogsService(
+        repository: SQLiteServerLogRepository(profileId: "ai-connection-default")
+    )
 
     private static func loadSystemPrompt() -> String {
         if let url = Bundle.main.url(forResource: "AssistantSystemPrompt", withExtension: "md"),
@@ -782,6 +1021,16 @@ final class AIConnectionRuntimeService: ObservableObject {
         Failed to load bundled AssistantSystemPrompt.md.
         Return a short diagnostic response acknowledging this fallback.
         """
+    }
+
+    private struct RequestLogContext {
+        let cycleNumber: Int
+        let requestIndex: Int
+        let startedAt: Date
+        var provider: AIConnectionProviderKind?
+        var model: String?
+        var responseId: String?
+        var didPersistPromptProcessing = false
     }
 }
 

@@ -10,12 +10,16 @@ final class AIConnectionFeature: FeatureRuntime {
     private(set) var settings: AIConnectionSettingsWrapper
     private(set) var streamingService: AIConnectionStreamingService
     private(set) var runtimeService: AIConnectionRuntimeService
+    private let serverLogsProvider: @MainActor () -> ServerLogsService
 
     required init(context: FeatureContext) {
         let errorLogStore = AIConnectionErrorLogStore()
         self.errorLogStore = errorLogStore
         let settings = AIConnectionSettingsWrapper(settings: context.settings.store)
         self.settings = settings
+        self.serverLogsProvider = {
+            context.feature(ServerLogsFeature.self).service
+        }
 
         let streamingService = AIConnectionStreamingService(
             settingsProvider: {
@@ -44,7 +48,8 @@ final class AIConnectionFeature: FeatureRuntime {
         self.streamingService = streamingService
         self.runtimeService = AIConnectionRuntimeService(
             streamingService: streamingService,
-            errorLogStore: errorLogStore
+            errorLogStore: errorLogStore,
+            serverLogsProvider: serverLogsProvider
         )
 
         super.init(context: context)
