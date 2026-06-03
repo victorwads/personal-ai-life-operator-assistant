@@ -5,4 +5,5 @@ struct AIToolDefinition: Equatable, Sendable {
     let description: String
     let icon: String?
     let inputSchema: AIJSONValue
+    let traits: [MCPToolTrait]
 }

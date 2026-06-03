@@ -7,6 +7,7 @@ final class WhatsAppChatCrawlingOrchestrator {
     private let permissionModeProvider: @MainActor () -> ChatPermissionMode
     private let yamlText: String
     private let logStore: WhatsAppCrawlingLogStore
+    private let sharedLocks: SharedLockRegistry
     private var onStatusUpdate: ((String) -> Void)?
     private let debugForceRefreshFirstChat = false
     private let forcedStartupCrawlCycleCount = 5
@@ -16,12 +17,14 @@ final class WhatsAppChatCrawlingOrchestrator {
         permissionModeProvider: @escaping @MainActor () -> ChatPermissionMode,
         yamlText: String,
         logStore: WhatsAppCrawlingLogStore,
+        sharedLocks: SharedLockRegistry,
         onStatusUpdate: ((String) -> Void)? = nil
     ) {
         self.chatRepository = chatRepository
         self.permissionModeProvider = permissionModeProvider
         self.yamlText = yamlText
         self.logStore = logStore
+        self.sharedLocks = sharedLocks
         self.onStatusUpdate = onStatusUpdate
     }
 
@@ -183,6 +186,8 @@ final class WhatsAppChatCrawlingOrchestrator {
                 )
                 let insertedMessages = try await chatRepository.insertMessages(messagesToPersist)
                 if insertedMessages.isEmpty {
+                    logStore.append(source: "Repository", "No new messages, global_event not unlocked")
+
                     if existingChat == nil {
                         logStore.append(
                             source: "Repository",
@@ -211,6 +216,12 @@ final class WhatsAppChatCrawlingOrchestrator {
                     "Inserted \(insertedMessages.count) new messages (from \(parsedCurrentChat.messages.count) parsed) for '\(parsedCurrentChat.chatTitle)' and saved chat."
                 )
                 onStatusUpdate?("Persisted new messages")
+
+                await sharedLocks.unlock(id: SharedLockIDs.globalEvent)
+                logStore.append(
+                    source: "Repository",
+                    "Inserted \(insertedMessages.count) messages, unlocking global_event"
+                )
             }
 
             return .success(())

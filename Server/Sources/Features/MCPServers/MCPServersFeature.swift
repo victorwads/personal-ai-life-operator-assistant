@@ -25,7 +25,8 @@ final class MCPServersFeature: FeatureRuntime {
         super.init(context: context)
 
         context.mcp.toolRegistry.register([
-            GetCurrentDateTimeTool()
+            GetCurrentDateTimeTool(),
+            WaitForEventTool(sharedLocks: context.sharedLocks)
         ])
 
         let service = PlaceholderProfileRuntimeService(

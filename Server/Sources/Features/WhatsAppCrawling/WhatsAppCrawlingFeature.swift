@@ -66,7 +66,8 @@ final class WhatsAppCrawlingFeature: FeatureRuntime {
                 settings: crawlingSettings,
                 webViewService: webViewService,
                 chatRepository: chatRepository,
-                logStore: logStore
+                logStore: logStore,
+                sharedLocks: context.sharedLocks
             )
             self.pollingService = crawlingService
             self.messageSender = WebViewMessageSender(

@@ -32,7 +32,8 @@ final class WhatsAppCrawlingPollingService: ObservableObject, WhatsAppCrawlingSe
         settings: WhatsAppCrawlingSettingsWrapper,
         webViewService: WebViewWhatsAppCrawlingService,
         chatRepository: any ChatRepository,
-        logStore: WhatsAppCrawlingLogStore
+        logStore: WhatsAppCrawlingLogStore,
+        sharedLocks: SharedLockRegistry
     ) throws {
         self.profileId = profileId
         self.settings = settings
@@ -50,7 +51,8 @@ final class WhatsAppCrawlingPollingService: ObservableObject, WhatsAppCrawlingSe
             chatRepository: chatRepository,
             permissionModeProvider: { settings.chatPermissionMode },
             yamlText: yamlText,
-            logStore: logStore
+            logStore: logStore,
+            sharedLocks: sharedLocks
         )
     }
 

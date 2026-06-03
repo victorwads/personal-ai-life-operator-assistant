@@ -82,7 +82,7 @@ private extension AIConnectionRuntimeStatus {
             return .purple
         case .executingTool, .waitingEvent, .paused:
             return .orange
-        case .receivingOutput, .completed:
+        case .receivingOutput, .cycleCompleted, .completed:
             return .green
         case .waitingUser:
             return .yellow.opacity(0.85)

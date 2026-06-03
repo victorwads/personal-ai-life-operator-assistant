@@ -1,6 +1,6 @@
 import Foundation
 
-final class AIConnectionStreamingService {
+final class AIConnectionStreamingService: AIConnectionStreamingServing {
     private let settingsProvider: @Sendable () async -> AIConnectionProviderConfiguration
 
     // TODO: Implement the real agent tool loop.

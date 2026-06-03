@@ -7,7 +7,7 @@ struct AIConnectionRuntimeStatusProvider: ProfileRuntimeStatusProvider {
     func statusItems() -> [ProfileRuntimeStatusItem] {
         let actionTitle: String?
         switch runtimeService.state.status {
-        case .initializing, .promptProcessing, .reasoning, .executingTool, .receivingOutput, .waitingUser, .waitingEvent:
+        case .initializing, .promptProcessing, .reasoning, .executingTool, .receivingOutput, .cycleCompleted, .waitingUser, .waitingEvent:
             actionTitle = "Stop"
         case .stopped, .paused, .completed, .failed, .cancelled:
             actionTitle = "Start"
@@ -31,7 +31,7 @@ struct AIConnectionRuntimeStatusProvider: ProfileRuntimeStatusProvider {
 
     private func performAction() async {
         switch runtimeService.state.status {
-        case .initializing, .promptProcessing, .reasoning, .executingTool, .receivingOutput, .waitingUser, .waitingEvent:
+        case .initializing, .promptProcessing, .reasoning, .executingTool, .receivingOutput, .cycleCompleted, .waitingUser, .waitingEvent:
             runtimeService.cancelRun()
         case .stopped, .paused, .completed, .failed, .cancelled:
             runtimeService.startRun(userPrompt: "start your job")
@@ -42,7 +42,7 @@ struct AIConnectionRuntimeStatusProvider: ProfileRuntimeStatusProvider {
         switch status {
         case .initializing, .promptProcessing:
             return "Starting"
-        case .reasoning, .executingTool, .receivingOutput, .waitingUser, .waitingEvent:
+        case .reasoning, .executingTool, .receivingOutput, .cycleCompleted, .waitingUser, .waitingEvent:
             return "Running"
         case .failed:
             return "Failed"
