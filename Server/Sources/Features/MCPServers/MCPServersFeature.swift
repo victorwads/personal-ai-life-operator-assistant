@@ -24,9 +24,19 @@ final class MCPServersFeature: FeatureRuntime {
         )
         super.init(context: context)
 
+        var pendingWorkProviders: [any PendingWorkProvider] = []
+        if let scope = context.profileContext.scope {
+            pendingWorkProviders.append(
+                ChatsPendingWorkProvider(repository: FirestoreChatRepository(scope: scope))
+            )
+        }
+
         context.mcp.toolRegistry.register([
             GetCurrentDateTimeTool(),
-            WaitForEventTool(sharedLocks: context.sharedLocks)
+            WaitForEventTool(
+                sharedLocks: context.sharedLocks,
+                pendingWorkProviders: pendingWorkProviders
+            )
         ])
 
         let service = PlaceholderProfileRuntimeService(
