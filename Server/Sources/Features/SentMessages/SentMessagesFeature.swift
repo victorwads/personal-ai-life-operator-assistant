@@ -27,6 +27,9 @@ final class SentMessagesFeature: FeatureRuntime {
             GetAssistantNameTool(settings: settings),
             SendMessageTool(
                 repository: repository,
+                chatRepositoryProvider: {
+                    context.feature(ChatsFeature.self).repository
+                },
                 settings: settings,
                 senderProvider: {
                     context.feature(WhatsAppCrawlingFeature.self).messageSender

@@ -1,6 +1,10 @@
 import Foundation
 
-final class FirestoreSentMessageRepository: FirestoreRepository<SentMessage> {
+protocol SentMessageRepository {
+    func save(_ model: SentMessage, merge: Bool) async throws -> SentMessage
+}
+
+final class FirestoreSentMessageRepository: FirestoreRepository<SentMessage>, SentMessageRepository {
     init(scope: FirebaseProfileScope) {
         super.init(
             entityName: "SentMessage",

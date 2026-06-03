@@ -124,8 +124,8 @@ final class WebViewMessageSender: WhatsAppMessageSending {
         in webView: WKWebView
     ) async throws -> WhatsAppMessageSendResult {
         let normalizedExpected = expectedMessages.map { WhatsAppCrawlingNormalizer.normalizeText($0) ?? $0 }
-        var lastObservedReceipts: [WhatsAppMessageSendReceipt] = normalizedExpected.map {
-            WhatsAppMessageSendReceipt(text: $0, chatMessageId: nil)
+        var lastObservedReceipts: [WhatsAppMessageSendReceipt] = expectedMessages.map {
+            WhatsAppMessageSendReceipt(requestedText: $0, observedMessage: nil)
         }
 
         for attempt in 1...24 {
@@ -135,6 +135,7 @@ final class WebViewMessageSender: WhatsAppMessageSending {
             }
 
             let observed = matchReceipts(
+                requestedMessages: expectedMessages,
                 expectedMessages: normalizedExpected,
                 messages: currentChat.chat.messages,
                 baselineMessageIds: baselineMessageIds
@@ -167,6 +168,7 @@ final class WebViewMessageSender: WhatsAppMessageSending {
     }
 
     private func matchReceipts(
+        requestedMessages: [String],
         expectedMessages: [String],
         messages: [ChatMessage],
         baselineMessageIds: Set<String>
@@ -177,17 +179,23 @@ final class WebViewMessageSender: WhatsAppMessageSending {
         }
 
         var nextMessageIndex = 0
-        return expectedMessages.map { expected in
+        return zip(requestedMessages, expectedMessages).map { requestedText, expected in
             while nextMessageIndex < newMessages.count {
                 let candidate = newMessages[nextMessageIndex]
                 nextMessageIndex += 1
                 let candidateText = WhatsAppCrawlingNormalizer.normalizeText(candidate.text)
                 if candidateText == expected {
-                    return WhatsAppMessageSendReceipt(text: expected, chatMessageId: candidate.id)
+                    return WhatsAppMessageSendReceipt(
+                        requestedText: requestedText,
+                        observedMessage: candidate
+                    )
                 }
             }
 
-            return WhatsAppMessageSendReceipt(text: expected, chatMessageId: nil)
+            return WhatsAppMessageSendReceipt(
+                requestedText: requestedText,
+                observedMessage: nil
+            )
         }
     }
 

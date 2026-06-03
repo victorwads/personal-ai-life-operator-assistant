@@ -25,6 +25,8 @@ struct ChatMessageBubbleView: View {
             }
         } footer: {
             HStack(spacing: 6) {
+                messageRoleBadge
+
                 kindBadge
 
                 if message.handled {
@@ -42,6 +44,17 @@ struct ChatMessageBubbleView: View {
                     ]
                 )
             }
+        }
+    }
+
+    private var messageRoleBadge: some View {
+        switch messageRole {
+        case .assistant:
+            return DSBadge("Assistant", systemImage: "sparkles", style: .success)
+        case .manualOutgoing:
+            return DSBadge("Manual", systemImage: "paperplane", style: .info)
+        case .client:
+            return DSBadge("Client", systemImage: "person", style: .neutral)
         }
     }
 
@@ -63,6 +76,16 @@ struct ChatMessageBubbleView: View {
 
     private var alignment: DSMessageBubbleAlignment {
         message.direction == .sent ? .trailing : .leading
+    }
+
+    private var messageRole: MessageRole {
+        if message.sentByAssistant == true {
+            return .assistant
+        }
+        if message.direction == .sent {
+            return .manualOutgoing
+        }
+        return .client
     }
 
     private var subtitle: String? {
@@ -111,4 +134,10 @@ struct ChatMessageBubbleView: View {
         let absoluteURL = ChatMediaStorage.absoluteURL(forRelativePath: firstPath)
         return NSImage(contentsOf: absoluteURL)
     }
+}
+
+private enum MessageRole {
+    case assistant
+    case manualOutgoing
+    case client
 }

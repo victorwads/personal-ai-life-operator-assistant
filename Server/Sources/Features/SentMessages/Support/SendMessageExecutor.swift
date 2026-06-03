@@ -7,16 +7,19 @@ struct SentMessageSendOutcome {
 }
 
 final class SendMessageExecutor {
-    private let repository: FirestoreSentMessageRepository
+    private let repository: any SentMessageRepository
+    private let chatRepositoryProvider: @MainActor () -> any ChatRepository
     private let settings: SentMessagesSettingsWrapper
     private let senderProvider: @MainActor () -> any WhatsAppMessageSending
 
     init(
-        repository: FirestoreSentMessageRepository,
+        repository: any SentMessageRepository,
+        chatRepositoryProvider: @escaping @MainActor () -> any ChatRepository,
         settings: SentMessagesSettingsWrapper,
         senderProvider: @escaping @MainActor () -> any WhatsAppMessageSending
     ) {
         self.repository = repository
+        self.chatRepositoryProvider = chatRepositoryProvider
         self.settings = settings
         self.senderProvider = senderProvider
     }
@@ -60,15 +63,25 @@ final class SendMessageExecutor {
                 chatMessageIds: [],
                 errorMessage: nil,
                 sentAt: nil
-            )
+            ),
+            merge: true
         )
 
         let sender = await MainActor.run { senderProvider() }
+        let chatRepository = await MainActor.run { chatRepositoryProvider() }
 
         do {
             let result = try await sender.sendMessages(
                 WhatsAppMessageSendRequest(chatId: chatId, messages: formattedMessages)
             )
+
+            let observedMessages = assistantMessages(
+                from: result.receipts,
+                destinationChatId: chatId
+            )
+            if !observedMessages.isEmpty {
+                _ = try await chatRepository.insertMessages(observedMessages)
+            }
 
             let chatMessageIds = result.receipts.compactMap(\.chatMessageId)
             let missingReceiptCount = max(0, result.receipts.count - chatMessageIds.count)
@@ -79,7 +92,7 @@ final class SendMessageExecutor {
                 : "Observed \(chatMessageIds.count) of \(result.receipts.count) outbound messages."
             pendingRecord.sentAt = Date()
 
-            let saved = try await repository.save(pendingRecord)
+            let saved = try await repository.save(pendingRecord, merge: true)
             return SentMessageSendOutcome(
                 sentMessage: saved,
                 receiptCount: result.receipts.count,
@@ -92,8 +105,35 @@ final class SendMessageExecutor {
             // TODO: Consider returning the failed audit record id in MCP failure metadata later.
             // The record is persisted, but the current thrown error path does not expose the
             // SentMessage id back to the model/tool caller.
-            _ = try await repository.save(pendingRecord)
+            _ = try await repository.save(pendingRecord, merge: true)
             throw error
+        }
+    }
+
+    private func assistantMessages(
+        from receipts: [WhatsAppMessageSendReceipt],
+        destinationChatId: String
+    ) -> [ChatMessage] {
+        receipts.compactMap { receipt in
+            guard let chatMessageId = receipt.chatMessageId else {
+                return nil
+            }
+
+            return ChatMessage(
+                id: chatMessageId,
+                chatId: receipt.chatId ?? destinationChatId,
+                author: receipt.author,
+                text: receipt.text,
+                kind: receipt.kind,
+                direction: .sent,
+                listOrder: receipt.listOrder,
+                dateTime: receipt.sentAt,
+                quotedMessageText: receipt.observedMessage?.quotedMessageText,
+                quotedMessageAuthor: receipt.observedMessage?.quotedMessageAuthor,
+                localMediaPaths: receipt.observedMessage?.localMediaPaths ?? [],
+                handled: true,
+                sentByAssistant: true
+            )
         }
     }
 }

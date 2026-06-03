@@ -4,12 +4,14 @@ struct SendMessageTool: MCPToolDefinition {
     private let executor: SendMessageExecutor
 
     init(
-        repository: FirestoreSentMessageRepository,
+        repository: any SentMessageRepository,
+        chatRepositoryProvider: @escaping @MainActor () -> any ChatRepository,
         settings: SentMessagesSettingsWrapper,
         senderProvider: @escaping @MainActor () -> any WhatsAppMessageSending
     ) {
         self.executor = SendMessageExecutor(
             repository: repository,
+            chatRepositoryProvider: chatRepositoryProvider,
             settings: settings,
             senderProvider: senderProvider
         )
