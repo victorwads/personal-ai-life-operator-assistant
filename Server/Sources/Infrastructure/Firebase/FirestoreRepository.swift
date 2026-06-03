@@ -245,6 +245,16 @@ open class FirestoreRepository<Model: PersistableModel> {
         try await batch.commit()
     }
 
+    open func update(id: String, data: [String: Any]) async throws {
+        guard !id.isEmpty else {
+            throw FirestoreRepositoryError.missingDocumentId
+        }
+
+        let payload = makeUpdatePayload(from: data)
+        let document = try documentReference(for: id)
+        try await document.updateData(payload)
+    }
+
     open func delete(_ id: String, soft: Bool = false) async throws {
         guard !id.isEmpty else {
             throw FirestoreRepositoryError.missingDocumentId
@@ -366,11 +376,26 @@ open class FirestoreRepository<Model: PersistableModel> {
     }
 
     private func makeUpdatePayload(from data: [String: Any]) -> [String: Any] {
-        var payload = removeNilFields(from: data)
+        var payload = normalizeUpdateFields(from: data)
         payload.removeValue(forKey: FirestoreRepositoryMetadataField.createdAt)
         payload[FirestoreRepositoryMetadataField.updatedAt] = dateProvider()
         payload.removeValue(forKey: FirestoreRepositoryMetadataField.deletedAt)
         return payload
+    }
+
+    private func normalizeUpdateFields(from data: [String: Any]) -> [String: Any] {
+        var cleaned: [String: Any] = [:]
+        for (key, value) in data {
+            if value is NSNull {
+                cleaned[key] = FieldValue.delete()
+                continue
+            }
+
+            if let normalized = normalizeFirestoreValue(value) {
+                cleaned[key] = normalized
+            }
+        }
+        return cleaned
     }
 
     private func removeNilFields(from data: [String: Any]) -> [String: Any] {

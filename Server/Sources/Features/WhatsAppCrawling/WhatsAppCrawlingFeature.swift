@@ -58,14 +58,12 @@ final class WhatsAppCrawlingFeature: FeatureRuntime {
             )
         )
 
-        let chatRepository = FirestoreChatRepository(scope: scope)
-
         do {
             let crawlingService = try WhatsAppCrawlingPollingService(
                 profileId: context.profileContext.profileId,
                 settings: crawlingSettings,
                 webViewService: webViewService,
-                chatRepository: chatRepository,
+                chatRepositoryProvider: { context.feature(ChatsFeature.self).repository },
                 logStore: logStore,
                 sharedLocks: context.sharedLocks
             )

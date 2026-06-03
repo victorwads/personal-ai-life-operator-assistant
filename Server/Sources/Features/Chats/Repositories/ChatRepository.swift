@@ -4,6 +4,7 @@ protocol ChatRepository {
     func getChat(id: String) async throws -> Chat?
     func listChats() async throws -> [Chat]
     func upsertChat(_ chat: Chat) async throws
+    func updateChatPermission(chatId: String, permission: ChatPermission?) async throws
     func deleteChat(id: String) async throws
     func deleteAllChatsAndMessages() async throws
 

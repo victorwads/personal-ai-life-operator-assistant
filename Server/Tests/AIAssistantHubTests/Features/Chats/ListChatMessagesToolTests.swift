@@ -198,6 +198,7 @@ private final class ChatRepositorySpy: ChatRepository {
     func getChat(id _: String) async throws -> Chat? { chatToReturn }
     func listChats() async throws -> [Chat] { [] }
     func upsertChat(_: Chat) async throws {}
+    func updateChatPermission(chatId _: String, permission _: ChatPermission?) async throws {}
     func deleteChat(id _: String) async throws {}
     func deleteAllChatsAndMessages() async throws {}
     func listUnhandledChats(limit _: Int?) async throws -> [Chat] { [] }

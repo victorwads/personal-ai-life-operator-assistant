@@ -3,7 +3,7 @@ import WebKit
 
 @MainActor
 final class WhatsAppChatCrawlingOrchestrator {
-    private let chatRepository: any ChatRepository
+    private let chatRepositoryProvider: @MainActor () -> any ChatRepository
     private let permissionModeProvider: @MainActor () -> ChatPermissionMode
     private let yamlText: String
     private let logStore: WhatsAppCrawlingLogStore
@@ -13,14 +13,14 @@ final class WhatsAppChatCrawlingOrchestrator {
     private let forcedStartupCrawlCycleCount = 5
 
     init(
-        chatRepository: any ChatRepository,
+        chatRepositoryProvider: @escaping @MainActor () -> any ChatRepository,
         permissionModeProvider: @escaping @MainActor () -> ChatPermissionMode,
         yamlText: String,
         logStore: WhatsAppCrawlingLogStore,
         sharedLocks: SharedLockRegistry,
         onStatusUpdate: ((String) -> Void)? = nil
     ) {
-        self.chatRepository = chatRepository
+        self.chatRepositoryProvider = chatRepositoryProvider
         self.permissionModeProvider = permissionModeProvider
         self.yamlText = yamlText
         self.logStore = logStore
@@ -38,6 +38,8 @@ final class WhatsAppChatCrawlingOrchestrator {
         shouldContinue: @escaping @MainActor () -> Bool
     ) async -> CrawlingResult<Void> {
         do {
+            let chatRepository = chatRepositoryProvider()
+
             func shouldProceed() -> Bool {
                 let proceed = shouldContinue()
                 if !proceed {
@@ -343,6 +345,7 @@ final class WhatsAppChatCrawlingOrchestrator {
             return messages
         }
 
+        let chatRepository = chatRepositoryProvider()
         let existingIds = try await chatRepository.existingMessageIds(chatId: chatId)
         var enrichedMessages = messages
         let imageExtractor = WebViewImageExtractor(webView: webView)

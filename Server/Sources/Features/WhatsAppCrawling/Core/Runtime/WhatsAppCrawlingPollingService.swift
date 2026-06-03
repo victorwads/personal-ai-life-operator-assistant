@@ -5,7 +5,6 @@ final class WhatsAppCrawlingPollingService: ObservableObject, WhatsAppCrawlingSe
     private let profileId: String
     private let settings: WhatsAppCrawlingSettingsWrapper
     private weak var webViewService: WebViewWhatsAppCrawlingService?
-    private let chatRepository: any ChatRepository
     private let logStore: WhatsAppCrawlingLogStore
     private let orchestrator: WhatsAppChatCrawlingOrchestrator
 
@@ -31,7 +30,7 @@ final class WhatsAppCrawlingPollingService: ObservableObject, WhatsAppCrawlingSe
         profileId: String,
         settings: WhatsAppCrawlingSettingsWrapper,
         webViewService: WebViewWhatsAppCrawlingService,
-        chatRepository: any ChatRepository,
+        chatRepositoryProvider: @escaping @MainActor () -> any ChatRepository,
         logStore: WhatsAppCrawlingLogStore,
         sharedLocks: SharedLockRegistry
     ) throws {
@@ -43,12 +42,11 @@ final class WhatsAppCrawlingPollingService: ObservableObject, WhatsAppCrawlingSe
         // by turning the loop into "Waiting for WebView" forever.
         self.webViewService = webViewService
 
-        self.chatRepository = chatRepository
         self.logStore = logStore
 
         let yamlText = try WebYAMLSelectorLoader.loadBundledYAML()
         self.orchestrator = WhatsAppChatCrawlingOrchestrator(
-            chatRepository: chatRepository,
+            chatRepositoryProvider: chatRepositoryProvider,
             permissionModeProvider: { settings.chatPermissionMode },
             yamlText: yamlText,
             logStore: logStore,

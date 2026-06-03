@@ -7,6 +7,8 @@ private enum ChatMessageField {
 }
 
 private enum ChatField {
+    static let permission = "permission"
+    static let stateHash = "stateHash"
     static let unhandledCount = "unhandledCount"
 }
 
@@ -56,6 +58,16 @@ final class FirestoreChatRepository: ChatRepository {
 
     func upsertChat(_ chat: Chat) async throws {
         _ = try await chatStore.save(chat, merge: true)
+    }
+
+    func updateChatPermission(chatId: String, permission: ChatPermission?) async throws {
+        try await chatStore.update(
+            id: chatId,
+            data: [
+                ChatField.permission: permission?.rawValue ?? NSNull(),
+                ChatField.stateHash: ""
+            ]
+        )
     }
 
     func deleteChat(id: String) async throws {

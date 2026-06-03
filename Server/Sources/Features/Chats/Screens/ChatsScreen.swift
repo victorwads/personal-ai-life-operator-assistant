@@ -189,9 +189,10 @@ struct ChatsScreen: View {
 
         var updatedChat = currentChat
         updatedChat.permission = permission
+        updatedChat.stateHash = ""
 
         do {
-            try await feature.repository.upsertChat(updatedChat)
+            try await feature.repository.updateChatPermission(chatId: chatId, permission: permission)
             chats[chatIndex] = updatedChat
         } catch {
             errorMessage = "Failed to update chat permission: \(error.localizedDescription)"
