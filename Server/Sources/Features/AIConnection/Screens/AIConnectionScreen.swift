@@ -36,6 +36,10 @@ struct AIConnectionScreen: View {
                         viewModel.resetRun()
                     }
                     .disabled(!viewModel.canReset)
+
+                    Button("Open Logs Folder") {
+                        viewModel.openLogsFolder()
+                    }
                 }
             }
 

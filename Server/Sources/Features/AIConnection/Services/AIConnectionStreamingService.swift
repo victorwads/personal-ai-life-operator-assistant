@@ -2,6 +2,7 @@ import Foundation
 
 final class AIConnectionStreamingService: AIConnectionStreamingServing {
     private let settingsProvider: @Sendable () async -> AIConnectionProviderConfiguration
+    private let providerExchangeLogger: @Sendable (AIConnectionErrorLogStore.ProviderExchangeLogPayload) -> Void
 
     // TODO: Implement the real agent tool loop.
     // For now this service can expose tools and execute a requested tool call,
@@ -12,11 +13,13 @@ final class AIConnectionStreamingService: AIConnectionStreamingServing {
     init(
         settingsProvider: @escaping @Sendable () async -> AIConnectionProviderConfiguration,
         toolCatalog: any AIConnectionToolCataloging,
-        toolExecutor: any AIConnectionToolExecuting
+        toolExecutor: any AIConnectionToolExecuting,
+        providerExchangeLogger: @escaping @Sendable (AIConnectionErrorLogStore.ProviderExchangeLogPayload) -> Void = { _ in }
     ) {
         self.settingsProvider = settingsProvider
         self.toolCatalog = toolCatalog
         self.toolExecutor = toolExecutor
+        self.providerExchangeLogger = providerExchangeLogger
     }
 
     func streamEvents(
@@ -35,7 +38,10 @@ final class AIConnectionStreamingService: AIConnectionStreamingServing {
                         cacheMode: request.cacheMode
                     )
 
-                    let client = OpenAICompatibleStreamingClient(configuration: configuration)
+                    let client = OpenAICompatibleStreamingClient(
+                        configuration: configuration,
+                        providerExchangeLogger: providerExchangeLogger
+                    )
                     for try await event in client.streamEvents(for: normalizedRequest) {
                         continuation.yield(event)
                     }

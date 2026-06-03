@@ -5,14 +5,19 @@ final class AIConnectionRuntimeService: ObservableObject {
     @Published private(set) var state = AIConnectionRuntimeState.initial()
 
     private let streamingService: any AIConnectionStreamingServing
+    private let errorLogStore: AIConnectionErrorLogStore
     private var activeStreamingTask: Task<Void, Never>?
     private var toolCallIndexByID: [String: Int] = [:]
 
     private static let maxDebugEvents = 200
     private static let interCycleDelayNanoseconds: UInt64 = 500_000_000
 
-    init(streamingService: any AIConnectionStreamingServing) {
+    init(
+        streamingService: any AIConnectionStreamingServing,
+        errorLogStore: AIConnectionErrorLogStore = AIConnectionErrorLogStore()
+    ) {
         self.streamingService = streamingService
+        self.errorLogStore = errorLogStore
     }
 
     func loadTools() async {
@@ -77,6 +82,30 @@ final class AIConnectionRuntimeService: ObservableObject {
                 cycleOutcome = try await self.runSingleCycle(cycleNumber: cycleNumber)
             } catch is CancellationError {
                 return
+            } catch let AIConnectionRuntimeLoopError.providerFailure(failure) {
+                await MainActor.run {
+                    self.handleCycleFailure(
+                        cycleNumber: cycleNumber,
+                        message: failure.message,
+                        providerFailure: failure
+                    )
+                }
+
+                currentCycle += 1
+                if Task.isCancelled {
+                    return
+                }
+                do {
+                    try await self.scheduleNextCycle(after: Self.interCycleDelayNanoseconds, reason: .recovery)
+                } catch is CancellationError {
+                    return
+                } catch {
+                    await MainActor.run {
+                        self.handleCycleFailure(cycleNumber: cycleNumber, message: error.localizedDescription)
+                    }
+                    return
+                }
+                continue
             } catch {
                 await MainActor.run {
                     self.handleCycleFailure(cycleNumber: cycleNumber, message: error.localizedDescription)
@@ -187,6 +216,7 @@ final class AIConnectionRuntimeService: ObservableObject {
         state.usage = AIRunUsageState()
         state.usage.runStartedAt = runStartedAt
         state.errors = []
+        state.lastProviderFailure = nil
         state.debugEvents = []
         state.currentPhaseStartedAt = runStartedAt
 
@@ -234,8 +264,8 @@ final class AIConnectionRuntimeService: ObservableObject {
             if Task.isCancelled {
                 throw CancellationError()
             }
-            if case let .failed(message) = event {
-                throw AIConnectionRuntimeLoopError.providerFailure(message)
+            if case let .failed(failure) = event {
+                throw AIConnectionRuntimeLoopError.providerFailure(failure)
             }
             await MainActor.run {
                 if let response = self.handle(event: event) {
@@ -374,9 +404,16 @@ final class AIConnectionRuntimeService: ObservableObject {
         state.currentPhaseStartedAt = Date()
     }
 
-    private func handleCycleFailure(cycleNumber: Int, message: String) {
+    private func handleCycleFailure(cycleNumber: Int, message: String, providerFailure: AIProviderFailure? = nil) {
+        if let providerFailure {
+            state.lastProviderFailure = providerFailure
+        }
         state.errors.append(message)
         appendDebug(kind: "cycle.failed", summary: "Cycle \(cycleNumber) failed: \(message)")
+        if let providerFailure {
+            appendDebug(kind: "provider.failed", summary: providerFailureSummary(providerFailure))
+        }
+        persistCycleFailureLog(cycleNumber: cycleNumber, message: message)
         finalizeToolCallsAsFailedIfNeeded(message: message)
         finalizeUsageOnCycleEnd()
         transitionStatus(.recovering)
@@ -517,6 +554,61 @@ final class AIConnectionRuntimeService: ObservableObject {
         updateUsageLiveMetrics(at: Date())
     }
 
+    private func persistCycleFailureLog(cycleNumber: Int, message: String) {
+        let payload = AIConnectionErrorLogStore.FailureLogPayload(
+            recordedAt: Date(),
+            runId: state.runId?.uuidString,
+            cycleNumber: cycleNumber,
+            message: message,
+            status: state.status.rawValue,
+            userPrompt: state.userPrompt,
+            assistantText: state.assistantText,
+            reasoningText: state.reasoningText,
+            accumulatedErrors: state.errors,
+            providerFailure: state.lastProviderFailure.map {
+                AIConnectionErrorLogStore.ProviderFailurePayload(
+                    message: $0.message,
+                    provider: $0.provider?.rawValue,
+                    model: $0.model,
+                    endpoint: $0.endpoint,
+                    statusCode: $0.statusCode,
+                    responseHeaders: $0.responseHeaders,
+                    responseBody: $0.responseBody,
+                    requestBody: $0.requestBody,
+                    requestMessageCount: $0.requestMessageCount,
+                    requestToolCount: $0.requestToolCount,
+                    underlyingError: $0.underlyingError
+                )
+            },
+            toolCalls: state.toolCalls.map {
+                AIConnectionErrorLogStore.ToolCallPayload(
+                    id: $0.id,
+                    name: $0.name,
+                    status: $0.status.rawValue,
+                    argumentsJSON: $0.argumentsJSON,
+                    responseText: $0.responseText,
+                    errorText: $0.errorText,
+                    startedAt: $0.startedAt,
+                    endedAt: $0.endedAt
+                )
+            },
+            debugEvents: state.debugEvents.map {
+                AIConnectionErrorLogStore.DebugEventPayload(
+                    kind: $0.kind,
+                    summary: $0.summary,
+                    timestamp: $0.timestamp
+                )
+            }
+        )
+
+        do {
+            let fileURL = try errorLogStore.writeFailureLog(payload)
+            appendDebug(kind: "cycle.failure_log.saved", summary: "Saved failure log to \(fileURL.path).")
+        } catch {
+            appendDebug(kind: "cycle.failure_log.failed", summary: "Failed to persist cycle failure log: \(error.localizedDescription)")
+        }
+    }
+
     private func scheduleNextCycle(after delayNanoseconds: UInt64, reason: NextCycleReason) async throws {
         await MainActor.run {
             self.appendDebug(
@@ -610,6 +702,21 @@ final class AIConnectionRuntimeService: ObservableObject {
         }
     }
 
+    private func providerFailureSummary(_ failure: AIProviderFailure) -> String {
+        var parts: [String] = [failure.message]
+        if let statusCode = failure.statusCode {
+            parts.append("status=\(statusCode)")
+        }
+        if let endpoint = failure.endpoint {
+            parts.append("endpoint=\(endpoint)")
+        }
+        if let body = failure.responseBody?.trimmingCharacters(in: .whitespacesAndNewlines), !body.isEmpty {
+            let compactBody = body.count > 240 ? String(body.prefix(240)) + "..." : body
+            parts.append("body=\(compactBody)")
+        }
+        return parts.joined(separator: " | ")
+    }
+
     private func markToolCallExecuting(id: String) {
         guard let index = toolCallIndexByID[id] else { return }
         state.toolCalls[index].status = .executing
@@ -680,14 +787,14 @@ final class AIConnectionRuntimeService: ObservableObject {
 
 private enum AIConnectionRuntimeLoopError: LocalizedError {
     case missingCompletedResponse
-    case providerFailure(String)
+    case providerFailure(AIProviderFailure)
 
     var errorDescription: String? {
         switch self {
         case .missingCompletedResponse:
             return "Provider stream ended without a completed response event."
-        case let .providerFailure(message):
-            return message
+        case let .providerFailure(failure):
+            return failure.message
         }
     }
 }

@@ -96,6 +96,7 @@ struct AIConnectionRuntimeState {
     var toolCalls: [AIRunToolCallState]
     var usage: AIRunUsageState
     var errors: [String]
+    var lastProviderFailure: AIProviderFailure?
     var debugEvents: [AIRunDebugEventState]
     var isLoadingTools: Bool
 
@@ -130,6 +131,7 @@ struct AIConnectionRuntimeState {
             toolCalls: [],
             usage: AIRunUsageState(),
             errors: [],
+            lastProviderFailure: nil,
             debugEvents: [],
             isLoadingTools: false
         )

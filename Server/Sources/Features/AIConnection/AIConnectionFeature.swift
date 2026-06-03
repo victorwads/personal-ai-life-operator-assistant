@@ -6,11 +6,14 @@ final class AIConnectionFeature: FeatureRuntime {
 
     private static let serviceId = "ai.connection"
 
+    private(set) var errorLogStore: AIConnectionErrorLogStore
     private(set) var settings: AIConnectionSettingsWrapper
     private(set) var streamingService: AIConnectionStreamingService
     private(set) var runtimeService: AIConnectionRuntimeService
 
     required init(context: FeatureContext) {
+        let errorLogStore = AIConnectionErrorLogStore()
+        self.errorLogStore = errorLogStore
         let settings = AIConnectionSettingsWrapper(settings: context.settings.store)
         self.settings = settings
 
@@ -29,10 +32,20 @@ final class AIConnectionFeature: FeatureRuntime {
                 featureProvider: {
                     context.feature(MCPServersFeature.self)
                 }
-            )
+            ),
+            providerExchangeLogger: { payload in
+                do {
+                    _ = try errorLogStore.writeProviderExchangeLog(payload)
+                } catch {
+                    print("AIConnection provider exchange log failed: \(error.localizedDescription)")
+                }
+            }
         )
         self.streamingService = streamingService
-        self.runtimeService = AIConnectionRuntimeService(streamingService: streamingService)
+        self.runtimeService = AIConnectionRuntimeService(
+            streamingService: streamingService,
+            errorLogStore: errorLogStore
+        )
 
         super.init(context: context)
 

@@ -5,13 +5,18 @@ import Foundation
 final class AIConnectionPlaygroundViewModel: ObservableObject {
     @Published var prompt = "start your job"
     @Published private(set) var runtimeState: AIConnectionRuntimeState
+    @Published private(set) var logsFolderPath: String
+    @Published private(set) var logsFolderError: String?
 
     private let runtimeService: AIConnectionRuntimeService
+    private let errorLogStore: AIConnectionErrorLogStore
     private var cancellables: Set<AnyCancellable> = []
 
     init(feature: AIConnectionFeature) {
+        errorLogStore = feature.errorLogStore
         runtimeService = feature.runtimeService
         runtimeState = feature.runtimeService.state
+        logsFolderPath = feature.errorLogStore.logsFolderPath()
 
         runtimeService.$state
             .receive(on: RunLoop.main)
@@ -44,6 +49,15 @@ final class AIConnectionPlaygroundViewModel: ObservableObject {
 
     func resetRun() {
         runtimeService.resetRun()
+    }
+
+    func openLogsFolder() {
+        do {
+            try errorLogStore.openLogsFolder()
+            logsFolderError = nil
+        } catch {
+            logsFolderError = error.localizedDescription
+        }
     }
 
     private var normalizedPrompt: String {

@@ -44,10 +44,21 @@ struct OpenAICompatibleChatMessage: Encodable {
 
     init(message: AIConversationMessage) {
         self.role = message.role.rawValue
-        self.content = message.content
+        self.content = Self.normalizedContent(
+            message.content,
+            hasToolCalls: !message.toolCalls.isEmpty
+        )
         self.name = message.name
         self.toolCallID = message.toolCallID
         self.toolCalls = message.toolCalls.isEmpty ? nil : message.toolCalls.map { OpenAICompatibleToolCall(toolCall: $0) }
+    }
+
+    private static func normalizedContent(_ content: String?, hasToolCalls: Bool) -> String? {
+        guard let content else { return nil }
+        if hasToolCalls && content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return nil
+        }
+        return content
     }
 }
 
@@ -81,8 +92,13 @@ struct OpenAICompatibleToolCall: Encodable {
         self.id = toolCall.id
         self.function = OpenAICompatibleToolCallFunction(
             name: toolCall.name,
-            arguments: toolCall.argumentsJSON
+            arguments: Self.normalizedArgumentsJSON(toolCall.argumentsJSON)
         )
+    }
+
+    private static func normalizedArgumentsJSON(_ argumentsJSON: String) -> String {
+        let trimmed = argumentsJSON.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "{}" : trimmed
     }
 }
 

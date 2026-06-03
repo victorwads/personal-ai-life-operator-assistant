@@ -10,5 +10,5 @@ enum AIStreamEvent: Equatable, Sendable {
     case toolCallCompleted(AIRequestedToolCall)
     case usage(AIUsage)
     case completed(AIProviderResponse)
-    case failed(String)
+    case failed(AIProviderFailure)
 }

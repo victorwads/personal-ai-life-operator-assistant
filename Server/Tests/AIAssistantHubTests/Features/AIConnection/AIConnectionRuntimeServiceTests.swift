@@ -146,10 +146,26 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
     }
 
     func testFailureDoesNotStopRuntimeAndNextCycleStartsAutomatically() async throws {
+        let logsDirectoryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
         let streamingService = FakeAIConnectionStreamingService(
             streamPlans: [
                 .events([
-                    .failed("temporary provider failure")
+                    .failed(
+                        AIProviderFailure(
+                            message: "AI provider request failed with status code 500.",
+                            provider: .openRouter,
+                            model: "model-1",
+                            endpoint: "https://provider.example/v1/chat/completions",
+                            statusCode: 500,
+                            responseHeaders: ["content-type": "application/json"],
+                            responseBody: "{\"error\":{\"message\":\"boom\"}}",
+                            requestBody: "{\"model\":\"model-1\"}",
+                            requestMessageCount: 2,
+                            requestToolCount: 0,
+                            underlyingError: "server error"
+                        )
+                    )
                 ]),
                 .events([
                     .textDelta("Recovered cycle"),
@@ -169,7 +185,10 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
                 .waitUntilCancelled
             ]
         )
-        let service = AIConnectionRuntimeService(streamingService: streamingService)
+        let service = AIConnectionRuntimeService(
+            streamingService: streamingService,
+            errorLogStore: AIConnectionErrorLogStore(logsDirectoryURL: logsDirectoryURL)
+        )
 
         service.startRun(userPrompt: "keep running forever")
 
@@ -179,10 +198,23 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
 
         XCTAssertEqual(streamingService.recordedRequestsSnapshot().count, 3)
         XCTAssertTrue(service.state.isRunning)
-        XCTAssertEqual(service.state.errors.last, "temporary provider failure")
+        XCTAssertEqual(service.state.errors.last, "AI provider request failed with status code 500.")
+        XCTAssertEqual(service.state.lastProviderFailure?.statusCode, 500)
         XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "cycle.failed" }))
+        XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "provider.failed" }))
         XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "cycle.completed" }))
         XCTAssertNotEqual(service.state.status, .failed)
+
+        let logFiles = try FileManager.default.contentsOfDirectory(
+            at: logsDirectoryURL,
+            includingPropertiesForKeys: nil
+        )
+        XCTAssertEqual(logFiles.count, 1)
+        let logData = try Data(contentsOf: logFiles[0])
+        let logText = try XCTUnwrap(String(data: logData, encoding: .utf8))
+        XCTAssertTrue(logText.contains("\"statusCode\" : 500"))
+        XCTAssertTrue(logText.contains("provider.example/v1/chat/completions"))
+        XCTAssertTrue(logText.contains("\\\"boom\\\""))
 
         service.cancelRun()
 

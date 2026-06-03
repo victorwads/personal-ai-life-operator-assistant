@@ -53,6 +53,16 @@ struct AIRunHeaderView: View {
                         .font(.footnote)
                         .foregroundStyle(.red)
                 }
+
+                Text("Logs folder: \(viewModel.logsFolderPath)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if let error = viewModel.logsFolderError {
+                    Text(error)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                }
             }
         }
     }
