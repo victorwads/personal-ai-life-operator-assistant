@@ -68,9 +68,9 @@ targets:
     type: bundle.unit-test
     platform: macOS
     sources:
-      - path: Tests
+      - path: Tests/AIAssistantHubTests
         excludes:
-          - "AIAssistantHubTests/Fixtures/**"
+          - "Fixtures/**"
           - "**/*.md"
     resources:
       - path: Tests/AIAssistantHubTests/Fixtures
@@ -92,7 +92,7 @@ schemes:
       config: Debug
       targets:
         - AIAssistantHubTests
-  AIAssistantHub-Emulators:
+  AIAssistantHubEmulators:
     build:
       targets:
         AIAssistantHub: all
@@ -101,7 +101,7 @@ schemes:
       config: Debug
       environmentVariables:
         FIREBASE_USE_EMULATORS: "1"
-        FIREBASE_EMULATOR_HOST: "127.0.0.1"
+        FIREBASE_EMULATOR_HOST: "localhost"
         FIRESTORE_EMULATOR_PORT: "8080"
         FIREBASE_AUTH_EMULATOR_PORT: "9099"
     test:

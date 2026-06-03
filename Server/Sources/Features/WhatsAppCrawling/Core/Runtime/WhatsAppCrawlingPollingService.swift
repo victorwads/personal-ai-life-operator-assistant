@@ -138,8 +138,6 @@ final class WhatsAppCrawlingPollingService: ObservableObject, WhatsAppCrawlingSe
                         // Today failures only update statusText/logs, so `isFailed` may never become useful.
                         await MainActor.run {
                             self.statusText = "Failed: \(error.localizedDescription)"
-                        }
-                        await MainActor.run {
                             self.logStore.append(source: "Error", "Cycle failed: \(error.localizedDescription)")
                         }
                     }

@@ -150,10 +150,7 @@ open class FirestoreRepository<Model: PersistableModel> {
                 snapshot = try await documentReference(for: id).getDocument(source: .cache)
             }
         } catch {
-            if readSource == .cacheOnly {
-                return nil
-            }
-            throw error
+            return nil
         }
 
         guard snapshot.exists else {

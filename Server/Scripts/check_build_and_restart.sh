@@ -4,9 +4,15 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${0}")/.." && pwd)"
 APP_NAME="AIAssistantHub"
 PROJECT_FILE="$ROOT_DIR/AIAssistantHub.xcodeproj"
-SCHEME_NAME="AIAssistantHub"
+SCHEME_NAME="${SCHEME_NAME:-AIAssistantHubEmulators}"
 CONFIGURATION="Debug"
+TEST_DESTINATION="platform=macOS"
 APP_ICON_DIR="$ROOT_DIR/Resources/Assets.xcassets/AppIcon.appiconset"
+XCODEBUILD_ARGS=(
+  -project "$PROJECT_FILE"
+  -scheme "$SCHEME_NAME"
+  -configuration "$CONFIGURATION"
+)
 
 echo "==> Sanitizing file endings"
 "$ROOT_DIR/Scripts/sanitize_file_endings.sh"
@@ -24,7 +30,7 @@ cd "$ROOT_DIR"
 echo "==> Generating Xcode project"
 xcodegen generate
 
-build_settings="$(xcodebuild -project "$PROJECT_FILE" -scheme "$SCHEME_NAME" -configuration "$CONFIGURATION" -showBuildSettings)"
+build_settings="$(xcodebuild "${XCODEBUILD_ARGS[@]}" -showBuildSettings)"
 target_build_dir="$(printf '%s\n' "$build_settings" | awk -F ' = ' '/TARGET_BUILD_DIR = / {print $2; exit}')"
 full_product_name="$(printf '%s\n' "$build_settings" | awk -F ' = ' '/FULL_PRODUCT_NAME = / {print $2; exit}')"
 
@@ -36,7 +42,10 @@ fi
 APP_PATH="$target_build_dir/$full_product_name"
 
 echo "==> Building"
-xcodebuild -project "$PROJECT_FILE" -scheme "$SCHEME_NAME" -configuration "$CONFIGURATION"
+xcodebuild "${XCODEBUILD_ARGS[@]}" build
+
+echo "==> Running unit tests"
+xcodebuild "${XCODEBUILD_ARGS[@]}" -destination "$TEST_DESTINATION" test
 
 if [[ ! -d "$APP_PATH" ]]; then
   echo "Built app not found at: $APP_PATH" >&2

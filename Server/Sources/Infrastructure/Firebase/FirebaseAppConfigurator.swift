@@ -4,25 +4,15 @@ import FirebaseFirestore
 import Foundation
 
 public enum FirebaseAppConfigurator {
-    private static let configurationLock = NSLock()
-    private static var didConfigure = false
     private static let emulatorFlagValues = Set(["1", "true", "yes", "on"])
 
     public static func configure() {
-        configurationLock.lock()
-        defer { configurationLock.unlock() }
-
-        guard didConfigure == false else {
-            return
-        }
-
         if FirebaseApp.app() == nil {
             FirebaseApp.configure()
         }
 
         configureAuth()
         configureFirestore()
-        didConfigure = true
     }
 
     private static func configureFirestore() {
@@ -77,7 +67,7 @@ public enum FirebaseAppConfigurator {
         }
 
         let hostValue = environment["FIREBASE_EMULATOR_HOST"]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let host = hostValue.isEmpty ? "127.0.0.1" : hostValue
+        let host = hostValue.isEmpty ? "localhost" : hostValue
 
         let firestorePort = Int(environment["FIRESTORE_EMULATOR_PORT"] ?? "") ?? 8080
         let authPort = Int(environment["FIREBASE_AUTH_EMULATOR_PORT"] ?? "") ?? 9099
