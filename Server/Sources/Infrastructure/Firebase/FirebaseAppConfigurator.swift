@@ -1,6 +1,7 @@
 import FirebaseCore
 import FirebaseAuth
 import FirebaseFirestore
+import FirebaseDatabase
 import Foundation
 
 public enum FirebaseAppConfigurator {
@@ -13,6 +14,7 @@ public enum FirebaseAppConfigurator {
 
         configureAuth()
         configureFirestore()
+        configureRealtimeDatabase()
     }
 
     private static func configureFirestore() {
@@ -46,6 +48,15 @@ public enum FirebaseAppConfigurator {
         }
     }
 
+    private static func configureRealtimeDatabase() {
+        guard let emulator = emulatorEnvironment() else {
+            return
+        }
+
+        Database.database().useEmulator(withHost: emulator.host, port: emulator.databasePort)
+        print("Realtime Database emulator configured at \(emulator.host):\(emulator.databasePort).")
+    }
+
     private static func configureAuth() {
         guard let emulator = emulatorEnvironment() else {
             return
@@ -55,7 +66,7 @@ public enum FirebaseAppConfigurator {
         print("Firebase Auth emulator enabled at \(emulator.host):\(emulator.authPort).")
     }
 
-    private static func emulatorEnvironment() -> (host: String, firestorePort: Int, authPort: Int)? {
+    private static func emulatorEnvironment() -> (host: String, firestorePort: Int, authPort: Int, databasePort: Int)? {
         let environment = ProcessInfo.processInfo.environment
         let useEmulatorRaw = environment["FIREBASE_USE_EMULATORS"]?
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -71,6 +82,7 @@ public enum FirebaseAppConfigurator {
 
         let firestorePort = Int(environment["FIRESTORE_EMULATOR_PORT"] ?? "") ?? 8080
         let authPort = Int(environment["FIREBASE_AUTH_EMULATOR_PORT"] ?? "") ?? 9099
-        return (host: host, firestorePort: firestorePort, authPort: authPort)
+        let databasePort = Int(environment["FIREBASE_DATABASE_EMULATOR_PORT"] ?? "") ?? 9000
+        return (host: host, firestorePort: firestorePort, authPort: authPort, databasePort: databasePort)
     }
 }

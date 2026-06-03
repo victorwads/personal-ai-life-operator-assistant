@@ -45,6 +45,8 @@ targets:
         product: FirebaseAuth
       - package: Firebase
         product: FirebaseFirestore
+      - package: Firebase
+        product: FirebaseDatabase
       - package: GoogleSignIn
         product: GoogleSignIn
       - package: Yams
@@ -104,6 +106,7 @@ schemes:
         FIREBASE_EMULATOR_HOST: "localhost"
         FIRESTORE_EMULATOR_PORT: "8080"
         FIREBASE_AUTH_EMULATOR_PORT: "9099"
+        FIREBASE_DATABASE_EMULATOR_PORT: "9000"
     test:
       config: Debug
       targets:

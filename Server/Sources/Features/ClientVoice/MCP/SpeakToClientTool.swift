@@ -3,15 +3,18 @@ import Foundation
 struct SpeakToClientTool: MCPToolDefinition {
     private let repository: ClientInteractionRequestRepository
     private let sharedLocks: SharedLockRegistry
+    private let isClientPresentProvider: @MainActor @Sendable () -> Bool
     private let source: ClientInteractionRequest.Source
 
     init(
         repository: ClientInteractionRequestRepository,
         sharedLocks: SharedLockRegistry,
+        isClientPresentProvider: @escaping @MainActor @Sendable () -> Bool,
         source: ClientInteractionRequest.Source = .desktop
     ) {
         self.repository = repository
         self.sharedLocks = sharedLocks
+        self.isClientPresentProvider = isClientPresentProvider
         self.source = source
     }
 
@@ -53,8 +56,7 @@ struct SpeakToClientTool: MCPToolDefinition {
             return .string("error: speak_to_client created a request without an id, so delivery cannot be awaited.")
         }
 
-        let isClientPresent = true
-        // TODO: Read real client presence from the proper runtime/service state.
+        let isClientPresent = await MainActor.run { isClientPresentProvider() }
 
         guard isClientPresent else {
             return .string("warning: client is not present. The message was registered and will be delivered when the client is available. You may continue.")

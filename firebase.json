@@ -26,7 +26,10 @@
     "ui": {
       "enabled": true
     },
-    "singleProjectMode": true
+    "singleProjectMode": true,
+    "database": {
+      "port": 9000
+    }
   },
   "auth": {
     "providers": {
@@ -35,5 +38,8 @@
         "supportEmail": "contato@wads.dev"
       }
     }
+  },
+  "database": {
+    "rules": "database.rules.json"
   }
 }

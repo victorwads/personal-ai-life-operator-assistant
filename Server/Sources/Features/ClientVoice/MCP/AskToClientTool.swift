@@ -3,15 +3,18 @@ import Foundation
 struct AskToClientTool: MCPToolDefinition {
     private let repository: ClientInteractionRequestRepository
     private let sharedLocks: SharedLockRegistry
+    private let isClientPresentProvider: @MainActor @Sendable () -> Bool
     private let source: ClientInteractionRequest.Source
 
     init(
         repository: ClientInteractionRequestRepository,
         sharedLocks: SharedLockRegistry,
+        isClientPresentProvider: @escaping @MainActor @Sendable () -> Bool,
         source: ClientInteractionRequest.Source = .desktop
     ) {
         self.repository = repository
         self.sharedLocks = sharedLocks
+        self.isClientPresentProvider = isClientPresentProvider
         self.source = source
     }
 
@@ -53,8 +56,7 @@ struct AskToClientTool: MCPToolDefinition {
             return .string("error: ask_to_client created a request without an id, so the response cannot be awaited.")
         }
 
-        // TODO: Read real client presence from the proper runtime/service state.
-        let isClientPresent = true
+        let isClientPresent = await MainActor.run { isClientPresentProvider() }
 
         guard isClientPresent else {
             return .string("pending: question registered for the client. The client will answer when available. Continue autonomously if possible or wait for an event. You will be notified when the client responds.")

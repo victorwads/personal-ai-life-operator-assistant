@@ -6,11 +6,13 @@ This document owns Firebase repository boundaries and persistence metadata rules
 
 - `FirestoreRepository` owns Firestore serialization/deserialization details.
 - Firebase SDK imports are allowed only under `Sources/Infrastructure`.
+- Realtime Database SDK imports, generic RTDB repositories/clients, and emulator bootstrap also live under `Sources/Infrastructure`.
 - Feature code must use infrastructure repositories/services and must not import Firebase SDK modules directly.
 - Domain models must stay clean and focused on domain/application behavior.
 - Domain models must not embed Firebase audit metadata or Firestore transport details by default.
 - Feature repositories should stay thin wrappers over `FirestoreRepository`.
 - Feature repositories should not expose Firebase SDK types in their stored properties, initializers, method signatures, or protocol contracts.
+- Feature-specific Realtime Database repositories belong in the owning feature and should compose Infrastructure RTDB clients instead of importing Firebase SDKs directly.
 
 ## Metadata injection
 
@@ -33,6 +35,7 @@ This document owns Firebase repository boundaries and persistence metadata rules
 - Local persistent cache indexes improve cache/offline filtered query behavior over already cached data.
 - Local cache indexes do not replace remote Firestore composite indexes required for server/default reads.
 - User-facing flows should not rely on cache-only reads unless empty or incomplete cache results are acceptable.
+- Realtime Database emulator configuration is applied in `FirebaseAppConfigurator` before the first RTDB reference is used.
 
 ## Merge/upsert rules
 
