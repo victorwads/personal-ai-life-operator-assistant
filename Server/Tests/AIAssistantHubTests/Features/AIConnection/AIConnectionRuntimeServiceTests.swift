@@ -144,6 +144,52 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
             service.state.status == .cancelled
         }
     }
+
+    func testFailureDoesNotStopRuntimeAndNextCycleStartsAutomatically() async throws {
+        let streamingService = FakeAIConnectionStreamingService(
+            streamPlans: [
+                .events([
+                    .failed("temporary provider failure")
+                ]),
+                .events([
+                    .textDelta("Recovered cycle"),
+                    .completed(
+                        AIProviderResponse(
+                            id: "response-2",
+                            model: "model-1",
+                            provider: .openRouter,
+                            finishReason: "stop",
+                            text: "Recovered cycle",
+                            reasoning: "",
+                            toolCalls: [],
+                            usage: nil
+                        )
+                    )
+                ]),
+                .waitUntilCancelled
+            ]
+        )
+        let service = AIConnectionRuntimeService(streamingService: streamingService)
+
+        service.startRun(userPrompt: "keep running forever")
+
+        try await waitUntil {
+            streamingService.recordedRequestCount() >= 3
+        }
+
+        XCTAssertEqual(streamingService.recordedRequestsSnapshot().count, 3)
+        XCTAssertTrue(service.state.isRunning)
+        XCTAssertEqual(service.state.errors.last, "temporary provider failure")
+        XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "cycle.failed" }))
+        XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "cycle.completed" }))
+        XCTAssertNotEqual(service.state.status, .failed)
+
+        service.cancelRun()
+
+        try await waitUntil {
+            service.state.status == .cancelled
+        }
+    }
 }
 
 private final class FakeAIConnectionStreamingService: AIConnectionStreamingServing, @unchecked Sendable {

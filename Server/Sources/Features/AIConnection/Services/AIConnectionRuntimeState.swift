@@ -8,6 +8,7 @@ enum AIConnectionRuntimeStatus: String, CaseIterable {
     case executingTool
     case receivingOutput
     case cycleCompleted
+    case recovering
     case waitingUser
     case waitingEvent
     case paused
@@ -25,6 +26,8 @@ enum AIConnectionRuntimeStatus: String, CaseIterable {
             return "Receiving Output"
         case .cycleCompleted:
             return "Cycle Completed"
+        case .recovering:
+            return "Recovering"
         case .waitingUser:
             return "Waiting User"
         case .waitingEvent:
@@ -50,6 +53,8 @@ enum AIConnectionRuntimeStatus: String, CaseIterable {
             return "text.bubble"
         case .cycleCompleted:
             return "arrow.triangle.2.circlepath"
+        case .recovering:
+            return "arrow.clockwise"
         case .waitingUser:
             return "person.crop.circle.badge.questionmark"
         case .waitingEvent:
@@ -67,7 +72,7 @@ enum AIConnectionRuntimeStatus: String, CaseIterable {
 
     var isRunningLike: Bool {
         switch self {
-        case .initializing, .promptProcessing, .reasoning, .executingTool, .receivingOutput, .cycleCompleted, .waitingUser, .waitingEvent:
+        case .initializing, .promptProcessing, .reasoning, .executingTool, .receivingOutput, .cycleCompleted, .recovering, .waitingUser, .waitingEvent:
             return true
         case .stopped, .paused, .completed, .failed, .cancelled:
             return false

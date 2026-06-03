@@ -23,7 +23,7 @@ final class AIConnectionProfileRuntimeService: ProfileRuntimeService {
             return .stopped
         case .initializing, .promptProcessing:
             return .starting
-        case .reasoning, .executingTool, .receivingOutput, .cycleCompleted, .waitingUser, .waitingEvent:
+        case .reasoning, .executingTool, .receivingOutput, .cycleCompleted, .recovering, .waitingUser, .waitingEvent:
             return .running
         case .paused:
             return .stopping

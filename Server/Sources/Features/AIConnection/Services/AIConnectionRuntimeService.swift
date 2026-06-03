@@ -36,17 +36,7 @@ final class AIConnectionRuntimeService: ObservableObject {
 
         activeStreamingTask = Task { [weak self] in
             guard let self else { return }
-            do {
-                try await self.runContinuousLoop()
-            } catch is CancellationError {
-                await MainActor.run {
-                    self.markCancelled()
-                }
-            } catch {
-                await MainActor.run {
-                    self.handleRunFailure(message: error.localizedDescription)
-                }
-            }
+            await self.runContinuousLoop()
 
             await MainActor.run {
                 self.activeStreamingTask = nil
@@ -73,7 +63,7 @@ final class AIConnectionRuntimeService: ObservableObject {
         state = .initial(availableToolDefinitions: state.availableToolDefinitions)
     }
 
-    private func runContinuousLoop() async throws {
+    private func runContinuousLoop() async {
         var currentCycle = 0
 
         while !Task.isCancelled {
@@ -82,7 +72,32 @@ final class AIConnectionRuntimeService: ObservableObject {
                 self.prepareStateForCycle(cycleNumber: cycleNumber)
             }
 
-            let cycleOutcome = try await self.runSingleCycle(cycleNumber: cycleNumber)
+            let cycleOutcome: CycleOutcome
+            do {
+                cycleOutcome = try await self.runSingleCycle(cycleNumber: cycleNumber)
+            } catch is CancellationError {
+                return
+            } catch {
+                await MainActor.run {
+                    self.handleCycleFailure(cycleNumber: cycleNumber, message: error.localizedDescription)
+                }
+
+                currentCycle += 1
+                if Task.isCancelled {
+                    return
+                }
+                do {
+                    try await self.scheduleNextCycle(after: Self.interCycleDelayNanoseconds, reason: .recovery)
+                } catch is CancellationError {
+                    return
+                } catch {
+                    await MainActor.run {
+                        self.handleCycleFailure(cycleNumber: cycleNumber, message: error.localizedDescription)
+                    }
+                    return
+                }
+                continue
+            }
 
             await MainActor.run {
                 self.transitionStatus(.cycleCompleted)
@@ -93,23 +108,25 @@ final class AIConnectionRuntimeService: ObservableObject {
             }
 
             currentCycle += 1
-            try Task.checkCancellation()
+            if Task.isCancelled {
+                return
+            }
 
             guard cycleOutcome == .completed else {
                 continue
             }
 
-            await MainActor.run {
-                self.appendDebug(
-                    kind: "cycle.scheduled",
-                    summary: "Next cycle scheduled after \(Self.interCycleDelayNanoseconds / 1_000_000)ms."
-                )
+            do {
+                try await self.scheduleNextCycle(after: Self.interCycleDelayNanoseconds, reason: .normalCompletion)
+            } catch is CancellationError {
+                return
+            } catch {
+                await MainActor.run {
+                    self.handleCycleFailure(cycleNumber: cycleNumber, message: error.localizedDescription)
+                }
+                return
             }
-
-            try await Task.sleep(nanoseconds: Self.interCycleDelayNanoseconds)
         }
-
-        throw CancellationError()
     }
 
     private func runSingleCycle(cycleNumber: Int) async throws -> CycleOutcome {
@@ -216,6 +233,9 @@ final class AIConnectionRuntimeService: ObservableObject {
         for try await event in streamingService.streamEvents(for: request) {
             if Task.isCancelled {
                 throw CancellationError()
+            }
+            if case let .failed(message) = event {
+                throw AIConnectionRuntimeLoopError.providerFailure(message)
             }
             await MainActor.run {
                 if let response = self.handle(event: event) {
@@ -342,8 +362,8 @@ final class AIConnectionRuntimeService: ObservableObject {
             appendDebug(kind: "stream.completed", summary: "finishReason=\(response.finishReason ?? "nil"), toolCalls=\(response.toolCalls.count)")
             transitionStatus(.waitingUser)
             return response
-        case let .failed(message):
-            handleRunFailure(message: message)
+        case .failed:
+            break
         }
         return nil
     }
@@ -354,13 +374,12 @@ final class AIConnectionRuntimeService: ObservableObject {
         state.currentPhaseStartedAt = Date()
     }
 
-    private func handleRunFailure(message: String) {
+    private func handleCycleFailure(cycleNumber: Int, message: String) {
         state.errors.append(message)
-        appendDebug(kind: "stream.failed", summary: message)
-        appendDebug(kind: "runtime.stopped", summary: "Runtime stopped due to fatal error.")
-        finalizeUsageOnRunEnd()
-        transitionStatus(.failed)
-        state.endedAt = Date()
+        appendDebug(kind: "cycle.failed", summary: "Cycle \(cycleNumber) failed: \(message)")
+        finalizeToolCallsAsFailedIfNeeded(message: message)
+        finalizeUsageOnCycleEnd()
+        transitionStatus(.recovering)
     }
 
     private func markCancelled() {
@@ -368,7 +387,7 @@ final class AIConnectionRuntimeService: ObservableObject {
         appendDebug(kind: "runtime.stopped", summary: "Runtime stopped/cancelled.")
         appendDebug(kind: "stream.cancelled", summary: "Run was cancelled.")
         finalizeToolCallsAsCancelledIfNeeded()
-        finalizeUsageOnRunEnd()
+        finalizeUsageOnCycleEnd()
         transitionStatus(.cancelled)
         state.endedAt = Date()
     }
@@ -446,6 +465,15 @@ final class AIConnectionRuntimeService: ObservableObject {
         }
     }
 
+    private func finalizeToolCallsAsFailedIfNeeded(message: String) {
+        let now = Date()
+        for index in state.toolCalls.indices where state.toolCalls[index].status != .completed && state.toolCalls[index].status != .failed {
+            state.toolCalls[index].status = .failed
+            state.toolCalls[index].errorText = message
+            state.toolCalls[index].endedAt = now
+        }
+    }
+
     private func recordFirstTokenIfNeeded(at time: Date) {
         guard state.usage.timeToFirstToken == nil else { return }
         if let runStartedAt = state.usage.runStartedAt ?? state.startedAt {
@@ -485,8 +513,18 @@ final class AIConnectionRuntimeService: ObservableObject {
         }
     }
 
-    private func finalizeUsageOnRunEnd() {
+    private func finalizeUsageOnCycleEnd() {
         updateUsageLiveMetrics(at: Date())
+    }
+
+    private func scheduleNextCycle(after delayNanoseconds: UInt64, reason: NextCycleReason) async throws {
+        await MainActor.run {
+            self.appendDebug(
+                kind: "cycle.scheduled",
+                summary: reason.summary(delayMilliseconds: delayNanoseconds / 1_000_000)
+            )
+        }
+        try await Task.sleep(nanoseconds: delayNanoseconds)
     }
 
     private func toolDefinition(named name: String) -> AIToolDefinition? {
@@ -535,6 +573,20 @@ final class AIConnectionRuntimeService: ObservableObject {
                 return "Cycle \(cycleNumber) completed normally."
             case .waitedForEvent:
                 return "Cycle \(cycleNumber) ended at the wait_for_event idle boundary."
+            }
+        }
+    }
+
+    private enum NextCycleReason {
+        case normalCompletion
+        case recovery
+
+        func summary(delayMilliseconds: UInt64) -> String {
+            switch self {
+            case .normalCompletion:
+                return "Next cycle scheduled after \(delayMilliseconds)ms."
+            case .recovery:
+                return "Next cycle scheduled after \(delayMilliseconds)ms to recover from failure."
             }
         }
     }
@@ -628,11 +680,14 @@ final class AIConnectionRuntimeService: ObservableObject {
 
 private enum AIConnectionRuntimeLoopError: LocalizedError {
     case missingCompletedResponse
+    case providerFailure(String)
 
     var errorDescription: String? {
         switch self {
         case .missingCompletedResponse:
             return "Provider stream ended without a completed response event."
+        case let .providerFailure(message):
+            return message
         }
     }
 }
