@@ -25,6 +25,9 @@ final class ClientVoiceScreenViewModel: ObservableObject {
     @Published private var responseDrafts: [String: String] = [:]
     @Published private var submissionErrors: [String: String] = [:]
     @Published private var submittingRequestIDs: Set<String> = []
+    @Published private(set) var speakingRequestID: String? = nil
+    private var speakingHandler: SpeechSpeakHandler? = nil
+
 
     init(
         repository: ClientInteractionRequestRepository,
@@ -145,6 +148,26 @@ final class ClientVoiceScreenViewModel: ObservableObject {
                 await MainActor.run {
                     self.submissionErrors[requestID] = error.localizedDescription
                     self.submittingRequestIDs.remove(requestID)
+                }
+            }
+        }
+    }
+
+    func speakRequest(_ request: ClientInteractionRequest) {
+        guard let requestID = request.id else { return }
+        let textToSpeak = request.promptText
+        Task {
+            if let oldHandler = self.speakingHandler {
+                oldHandler.cancel()
+            }
+                let handler = try await SpeechSpeaker.speak(text: textToSpeak, config: nil)
+            speakingHandler = handler
+            
+            await MainActor.run { self.speakingRequestID = requestID }
+                await handler.await()
+            await MainActor.run {
+                if (self.speakingRequestID == requestID ) {
+                    self.speakingRequestID = nil
                 }
             }
         }

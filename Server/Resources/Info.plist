@@ -29,5 +29,9 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app requires microphone access to perform speech recognition.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>This app requires speech recognition access to transcribe spoken commands.</string>
 </dict>
 </plist>

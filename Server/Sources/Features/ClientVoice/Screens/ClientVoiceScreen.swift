@@ -115,9 +115,36 @@ struct ClientVoiceScreen: View {
                     DSBadge("Status", secondaryText: statusText(for: request.status), style: badgeStyle(for: request.status))
                 }
 
-                Text(nonEmpty(request.promptText, fallback: "No prompt text recorded."))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .textSelection(.enabled)
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    let prompt = request.promptText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let response = request.responseText?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                    let hasText = !prompt.isEmpty || !response.isEmpty
+
+                    if hasText {
+                        if let id = request.id, viewModel.speakingRequestID == id {
+                            ProgressView()
+                                .controlSize(.small)
+                                .scaleEffect(0.7)
+                                .frame(width: 16, height: 16)
+                        } else {
+                            Button(action: {
+                                viewModel.speakRequest(request)
+                            }) {
+                                Image(systemName: "speaker.wave.2")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.blue)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Speak text aloud")
+                            .frame(width: 16, height: 16)
+                        }
+                    }
+
+                    Text(nonEmpty(request.promptText, fallback: "No prompt text recorded."))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .textSelection(.enabled)
+                }
+
 
                 if request.kind == .ask, request.status == .initialized {
                     initializedAskComposer(for: request)
