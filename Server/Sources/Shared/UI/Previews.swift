@@ -241,14 +241,28 @@ struct SharedUIPreviews: View {
                 Text("Open JSON popover")
                     .foregroundStyle(.secondary)
 
-                DSCodableDebugInspector(
-                    title: "Sample JSON",
-                    value: SampleValue(
-                        id: UUID(),
-                        name: "Example",
-                        createdAt: Date(timeIntervalSince1970: 1_700_000_000),
-                        tags: ["debug", "shared-ui"]
-                    )
+                DSDebugObjectsInspector(
+                    title: "Sample Debug Objects",
+                    items: [
+                        DebugObjectItem(
+                            title: "Model",
+                            value: SampleValue(
+                                id: UUID(),
+                                name: "Example",
+                                createdAt: Date(timeIntervalSince1970: 1_700_000_000),
+                                tags: ["debug", "shared-ui"]
+                            )
+                        ),
+                        DebugObjectItem(
+                            title: "Raw Response",
+                            value: """
+                            {
+                              "id": "resp_123",
+                              "message": "Keep this raw formatting exactly as-is."
+                            }
+                            """
+                        )
+                    ]
                 )
             }
             .previewBounds()

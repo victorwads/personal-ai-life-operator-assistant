@@ -20,7 +20,12 @@ struct ChatListRowView: View {
                         .lineLimit(1)
                 }
 
-                DSCodableDebugInspector(title: "Chat JSON", value: chat)
+                DSDebugObjectsInspector(
+                    title: "Chat Debug",
+                    items: [
+                        DebugObjectItem(title: "Chat", value: chat)
+                    ]
+                )
             }
 
             if let image = previewImage() {

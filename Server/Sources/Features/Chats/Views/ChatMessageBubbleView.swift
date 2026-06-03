@@ -35,7 +35,12 @@ struct ChatMessageBubbleView: View {
 
                 Spacer(minLength: 8)
 
-                DSCodableDebugInspector(title: "Message JSON", value: message)
+                DSDebugObjectsInspector(
+                    title: "Message Debug",
+                    items: [
+                        DebugObjectItem(title: "Message", value: message)
+                    ]
+                )
             }
         }
     }

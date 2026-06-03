@@ -154,16 +154,23 @@ struct AIRunPromptPanelView: View {
             subtitle: "Exact system and user prompts sent in the current run.",
             systemImage: "text.append"
         ) {
-            VStack(alignment: .leading, spacing: 10) {
-                DisclosureGroup("System Prompt") {
-                    DSCodeBlock(promptState.systemPrompt)
-                        .frame(maxHeight: 180)
-                }
+            HStack(alignment: .center, spacing: 10) {
+                Text("Inspect exact prompt payloads with preserved raw formatting.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
 
-                DisclosureGroup("User Prompt") {
-                    DSCodeBlock(promptState.userPrompt.isEmpty ? "No run started yet." : promptState.userPrompt)
-                        .frame(maxHeight: 140)
-                }
+                DSDebugObjectsInspector(
+                    title: "Prompts",
+                    items: [
+                        DebugObjectItem(title: "System Prompt", value: promptState.systemPrompt),
+                        DebugObjectItem(
+                            title: "User Prompt",
+                            value: promptState.userPrompt.isEmpty ? "No run started yet." : promptState.userPrompt
+                        )
+                    ]
+                )
+
+                Spacer(minLength: 0)
             }
         }
     }
@@ -283,7 +290,13 @@ struct AIToolCallTimelineRowView: View {
                 Text("io:")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                DSCodableDebugInspector(title: "Tool call I/O", value: ioPayload)
+                DSDebugObjectsInspector(
+                    title: "Tool Call",
+                    items: [
+                        DebugObjectItem(title: "Arguments", value: call.argumentsJSON),
+                        DebugObjectItem(title: "Response", value: call.responseText ?? "")
+                    ]
+                )
             }
 
             Spacer(minLength: 0)
@@ -307,28 +320,10 @@ struct AIToolCallTimelineRowView: View {
             return .danger
         }
     }
-
-    private var ioPayload: AIInspectorIOPayload {
-        AIInspectorIOPayload(
-            input: normalizedJSONText(call.argumentsJSON),
-            output: normalizedJSONText(call.responseText ?? "")
-        )
-    }
-
-    private func normalizedJSONText(_ jsonText: String) -> String {
-        let trimmed = jsonText.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "{}" : trimmed
-    }
-}
-
-private struct AIInspectorIOPayload: Encodable {
-    let input: String
-    let output: String
 }
 
 struct AIRunDebugPanelView: View {
     let debugEvents: [AIRunDebugEventState]
-    @State private var isExpanded = false
 
     var body: some View {
         DSTitledSection(
@@ -336,13 +331,25 @@ struct AIRunDebugPanelView: View {
             subtitle: "Collapsed, capped internal stream events.",
             systemImage: "ladybug"
         ) {
-            DisclosureGroup("Raw/debug events (\(debugEvents.count))", isExpanded: $isExpanded) {
-                DSCodeBlock(
-                    debugEvents.isEmpty
-                        ? "No debug events"
-                        : debugEvents.map(\.line).joined(separator: "\n")
+            HStack(alignment: .center, spacing: 10) {
+                Text("Inspect the captured runtime event stream in one shared debug viewer.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                DSDebugObjectsInspector(
+                    title: "Runtime Event",
+                    items: [
+                        DebugObjectItem(
+                            title: "Raw Payload",
+                            value: debugEvents.isEmpty
+                                ? "No debug events"
+                                : debugEvents.map(\.line).joined(separator: "\n")
+                        ),
+                        DebugObjectItem(title: "Parsed Payload", value: debugEvents)
+                    ]
                 )
-                .frame(minHeight: 80, maxHeight: 180)
+
+                Spacer(minLength: 0)
             }
         }
     }
