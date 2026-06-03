@@ -1,16 +1,51 @@
 # Architecture
 
-This document explains how the current system is organized and how the major pieces fit together.
+This document explains the intended architecture for the assistant runtime and how the major pieces fit together.
+
+This repo is in the middle of a rewrite-from-scratch, so some sections describe the target shape while the current codebase still contains scaffolding.
+
+## File naming
+
+File names should be local to their folder context. Type names can be explicit because Swift does not provide folder-based namespaces, but file names should not repeat the full folder hierarchy.
+
+Swift target basenames still need to be unique. If a fully local name like `Wrapper.swift` would collide elsewhere in the same target, use the shortest local qualifier that preserves context, such as `WebViewWrapper.swift` or `NativeWrapper.swift`.
+
+For example, prefer `Server/Sources/Features/WhatsAppCrawling/Settings/Wrapper.swift` over `Server/Sources/Features/WhatsAppCrawling/Settings/WhatsAppCrawlingSettingsWrapper.swift`.
+
+## XcodeGen and build validation
+
+This project uses XcodeGen. Treat `AIAssistantHub.xcodeproj` as generated build output.
+
+- Never manually edit generated files under `*.xcodeproj`, `project.pbxproj`, `*.xcworkspace`, `xcuserdata`, or generated scheme files.
+- Make project configuration changes in `project.yml`, source files, scripts, or resources.
+- For validation, run the repo's check/build/restart script (currently `Scripts/check_build_and_restart.sh`). Do not run `xcodebuild` manually.
+- When linter scripts or rules change, build validation must be triggered by a human (not by automation). This is a deliberate safety gate to ensure lint-rule changes get reviewed before a build is run.
+
+## Shared UI design system
+
+Reusable app UI belongs in [Server/Sources/Shared/UI/Architecture.md](../Server/Sources/Shared/UI/Architecture.md).
+
+Feature screens should use the existing Shared UI primitives for repeated visual patterns such as feature headers, refresh buttons, cards, titled sections, badges, code blocks, list rows, message bubbles, and empty states.
+
+Do not create one-off local visual components when a Shared UI component already fits. If a screen exposes a recurring visual pattern that is not covered yet, add a small, well-named Shared UI component first, document its purpose, and add a realistic example to the Shared UI preview catalog.
+
+## Current status (rewrite scaffold)
+
+- MCP tool instances live under `Server/Sources/Features/**/MCP/`, and `Server/Sources/Features/MCPServers/Registry/MCPToolRegistry.swift` stores them by name.
+- General MCP utility tools belong under `Server/Sources/Features/MCPServers/Utilities/`. Feature-specific MCP tools belong under their owning feature folder.
+- Many tools are still being migrated to the executable-definition model, where the tool instance itself owns metadata and execution.
+- The operational system prompt lives at `Server/Resources/Prompts/AssistantSystemPrompt.md`.
+- WhatsApp crawling scaffolding lives under `Server/Sources/Features/WhatsAppCrawling/` with both native Accessibility and WebView-oriented modules.
 
 ## High-level model
 
-The project is a native macOS assistant runtime with three major responsibilities:
+The long-term target is a native macOS assistant runtime with three major responsibilities:
 
 1. keep local state and workflow state
 2. expose operational tools through MCP
 3. supervise model sessions and WhatsApp integration
 
-LM Studio remains the inference engine. The Swift app is the runtime, supervisor, and integration layer.
+A local inference host remains the inference engine (LM Studio is one option). The Swift app is the runtime, supervisor, and integration layer.
 
 ## Platform rationale (macOS + Swift)
 
@@ -43,11 +78,10 @@ It owns:
 - Accessibility integration
 - polling and orchestration
 - MCP server lifecycle
-- LM Studio session supervision
 
 ### WhatsApp integration
 
-WhatsApp is currently integrated through local Accessibility and WebView surfaces.
+WhatsApp is intended to be integrated through local Accessibility and WebView surfaces.
 
 The integration layer is responsible for:
 
@@ -59,7 +93,7 @@ The integration layer is responsible for:
 
 ### MCP server
 
-The embedded MCP server is the main tool interface for the assistant model.
+The MCP tool surface is the main interface for the assistant model.
 
 It exposes structured actions for:
 
@@ -67,35 +101,23 @@ It exposes structured actions for:
 - voice operations
 - memory management
 - sensitive data management
-- subjects and workflow state
+- issues and workflow state
 - utility helpers
-
-### LM Studio supervision
-
-The app is expected to supervise LM Studio sessions instead of relying on a long manual chat session.
-
-This means:
-
-- launching and pausing assistant sessions
-- observing streaming events
-- recovering from stalls or invalid tool behavior
-- rebuilding context when necessary
-- separating operational reasoning from social rendering
 
 ## Assistant lifecycle
 
-The assistant currently runs as a local operational loop coordinated between LM Studio and the macOS app.
+The assistant is intended to run as a local operational loop coordinated between the model host (for example, LM Studio) and the macOS app.
 
 At a high level:
 
-1. the macOS app starts and exposes the embedded MCP server
-2. LM Studio loads a model and starts a stateful chat session
-3. the operational prompt is loaded from [Assistant System prompt-ptBR.md](../plugins/lmstudio/Assistant%20System%20prompt-ptBR.md)
+1. the macOS app starts and exposes an MCP tool transport layer
+2. the model host loads a model and starts a stateful session
+3. the operational prompt is loaded from `Server/Resources/Prompts/AssistantSystemPrompt.md`
 4. the model connects to the app through MCP tools
 5. the model enters a continuous workflow of reading state, waiting for events, deciding what to do, and calling tools
 6. the Swift runtime persists the results and serves the next observable state back to the model
 
-The English prompt variant is available at [Assistant System prompt.md](../plugins/lmstudio/Assistant%20System%20prompt.md), but the Portuguese prompt is the main operational prompt for the current assistant behavior.
+Note: this repo does not currently ship the older `plugins/lmstudio/` prompt variants from the v1 project. The prompt file above is the source of truth for the rewrite scaffold.
 
 ## Operational cycle
 
@@ -103,28 +125,14 @@ Once the assistant is running, the prompt guides it through a loop similar to th
 
 1. check current date and runtime context
 2. review memories and standing preferences when relevant
-3. inspect active subjects and pending work
+3. inspect active issues and pending work
 4. wait for new events or unread messages
 5. read recent messages for the specific chat or event
-6. update subjects, memories, nicknames, or sensitive-data references when needed
+6. update issues, memories, or sensitive-data references when needed
 7. decide whether to reply, ask the client, speak to the client, or wait
 8. persist the outcome so the next cycle starts from a coherent state
 
 The important architectural point is that the model does not own durable state by itself. The Swift app owns the durable state, and the prompt teaches the model how to interact with that state through tools.
-
-## Subjects lifecycle
-
-Subjects represent ongoing pieces of work, such as a task, a follow-up, an appointment flow, or a conversation thread that needs continuity.
-
-The assistant can:
-
-- create a subject when a new thread of work appears
-- update it as more information arrives
-- attach external references such as chat IDs, future Gmail threads, or calendar IDs
-- resolve or cancel it when the work is done
-- list active subjects to recover operational context after waiting or restarting
-
-This is one of the ways the runtime avoids relying only on the LM Studio chat context.
 
 ## Multi-profile motivation
 
@@ -136,64 +144,33 @@ In practice:
 - WhatsApp polling and state sync are usually the main background cost
 - different people receive messages at different times, so inference load tends not to spike constantly
 
-This enables hosting assistants for family members (for example: partner, mother) on a single machine, while exposing a UI (and future mobile UI) so those users can manage memories, subjects, and state without local access to LM Studio.
+This enables hosting assistants for family members (for example: partner, mother) on a single machine, while exposing a UI and future mobile UI so those users can manage memories, issues, and state without local access to LM Studio.
 
-## Current tool surface
+## Local architecture documents
 
-The registered tool list is defined in [MCPServerToolRegistry.swift](../Sources/Features/Server/MCPServerToolRegistry.swift).
-Each concrete tool lives under [Sources/Features/Server/Tools/](../Sources/Features/Server/Tools/).
-Those Swift files are the source of truth for names, schemas, behavior, and documentation.
+Feature- and infrastructure-specific architecture rules live close to the code they govern:
 
-The current tool groups are:
+- [Server/Sources/App/Architecture.md](../Server/Sources/App/Architecture.md)
+- [Server/Sources/Features/Architecture.md](../Server/Sources/Features/Architecture.md)
+- [Server/Sources/Infrastructure/Architecture.md](../Server/Sources/Infrastructure/Architecture.md)
+- [Server/Sources/Shared/Architecture.md](../Server/Sources/Shared/Architecture.md)
+- [Server/Sources/Shared/Settings/Architecture.md](../Server/Sources/Shared/Settings/Architecture.md)
+- [Server/Sources/Infrastructure/Firebase/Architecture.md](../Server/Sources/Infrastructure/Firebase/Architecture.md)
+- [Server/Sources/Features/AIConnection/Architecture.md](../Server/Sources/Features/AIConnection/Architecture.md)
+- [Server/Sources/Features/Settings/Architecture.md](../Server/Sources/Features/Settings/Architecture.md)
+- [Server/Sources/Features/Profiles/Architecture.md](../Server/Sources/Features/Profiles/Architecture.md)
+- [Server/Sources/Features/CommandCenter/Architecture.md](../Server/Sources/Features/CommandCenter/Architecture.md)
+- [Server/Sources/Features/Issues/Architecture.md](../Server/Sources/Features/Issues/Architecture.md)
+- [Server/Sources/Features/SentMessages/Architecture.md](../Server/Sources/Features/SentMessages/Architecture.md)
+- [Server/Sources/Features/Memories/Architecture.md](../Server/Sources/Features/Memories/Architecture.md)
+- [Server/Sources/Features/SensitiveData/Architecture.md](../Server/Sources/Features/SensitiveData/Architecture.md)
+- [Server/Sources/Features/MCPServers/Architecture.md](../Server/Sources/Features/MCPServers/Architecture.md)
+- [Server/Sources/Features/ToolsBrowser/Architecture.md](../Server/Sources/Features/ToolsBrowser/Architecture.md)
+- [Server/Sources/Features/WhatsAppCrawling/Architecture.md](../Server/Sources/Features/WhatsAppCrawling/Architecture.md)
+- [Server/Sources/Features/Chats/Architecture.md](../Server/Sources/Features/Chats/Architecture.md)
+- [Server/Sources/Shared/UI/Architecture.md](../Server/Sources/Shared/UI/Architecture.md)
 
-### WhatsApp chat tools
-
-- `list_chats`
-- `list_unread_chats`
-- `list_chats_by_search`
-- `list_recent_messages`
-- `send_message`
-- `wait_for_chat_message`
-- `wait_for_event`
-
-### Client voice tools
-
-- `speak_to_client`
-- `ask_to_client`
-
-### Memory tools
-
-- `create_memory`
-- `get_memory`
-- `search_memories`
-- `list_memories`
-- `delete_memory`
-
-### Sensitive data tools
-
-- `save_sensitive_data`
-- `update_sensitive_data`
-- `get_sensitive_data`
-- `search_sensitive_data`
-- `list_sensitive_data`
-- `delete_sensitive_data`
-
-### Subject tools
-
-- `create_subject`
-- `update_subject`
-- `resolve_subject`
-- `cancel_subject`
-- `check_active_subjects`
-- `get_subject`
-
-### Nickname tools
-
-- `list_nicknames`
-- `save_nickname`
-- `delete_nickname`
-
-When changing or documenting tool behavior, check the corresponding `*Tool.swift` implementation first.
+Keep this file as the global index and move detailed rules into the nearest local `Architecture.md` instead of replacing them with short summaries.
 
 ## State model
 
@@ -204,23 +181,10 @@ The runtime keeps a local model of the assistant world:
 - voice events
 - memories
 - sensitive data
-- subjects
-- nicknames
+- issues
 - server logs and debug artifacts
 
 That local state is what MCP serves, rather than re-parsing everything from scratch on every request.
-
-## Polling and sync
-
-At a high level, the runtime loop looks like this:
-
-1. poll the WhatsApp integration surface
-2. parse chat and message changes
-3. update local repositories
-4. refresh pending events and voice state
-5. expose the resulting state through MCP
-
-This is what makes the system feel more like a runtime than a thin server.
 
 ## Separation of concerns
 
@@ -229,33 +193,21 @@ The architecture now separates these conceptual concerns:
 - runtime supervision
 - MCP-facing actions
 - WhatsApp integration
-- social/humanization rendering
+- social and humanization rendering
 - persistence
 - observability
 
 That separation is important because the assistant now needs to behave differently depending on whether it is reasoning, speaking, replying, or only rendering a human-friendly message.
 
-## LM Studio event stream
+## Firebase boundary
 
-When the app talks to LM Studio using the streaming API, it can observe events such as:
-
-- chat lifecycle events
-- model loading events
-- prompt processing events
-- reasoning deltas
-- tool call boundaries
-- message deltas
-- errors
-- final response completion
-
-That event stream is useful both for supervision and for future UI surfaces that show what the model is doing in real time.
-The current Server > LM Studio screen already uses the same stream to show live status, output, and session events.
+Firebase SDK imports and SDK types are isolated under `Server/Sources/Infrastructure`. Feature code uses infrastructure repositories and services instead of importing Firebase modules or exposing Firebase SDK types directly. Generic Firestore-backed persistence is provided by `FirestoreRepository`, while feature repositories stay thin and keep Firebase details behind Infrastructure abstractions.
 
 ## Future shape
 
 Likely next steps in the architecture are:
 
 - a separate humanization pass after reasoning
-- mobile/remote observability
+- mobile and remote observability
 - more formal session recovery
 - stronger test orchestration around model and integration flows

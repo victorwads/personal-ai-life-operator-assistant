@@ -1,0 +1,143 @@
+schemaVersion: 1
+version: 1
+
+flows:
+  loginQr:
+    type: boolean
+    selector: '[data-testid="link-device-qrcode-alt-linking-help"]'
+
+  downloading:
+    type: boolean
+    text_includes_any:
+      - "mensagens estão sendo baixadas"
+      - "messages are being downloaded"
+
+  chatList:
+    type: boolean
+    selector: '[data-testid="chat-list"]'
+
+  chatSelected:
+    type: boolean
+    selector: '[data-testid="conversation-panel-wrapper"]'
+
+web:
+  chatListRoot:
+    type: elements
+    selector: '[data-testid="chat-list"]'
+    extract:
+      chatItems:
+        type: elements
+        selector: '[data-testid^="list-item-"]'
+        extract:
+#          chatClickableToOpenOptions:
+#            type: element
+#            selector: "[data-testid]"
+#            interactive: true
+
+          chatClickableToOpenChat:
+            type: element
+            selector: '[data-testid="cell-frame-container"]'
+            interactive: true
+
+#          chatItemImage:
+#            type: element
+#            selector: '[data-testid="cell-frame-container"] img[src]'
+#            interactive: true
+
+          chatItemName:
+            type: text
+            selector: '[data-testid="cell-frame-title"] [title]'
+            attribute: "title"
+
+          chatItemLastMessage:
+            type: text
+            selector: '[data-testid="cell-frame-secondary"] [title]'
+            attribute: "title"
+
+          chatItemLastMessageTime:
+            type: text
+            selector: '[data-testid="cell-frame-primary-detail"]'
+
+          chatItemUnreadBadge:
+            type: element
+            selector: '[data-testid="icon-unread-count"]'
+            extract:
+              count:
+                type: number
+                value_from:
+                  - "textContent:int"
+                fallback_number: 1
+  
+  currentChat:
+    type: element
+    selector: '[data-testid="conversation-panel-wrapper"]'
+    extract:
+      chatTitle:
+        type: text
+        selector: '[data-testid="conversation-info-header-chat-title"]'
+
+      chatInputMessageBox:
+        type: element
+        selector: '[data-testid="conversation-compose-box-input"]'
+        interactive: true
+
+      chatInputMessageText:
+        type: text
+        selector: '[data-testid="conversation-compose-box-input"]'
+
+#      chatButtonSendMessage:
+#        type: element
+#        selector: '[data-testid="compose-btn-send"]'
+#        interactive: true
+
+      chatMessages:
+        type: elements
+        selector: '[role="row"]'
+        extract:
+          sent:
+            selector: '.message-out'
+            type: boolean
+
+          messageId:
+            selector: '[data-id]'
+            type: text
+            attribute: 'data-id'
+
+          messageText:
+            type: text
+            selector: '[data-testid="selectable-text"]:not([data-testid="quoted-message"] [data-testid="selectable-text"])'
+
+          messageDatetimeAndAuthor:
+            type: text
+            selector: '[data-pre-plain-text]'
+            attribute: "data-pre-plain-text"
+
+          messageAuthor:
+            type: text
+            selector: '[data-testid="author"]'
+
+          messageTime:
+            type: text
+            selector: '[data-testid="msg-meta"] span'
+
+          quotedMessageText:
+            type: text
+            selector: '[data-testid="quoted-message"] [data-testid="selectable-text"]'
+
+          quotedMessageAuthor:
+            type: text
+            selector: '[data-testid="quoted-message"] [testid="author"]'
+
+          sticker:
+            selector: '[data-testid="sticker-container"] img'
+            type: element
+            interactive: true
+
+          image:
+            selector: '[data-testid="image-thumb"] img[src]'
+            type: element
+            interactive: true
+
+          isAudio:
+            selector: '[aria-label~="voz"]'
+            type: boolean

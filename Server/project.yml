@@ -1,85 +1,110 @@
-name: AssistantMCPServer
+name: AIAssistantHub
 options:
-  minimumXcodeGenVersion: 2.42.0
+  bundleIdPrefix: com.localaiassistant
   deploymentTarget:
     macOS: "14.0"
-settings:
-  base:
-    PRODUCT_BUNDLE_IDENTIFIER: dev.wads.AssistantMCPServer
-    CURRENT_PROJECT_VERSION: 1
-    MARKETING_VERSION: 0.1.0
-    DEAD_CODE_STRIPPING: YES
-    ENABLE_USER_SCRIPT_SANDBOXING: YES
+fileGroups:
+  - project.yml
+  - ../firestore.indexes.json
+  - ../firebase.rules
+  - ../firebase.json
+  - AGENTS.md
+  - Docs
+  - Sources
+  - Scripts
+  - Tests
 packages:
-  swift-sdk:
+  MCP:
     url: https://github.com/modelcontextprotocol/swift-sdk.git
-    from: 0.12.1
-  firebase-ios-sdk:
+    from: "0.12.1"
+  Firebase:
     url: https://github.com/firebase/firebase-ios-sdk.git
-    from: 12.13.0
-  yams:
+    from: "12.13.0"
+  GoogleSignIn:
+    url: https://github.com/google/GoogleSignIn-iOS.git
+    from: "9.1.0"
+  Yams:
     url: https://github.com/jpsim/Yams.git
-    from: 5.1.3
-schemes:
-  AssistantMCPServer:
-    build:
-      targets:
-        AssistantMCPServer: all
-    test:
-      config: Debug
-      targets:
-        - AssistantMCPServerUnitTests
-    run:
-      config: Debug
-    archive:
-      config: Release
+    from: "6.0.1"
 targets:
-  AssistantMCPServer:
+  AIAssistantHub:
     type: application
     platform: macOS
     sources:
       - path: Sources
-      - path: "Resources/whatsapp_web_selectors.yaml"
-        buildPhase: resources
-      - path: "Resources/whatsapp_native_selectors.yaml"
-        buildPhase: resources
-      - path: "Resources/GoogleService-Info.plist"
-        buildPhase: resources
-      - path: "Integrations/lmstudio/Assistant System prompt.md"
+        excludes:
+          - "**/*.md"
+      - path: Resources
         buildPhase: resources
     dependencies:
-      - package: swift-sdk
+      - package: MCP
         product: MCP
-      - package: firebase-ios-sdk
+      - package: Firebase
         product: FirebaseCore
-      - package: firebase-ios-sdk
+      - package: Firebase
         product: FirebaseAuth
-      - package: firebase-ios-sdk
+      - package: Firebase
         product: FirebaseFirestore
-      - package: firebase-ios-sdk
-        product: FirebaseStorage
-      - package: yams
+      - package: GoogleSignIn
+        product: GoogleSignIn
+      - package: Yams
         product: Yams
     settings:
       base:
-        INFOPLIST_FILE: Sources/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.localaiassistant.aiassistanthub
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: Resources/Info.plist
 
+        # Google/Firebase Auth persists credentials via Keychain on macOS.
+        # In practice this is most reliable with a real development signature.
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: DU6489YN3U
-        CODE_SIGN_IDENTITY: Apple Development
-        CODE_SIGN_ENTITLEMENTS: Sources/AssistantMCPServer.entitlements
+        CODE_SIGN_IDENTITY: "Apple Development"
+        CODE_SIGN_ENTITLEMENTS: Sources/AIAssistantHub.entitlements
 
-        SWIFT_VERSION: 6.0
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        DEAD_CODE_STRIPPING: YES
-
-  AssistantMCPServerUnitTests:
+  AIAssistantHubTests:
     type: bundle.unit-test
     platform: macOS
     sources:
-      - path: Tests
+      - path: Tests/AIAssistantHubTests
+        excludes:
+          - "Fixtures/**"
+          - "**/*.md"
+    resources:
+      - path: Tests/AIAssistantHubTests/Fixtures
     dependencies:
-      - target: AssistantMCPServer
+      - target: AIAssistantHub
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+schemes:
+  AIAssistantHub:
+    build:
+      targets:
+        AIAssistantHub: all
+        AIAssistantHubTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - AIAssistantHubTests
+  AIAssistantHubEmulators:
+    build:
+      targets:
+        AIAssistantHub: all
+        AIAssistantHubTests: [test]
+    run:
+      config: Debug
+      environmentVariables:
+        FIREBASE_USE_EMULATORS: "1"
+        FIREBASE_EMULATOR_HOST: "localhost"
+        FIRESTORE_EMULATOR_PORT: "8080"
+        FIREBASE_AUTH_EMULATOR_PORT: "9099"
+    test:
+      config: Debug
+      targets:
+        - AIAssistantHubTests

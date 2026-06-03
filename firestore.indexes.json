@@ -1,4 +1,72 @@
 {
-  "indexes": [],
-  "fieldOverrides": []
+  "indexes": [
+    {
+      "collectionGroup": "Issues",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "finished", "order": "ASCENDING" },
+        { "fieldPath": "suspendUntil", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "IssueTimelineItems",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "issueId", "order": "ASCENDING" },
+        { "fieldPath": "_createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "ChatMessages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "chatId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "_createdAt",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "listOrder",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "ChatMessages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "chatId", "order": "ASCENDING" },
+        { "fieldPath": "handled", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "SensitiveDataUsage",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "key", "order": "ASCENDING" },
+        { "fieldPath": "usedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "Chats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "lastDigestedAt", "order": "DESCENDING" },
+        { "fieldPath": "listOrder", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "Issues",
+      "fieldPath": "finished",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" }
+      ]
+    }
+  ]
 }

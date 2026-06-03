@@ -1,4 +1,20 @@
-# App icon PNGs are generated from the SVG source via scripts/regenerate_app_icon.sh
+# Xcode / XcodeGen generated files
+*.xcodeproj
+*.xcworkspace
+*.xcuserstate
+xcuserdata/
 DerivedData/
 build/
-Sources/Assets.xcassets/AppIcon.appiconset/*.png
+Resources/Assets.xcassets/AppIcon.appiconset/*.png
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Xcode build artifacts
+*.moved-aside
+*.xccheckout
+*.xcscmblueprint
+
+# macOS
+.DS_Store
