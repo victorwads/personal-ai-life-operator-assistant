@@ -25,6 +25,23 @@ enum MCPToolsBrowserJSONFormatting {
         ]))
     }
 
+    static func prettyPrinted(result: MCPToolExecutionResult) -> String {
+        guard
+            let data = try? JSONEncoder().encode(result),
+            let object = try? JSONSerialization.jsonObject(with: data),
+            JSONSerialization.isValidJSONObject(object),
+            let prettyData = try? JSONSerialization.data(
+                withJSONObject: object,
+                options: [.prettyPrinted, .sortedKeys]
+            ),
+            let string = String(data: prettyData, encoding: .utf8)
+        else {
+            return String(describing: result)
+        }
+
+        return string.replacingOccurrences(of: "\\/", with: "/")
+    }
+
     static func parse(_ text: String) -> MCPJSONValue? {
         guard let data = text.data(using: .utf8) else { return nil }
         return try? JSONDecoder().decode(MCPJSONValue.self, from: data)

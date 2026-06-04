@@ -23,6 +23,17 @@ struct MCPRequiredFieldsValidator: MCPToolCallValidator {
                         toolName: definition.name
                     )
                 }
+
+                if isEmptyRequiredString(value, fieldName: fieldName, schemaDescription: schemaDescription) {
+                    return MCPToolValidationError(
+                        message: "Required field \"\(fieldName)\" must not be empty.",
+                        suggestedAction: "Provide a non-empty value for \"\(fieldName)\" before retrying the tool call.",
+                        fieldPath: fieldName,
+                        validatorName: name,
+                        toolName: definition.name
+                    )
+                }
+
                 return nil
             }
 
@@ -59,5 +70,20 @@ struct MCPRequiredFieldsValidator: MCPToolCallValidator {
             validatorName: name,
             toolName: toolName
         )
+    }
+
+    private func isEmptyRequiredString(
+        _ value: MCPJSONValue,
+        fieldName: String,
+        schemaDescription: MCPToolInputSchemaDescription
+    ) -> Bool {
+        guard
+            case .supported(.string)? = schemaDescription.expectedTypes[fieldName],
+            case .string(let text) = value
+        else {
+            return false
+        }
+
+        return text.trimmedNonEmpty == nil
     }
 }

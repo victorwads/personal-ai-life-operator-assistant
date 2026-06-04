@@ -38,17 +38,9 @@ struct MCPToolExecutionResultView: View {
                     .foregroundStyle(.secondary)
             }
 
-            if let payload = result.payload {
-                Text("Payload")
-                    .font(.subheadline.weight(.semibold))
-                DSCodeBlock(MCPToolsBrowserJSONFormatting.prettyPrinted(payload))
-            }
-
-            if let error = result.error {
-                Text(error.localizedDescription)
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
-            }
+            Text("Result JSON")
+                .font(.subheadline.weight(.semibold))
+            DSCodeBlock(MCPToolsBrowserJSONFormatting.prettyPrinted(result: result))
         }
     }
 }
