@@ -994,3 +994,96 @@ Adicionar uma configuração própria do Command Center para ativar ou desativar
 
 **Por que isso entra no backlog**  
 Isso limpa a experiência do app para uso diário sem perder o acesso às ferramentas de diagnóstico quando for necessário depurar a integração ou o runtime.
+
+---
+
+## 53) Avaliar `AIJSONValue` como bridge JSON compartilhada
+
+Valor: `V3 - Médio`
+Risco de Desenvolvimento: `R2 - Baixo`
+Risco da Feature: `R1 - Baixíssimo`
+Score de Execução: `0.52`
+
+**Descrição**  
+Avaliar se o `AIJSONValue` deve sair de `AIConnection` e virar uma bridge JSON compartilhada para outras features que precisem interpretar, normalizar ou serializar payloads JSON de forma flexível. Hoje esse tipo já é muito bom para o streaming: ele aceita objetos, arrays, valores primitivos e tenta decodificar JSON mesmo quando o modelo mistura texto antes do payload, encontra o primeiro objeto válido e ainda lida com casos de JSON duplamente codificado. Isso o torna um candidato forte para virar padrão arquitetural em vez de permanecer como duplicação isolada.
+
+**Dependências**  
+- `48) Componentes reutilizáveis de voz e request do cliente`
+
+**Comportamento desejado**  
+- Revisar se outras features poderiam reaproveitar essa ponte JSON.
+- Decidir se o tipo deve permanecer isolado em `AIConnection` ou migrar para `Shared`.
+- Verificar se o comportamento de parsing tolerante deve virar um padrão comum da codebase.
+- Documentar a decisão nas architectures relevantes, se a unificação fizer sentido.
+- Evitar criar novas cópias do mesmo conceito em outras features.
+
+**Notas técnicas**  
+- O arquivo atual já tem os pontos essenciais: `parseObject(from:)`, `init(any:)`, `foundationValue` e `jsonString(prettyPrinted:)`.
+- Ele também já cobre casos úteis como texto antes do JSON, markdown fences e JSON duplamente codificado, o que o torna mais geral do que um parser estreito de streaming.
+- Se a unificação acontecer, vale revisar as boundaries em `AIConnection/Architecture.md` e `Shared/Architecture.md` para não misturar responsabilidades sem necessidade.
+- Mesmo que a decisão final seja mantê-lo local, esse item serve para documentar a análise arquitetural e evitar duplicação futura.
+
+**Por que isso entra no backlog**  
+Isso não é urgente, mas pode virar uma base bem valiosa para o resto da aplicação se outras features começarem a precisar de um bridge JSON mais tolerante e reutilizável.
+
+---
+
+## 54) Normalizar comparação do `SentMessages` para mensagens longas
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R3 - Médio`
+Risco da Feature: `R4 - Alto`
+Score de Execução: `0.55`
+
+**Descrição**  
+Investigar e corrigir o fluxo de confirmação de envio em `SentMessages` quando a mensagem enviada é longa, tem emojis ou volta do WhatsApp com formatação ligeiramente diferente da string original. Hoje o sistema pode interpretar como falha uma mensagem que já foi enviada corretamente, o que faz o agente tentar reenviar sem necessidade. O objetivo é tornar a comparação mais tolerante a diferenças cosméticas como quebras de linha, espaços extras, trimming e pequenas variações de renderização entre o texto composto e o texto crawled do WhatsApp.
+
+**Dependências**  
+- `28) Histórico de mensagens com falha e retry do send`
+- `32) Registro permanente de mensagens enviadas`
+
+**Comportamento desejado**  
+- Padronizar a comparação entre a mensagem enviada e a mensagem observada no WhatsApp antes de decidir se o send falhou.
+- Ignorar diferenças irrelevantes de whitespace, quebra de linha e trimming quando isso não alterar o conteúdo semântico.
+- Cobrir casos com emojis, mensagens longas e textos que voltam com pequenas diferenças de formatação.
+- Evitar resend duplicado quando a confirmação falha apenas por mismatch textual superficial.
+- Validar o comportamento com testes manuais e depois consolidar em testes unitários.
+
+**Notas técnicas**  
+- O melhor caminho é centralizar uma camada de normalização/canonicalização antes da comparação de confirmação, em vez de espalhar `trim` e regras soltas pelo fluxo.
+- A normalização deve ser conservadora o suficiente para não mascarar mensagens realmente diferentes, especialmente em fluxos de atendimento real.
+- Vale revisar o ponto exato onde o `SentMessage` passa de `pending` para `sent`/`failed`, porque é ali que a comparação precisa ficar resiliente.
+- Este item deve ser acompanhado por testes com exemplos reais de mensagens longas e variações de quebra de linha/emoji para evitar regressão.
+
+**Por que isso entra no backlog**  
+Esse bug afeta diretamente a confiança no envio: uma confirmação falsa pode causar mensagens repetidas ao cliente, o que é ruim tanto para a experiência quanto para a operação do assistente.
+
+---
+
+## 55) Extrair imagem em alta resolução na mensagem
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R3 - Médio`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.57`
+
+**Descrição**  
+Investigar e corrigir o fluxo de extração de imagens das mensagens do WhatsApp para evitar que o sistema pegue apenas a miniatura ou uma versão de baixa resolução da mídia. O objetivo é garantir que a extração capture a imagem na maior qualidade disponível na mensagem, ou que o fluxo consiga trazer mais de uma variante da mídia quando isso fizer sentido.
+
+**Dependências**  
+- `Nenhuma`
+
+**Comportamento desejado**  
+- Preferir sempre a mídia em alta resolução quando ela existir na mensagem.
+- Evitar salvar só a imagem reduzida/previsualização quando houver uma versão melhor disponível.
+- Se o WhatsApp expuser mais de uma variante útil da mídia, permitir capturar mais de uma imagem por mensagem.
+- Validar o resultado com exemplos reais de mensagens com imagem para não regressar para thumbnail borrada.
+
+**Notas técnicas**  
+- O ponto principal é descobrir qual campo do HTML/DOM ou metadado leva à mídia original e não só à preview image.
+- Se houver múltiplas URLs ou caminhos para a mesma imagem, o parser deve escolher a melhor variante disponível antes de persistir.
+- Vale revisar também se a camada de armazenamento precisa aceitar múltiplos assets por mensagem de forma consistente.
+- Esse item deve ser testado com mensagens reais, porque a diferença entre thumbnail e original pode variar conforme o tipo de mídia e o estado da conversa.
+
+**Por que isso entra no backlog**  
+Imagem borrada ou em baixa resolução prejudica tanto a leitura humana quanto qualquer fluxo futuro que dependa de mídia correta, então vale corrigir isso na base.
