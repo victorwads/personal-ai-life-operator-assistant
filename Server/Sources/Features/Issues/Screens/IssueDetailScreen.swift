@@ -506,6 +506,8 @@ struct IssueDetailScreen: View {
             return .success
         case .cancelled:
             return .danger
+        case .speaking:
+            return .warning
         }
     }
 }

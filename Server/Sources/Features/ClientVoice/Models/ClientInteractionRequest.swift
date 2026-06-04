@@ -8,12 +8,13 @@ struct ClientInteractionRequest: PersistableModel, Equatable, Sendable {
 
     enum Status: String, Codable, Sendable {
         case initialized
+        case speaking
         case waitingAgent
         case completed
         case cancelled
     }
 
-    enum Source: String, Codable, Sendable {
+    enum Device: String, Codable, Sendable {
         case desktop
         case mobile
     }
@@ -27,5 +28,5 @@ struct ClientInteractionRequest: PersistableModel, Equatable, Sendable {
     var promptText: String
     var responseText: String?
 
-    var source: Source?
+    var device: Device?
 }

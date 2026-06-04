@@ -70,7 +70,7 @@ public enum FirebaseAppConfigurator {
         let environment = ProcessInfo.processInfo.environment
         let useEmulatorRaw = environment["FIREBASE_USE_EMULATORS"]?
             .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased() ?? ""
+            .lowercased() ?? "1"
         let enabled = emulatorFlagValues.contains(useEmulatorRaw)
 
         guard enabled else {

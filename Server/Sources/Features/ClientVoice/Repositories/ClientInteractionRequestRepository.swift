@@ -12,18 +12,17 @@ protocol ClientInteractionRequestRepository: AnyObject {
         issueId: String,
         kind: ClientInteractionRequest.Kind,
         status: ClientInteractionRequest.Status,
-        promptText: String,
-        responseText: String?,
-        source: ClientInteractionRequest.Source?
+        promptText: String
     ) async throws -> ClientInteractionRequest
     func markWaitingAgent(
         id: String,
         responseText: String,
-        source: ClientInteractionRequest.Source?
+    ) async throws -> ClientInteractionRequest
+    func markSpeaking(
+        id: String,
     ) async throws -> ClientInteractionRequest
     func markCompleted(
         id: String,
-        source: ClientInteractionRequest.Source?
     ) async throws -> ClientInteractionRequest
     func markCancelled(id: String) async throws -> ClientInteractionRequest
 }
@@ -59,16 +58,12 @@ final class FirestoreClientInteractionRequestRepository: FirestoreRepository<Cli
         kind: ClientInteractionRequest.Kind,
         status: ClientInteractionRequest.Status,
         promptText: String,
-        responseText: String? = nil,
-        source: ClientInteractionRequest.Source? = nil
     ) async throws -> ClientInteractionRequest {
         let request = ClientInteractionRequest(
             issueId: issueId,
             kind: kind,
             status: status,
             promptText: promptText,
-            responseText: responseText,
-            source: source
         )
         return try await super.save(request, merge: true)
     }
@@ -76,29 +71,43 @@ final class FirestoreClientInteractionRequestRepository: FirestoreRepository<Cli
     func markWaitingAgent(
         id: String,
         responseText: String,
-        source: ClientInteractionRequest.Source? = nil
     ) async throws -> ClientInteractionRequest {
-        var request = try await existingRequest(id: id)
-        request.status = .waitingAgent
-        request.responseText = responseText
-        request.source = source ?? request.source
-        return try await super.save(request, merge: true)
+        try await super.update(
+            id: id,
+            data: makeUpdateData(
+                status: .waitingAgent,
+                responseText: responseText,
+            )
+        )
+        return try await existingRequest(id: id)
+    }
+
+    func markSpeaking(
+        id: String,
+    ) async throws -> ClientInteractionRequest {
+        try await super.update(
+            id: id,
+            data: makeUpdateData(status: .speaking)
+        )
+        return try await existingRequest(id: id)
     }
 
     func markCompleted(
         id: String,
-        source: ClientInteractionRequest.Source? = nil
     ) async throws -> ClientInteractionRequest {
-        var request = try await existingRequest(id: id)
-        request.status = .completed
-        request.source = source ?? request.source
-        return try await super.save(request, merge: true)
+        try await super.update(
+            id: id,
+            data: makeUpdateData(status: .completed)
+        )
+        return try await existingRequest(id: id)
     }
 
     func markCancelled(id: String) async throws -> ClientInteractionRequest {
-        var request = try await existingRequest(id: id)
-        request.status = .cancelled
-        return try await super.save(request, merge: true)
+        try await super.update(
+            id: id,
+            data: makeUpdateData(status: .cancelled)
+        )
+        return try await existingRequest(id: id)
     }
 
     private func existingRequest(id: String) async throws -> ClientInteractionRequest {
@@ -107,5 +116,24 @@ final class FirestoreClientInteractionRequestRepository: FirestoreRepository<Cli
         }
 
         return request
+    }
+
+    private func makeUpdateData(
+        status: ClientInteractionRequest.Status,
+        responseText _: String? = nil,
+    ) -> [String: Any] {
+        return [
+            "status": status.rawValue,
+            "device": ClientInteractionRequest.Device.desktop.rawValue
+        ]
+    }
+
+    private func makeUpdateData(
+        status: ClientInteractionRequest.Status,
+        responseText: String,
+    ) -> [String: Any] {
+        var data = makeUpdateData(status: status)
+        data["responseText"] = responseText
+        return data
     }
 }

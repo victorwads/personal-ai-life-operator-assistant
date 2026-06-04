@@ -14,12 +14,15 @@ final class ClientVoiceScreenViewModel: ObservableObject {
         requests.filter { $0.status == .waitingAgent }
     }
 
+    var speakingRequests: [ClientInteractionRequest] {
+        requests.filter { $0.status == .speaking }
+    }
+
     var historyRequests: [ClientInteractionRequest] {
         requests.filter { [.completed, .cancelled].contains($0.status) }
     }
 
     private let repository: ClientInteractionRequestRepository
-    private let sharedLocks: SharedLockRegistry
     private var listenerToken: FirestoreListenerToken?
     private var hasLoaded = false
     @Published private var responseDrafts: [String: String] = [:]
@@ -30,11 +33,9 @@ final class ClientVoiceScreenViewModel: ObservableObject {
 
 
     init(
-        repository: ClientInteractionRequestRepository,
-        sharedLocks: SharedLockRegistry
+        repository: ClientInteractionRequestRepository
     ) {
         self.repository = repository
-        self.sharedLocks = sharedLocks
     }
 
     func loadIfNeeded() {
@@ -111,9 +112,7 @@ final class ClientVoiceScreenViewModel: ObservableObject {
                 _ = try await repository.markWaitingAgent(
                     id: requestID,
                     responseText: responseText,
-                    source: .desktop
                 )
-                await sharedLocks.unlock(id: askLockID(for: requestID))
 
                 await MainActor.run {
                     self.responseDrafts[requestID] = nil
@@ -138,8 +137,7 @@ final class ClientVoiceScreenViewModel: ObservableObject {
 
         Task {
             do {
-                _ = try await repository.markCompleted(id: requestID, source: .desktop)
-                await sharedLocks.unlock(id: speakLockID(for: requestID))
+                _ = try await repository.markCompleted(id: requestID)
                 await MainActor.run {
                     self.submissionErrors[requestID] = nil
                     self.submittingRequestIDs.remove(requestID)
@@ -160,11 +158,11 @@ final class ClientVoiceScreenViewModel: ObservableObject {
             if let oldHandler = self.speakingHandler {
                 oldHandler.cancel()
             }
-                let handler = try await SpeechSpeaker.speak(text: textToSpeak, config: nil)
+            let handler = try await SpeechSpeaker.speak(text: textToSpeak, config: nil)
             speakingHandler = handler
             
             await MainActor.run { self.speakingRequestID = requestID }
-                await handler.await()
+            await handler.await()
             await MainActor.run {
                 if (self.speakingRequestID == requestID ) {
                     self.speakingRequestID = nil
@@ -180,13 +178,5 @@ final class ClientVoiceScreenViewModel: ObservableObject {
                 self?.requests = requests
             }
         }
-    }
-
-    private func askLockID(for requestID: String) -> String {
-        "ask_to_client:\(requestID)"
-    }
-
-    private func speakLockID(for requestID: String) -> String {
-        "speak_to_client:\(requestID)"
     }
 }

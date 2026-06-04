@@ -6,8 +6,7 @@ struct ClientVoiceScreen: View {
     init(feature: ClientVoiceFeature) {
         _viewModel = StateObject(
             wrappedValue: ClientVoiceScreenViewModel(
-                repository: feature.repository,
-                sharedLocks: feature.context.sharedLocks
+                repository: feature.repository
             )
         )
     }
@@ -26,6 +25,7 @@ struct ClientVoiceScreen: View {
 
                 HStack(spacing: 8) {
                     DSBadge("Initialized", secondaryText: "\(viewModel.initializedRequests.count)", style: .info)
+                    DSBadge("Speaking", secondaryText: "\(viewModel.speakingRequests.count)", style: .warning)
                     DSBadge("Waiting Agent", secondaryText: "\(viewModel.waitingAgentRequests.count)", style: .warning)
                     DSBadge("History", secondaryText: "\(viewModel.historyRequests.count)", style: .neutral)
                 }
@@ -65,6 +65,14 @@ struct ClientVoiceScreen: View {
                                     title: "Answered / Waiting Agent",
                                     subtitle: "The client already answered and the agent can now consume the response.",
                                     requests: viewModel.waitingAgentRequests
+                                )
+                            }
+
+                            if !viewModel.speakingRequests.isEmpty {
+                                requestSection(
+                                    title: "Speaking",
+                                    subtitle: "Requests currently being spoken to the client.",
+                                    requests: viewModel.speakingRequests
                                 )
                             }
 
@@ -166,7 +174,7 @@ struct ClientVoiceScreen: View {
 
                 VStack(alignment: .leading, spacing: 10) {
                     metadataRow("Issue ID", nonEmpty(request.issueId, fallback: "Not recorded"))
-                    metadataRow("Source", request.source?.rawValue ?? "Not recorded")
+                    metadataRow("Source", request.device?.rawValue ?? "Not recorded")
                 }
             }
         }
@@ -221,6 +229,8 @@ struct ClientVoiceScreen: View {
         switch title {
         case "Initialized":
             return "clock.badge.exclamationmark"
+        case "Speaking":
+            return "speaker.wave.2"
         case "Answered / Waiting Agent":
             return "bubble.left.and.text.bubble.right"
         default:
@@ -232,6 +242,8 @@ struct ClientVoiceScreen: View {
         switch status {
         case .initialized:
             return "initialized"
+        case .speaking:
+            return "speaking"
         case .waitingAgent:
             return "answered / waiting agent"
         case .completed:
@@ -245,6 +257,8 @@ struct ClientVoiceScreen: View {
         switch status {
         case .initialized:
             return .info
+        case .speaking:
+            return .warning
         case .waitingAgent:
             return .warning
         case .completed:

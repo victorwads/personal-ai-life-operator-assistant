@@ -4,18 +4,15 @@ struct AskToClientTool: MCPToolDefinition {
     private let repository: ClientInteractionRequestRepository
     private let sharedLocks: SharedLockRegistry
     private let isClientPresentProvider: @MainActor @Sendable () -> Bool
-    private let source: ClientInteractionRequest.Source
 
     init(
         repository: ClientInteractionRequestRepository,
         sharedLocks: SharedLockRegistry,
         isClientPresentProvider: @escaping @MainActor @Sendable () -> Bool,
-        source: ClientInteractionRequest.Source = .desktop
     ) {
         self.repository = repository
         self.sharedLocks = sharedLocks
         self.isClientPresentProvider = isClientPresentProvider
-        self.source = source
     }
 
     let name = "ask_to_client"
@@ -48,8 +45,6 @@ struct AskToClientTool: MCPToolDefinition {
             kind: .ask,
             status: .initialized,
             promptText: text,
-            responseText: nil,
-            source: source
         )
 
         guard let requestID = request.id, !requestID.isEmpty else {
@@ -71,10 +66,7 @@ struct AskToClientTool: MCPToolDefinition {
             return .string("error: the client response for request \(requestID) is missing after the wait ended.")
         }
 
-        _ = try await repository.markCompleted(
-            id: requestID,
-            source: updatedRequest.source
-        )
+        _ = try await repository.markCompleted(id: requestID)
 
         return .string(responseText)
     }

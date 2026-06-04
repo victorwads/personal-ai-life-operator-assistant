@@ -6,6 +6,7 @@ final class ClientVoiceFeature: FeatureRuntime {
 
     let repository: FirestoreClientInteractionRequestRepository
     let presenceService: ClientVoicePresenceService
+    let workerService: ClientVoiceWorkerService
 
     required init(context: FeatureContext) {
         guard let scope = context.profileContext.scope else {
@@ -15,6 +16,10 @@ final class ClientVoiceFeature: FeatureRuntime {
         repository = FirestoreClientInteractionRequestRepository(scope: scope)
         presenceService = ClientVoicePresenceService(
             repository: RealtimeDatabaseClientVoicePresenceRepository(scope: scope)
+        )
+        workerService = ClientVoiceWorkerService(
+            repository: repository,
+            sharedLocks: context.sharedLocks
         )
         super.init(context: context)
 
@@ -38,10 +43,12 @@ final class ClientVoiceFeature: FeatureRuntime {
 
     override func onStartServices() async {
         await presenceService.start()
+        workerService.start()
     }
 
     override func onStopServices() async {
         await presenceService.stop()
+        workerService.stop()
     }
 
     func listByIssueId(_ issueId: String) async throws -> [ClientInteractionRequest] {
