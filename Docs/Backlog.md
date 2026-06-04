@@ -95,6 +95,69 @@ Adicionar a capacidade de arquivar uma conversa específica para manter o conjun
 
 ---
 
+## 3) Delete de chat com preservação opcional de configurações
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R4 - Alto`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.57`
+
+**Descrição**  
+Revisar o fluxo de delete de chats para separar claramente duas intenções: apagar só as mensagens do chat ou apagar também as configurações operacionais do chat. Hoje a tela trata `delete chat` e `delete all` como exclusão completa, mas na prática o usuário precisa poder escolher se quer manter ou descartar permissões, preferências de extração de mídia e outros campos que fazem o chat continuar “conhecido” pelo sistema. Esse item já existia conceitualmente na versão anterior e precisa ser reconstruído na V2 com confirmação explícita em camadas.
+
+**Dependências**  
+- `Nenhuma`
+
+**Comportamento desejado**  
+- Ao clicar em delete de um chat, mostrar uma confirmação com duas opções: apagar só mensagens ou apagar mensagens + configurações.
+- Ao clicar em delete all, mostrar a mesma distinção em nível global.
+- Permitir que a operação “apagar só mensagens” remova o conteúdo e o hash/estado derivado, mas preserve campos operacionais do chat.
+- Permitir que a operação “apagar mensagens + configurações” limpe o chat por completo, incluindo permissões, preferências e outros metadados operacionais.
+- Evitar que `Allow`/`Deny` e outras preferências sejam perdidas por acidente quando o usuário só queria limpar a conversa.
+
+**Notas técnicas**  
+- O fluxo precisa usar uma caixa de confirmação com duas camadas de decisão, para não confundir limpeza de conteúdo com limpeza de cadastro do chat.
+- A implementação deve separar claramente o que é `chat cleanup` do que é `chat metadata cleanup`.
+- O modelo/repositório de chat deve continuar consistente depois da exclusão parcial, sem deixar estado quebrado ou meio apagado.
+- O estado de `stateHash` e outros campos derivados pode ser resetado quando o conteúdo for removido, mas os campos operacionais devem sobreviver quando o usuário escolher manter as configurações.
+
+**Por que isso entra no backlog**  
+Isso devolve controle fino ao usuário e evita perder regras importantes do chat quando a intenção era só limpar mensagens, não apagar o cadastro operacional inteiro.
+
+---
+
+## 4) Ações de `handled` por mensagem e em lote no chat
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R3 - Médio`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.57`
+
+**Descrição**  
+Adicionar ações operacionais por mensagem dentro da conversa para marcar `handled` e `unhandled` de forma explícita. Hoje a UI já exibe um badge de `Handled`/`Unhandled`, então ele pode virar o ponto de interação principal: clicar no badge alterna o estado daquela mensagem. Além disso, a conversa precisa oferecer um atalho no header para marcar todo o chat como handled, e também uma ação em lote para marcar mensagens mais antigas ou mais novas a partir de uma mensagem escolhida.
+
+**Dependências**  
+- `Nenhuma`
+
+**Comportamento desejado**  
+- Permitir alternar o estado de uma mensagem ao clicar no badge de `Handled`/`Unhandled`.
+- Adicionar no header da conversa uma ação do tipo `Mark all handled`.
+- Permitir marcar uma mensagem específica e todas as anteriores como handled.
+- Permitir marcar uma mensagem específica e todas as posteriores como unhandled.
+- Oferecer seleção em lote com checkbox visível nas linhas para aplicar ações em massa.
+
+**Notas técnicas**  
+- A regra de `handled` continua sendo por mensagem, não por chat inteiro, então o lote deve apenas facilitar a edição de várias mensagens de uma vez.
+- O fluxo de “marcar como handled” precisa respeitar a ordem temporal da conversa, para não criar buracos no meio da sequência.
+- A ação em lote pode usar um popover, menu contextual ou menu de linha, desde que a direção da alteração fique clara para o usuário.
+- O badge existente em `ChatMessageBubbleView` já é a melhor ancoragem visual para essa ação e pode ser usado como disparador da interação.
+- O cabeçalho da conversa pode expor a ação global sem esconder o controle individual por mensagem.
+
+**Por que isso entra no backlog**  
+Isso transforma a tela de chat em uma ferramenta operacional de verdade, permitindo corrigir estados de leitura e processamento sem depender só de ações automáticas do runtime.
+
+---
+
 ## 8) Indicador de "digitando" durante o processamento
 
 Valor: `V3 - Médio`
@@ -623,3 +686,311 @@ O comportamento antigo ficou estreito demais para o que o runtime precisa hoje. 
 
 ---
 
+## 43) Gerenciamento de janelas do profile com frame inicial saudável
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R3 - Médio`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.57`
+
+**Descrição**  
+Recriar o gerenciamento de janelas do profile para que a experiência volte a ser confortável na V2. Na prática, o profile window não pode abrir espremido, com sidebar e conteúdo cortados, obrigando o usuário a maximizar só para conseguir ler. Esse era um comportamento que já existia de forma melhor na versão anterior e precisa ser reconstruído agora, com abertura em um frame inicial saudável, mínimo visual mais generoso e um estado de janela que faça sentido no macOS.
+
+**Dependências**  
+- `Nenhuma`
+
+**Comportamento desejado**  
+- Abrir a janela do profile com tamanho inicial confortável para leitura e uso.
+- Evitar que a sidebar ou o painel principal fiquem cortados na primeira abertura.
+- Respeitar um mínimo de largura/altura para não quebrar o layout.
+- Recuperar ou preservar o estado da janela quando o profile for reaberto, se isso fizer parte da melhor experiência.
+- Manter o comportamento consistente entre profiles diferentes.
+
+**Notas técnicas**  
+- O frame inicial precisa ser definido de forma mais cuidadosa do que o tamanho padrão atual da janela.
+- Se houver persistência de tamanho/posição por profile, ela deve ser aplicada antes da primeira renderização visível.
+- A solução deve continuar compatível com o `AppWindowManager` e com o `ProfileWindowHostView`, sem introduzir um fluxo especial por tela.
+- Vale revisar também se a janela precisa começar maximizada, em tamanho grande padrão ou com restauração do último frame salvo.
+
+**Por que isso entra no backlog**  
+Uma janela de profile difícil de ler quebra a usabilidade logo no começo da sessão. Esse item recupera uma experiência que a V1 já entregava melhor e que a V2 precisa voltar a oferecer.
+
+---
+
+## 44) Padronização visual das listas e master-detail no app
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R3 - Médio`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.57`
+
+**Descrição**  
+Criar um padrão visual único para as telas que apresentam listas de itens e painéis de detalhe no app. Hoje a tela de `Issues` já usa um `Picker` segmentado para filtrar `active`, `suspended`, `resolved`, `cancelled` e `all`, mas a área de listagem ainda depende de cards soltos em `ScrollView`/`LazyVStack`, com uso irregular do espaço e sem uma estrutura de lista consistente entre features. O objetivo é criar um componente/padrão compartilhado para as listas desktop, para que `Issues`, `Memories`, `Sensitive Data`, `Client Voice` e `Sent Messages` tenham uma base visual mais uniforme. A tela de `Chats` já está mais próxima do padrão ideal por usar `NavigationSplitView`, e o `Tools Browser` também deveria seguir essa mesma proposta de master-detail, em vez de ficar com uma organização visual diferente.
+
+**Dependências**  
+- `Nenhuma`
+
+**Comportamento desejado**  
+- Padronizar a estrutura visual das telas com lista + detalhe.
+- Reaproveitar o mesmo padrão de navegação master-detail quando a feature tiver esse formato.
+- Melhorar o aproveitamento do espaço horizontal no desktop.
+- Manter cada feature responsável pelo conteúdo da linha, mas não pela estrutura base da lista.
+- Usar o mesmo idioma visual para filtros, lista e detalhe em telas parecidas.
+
+**Notas técnicas**  
+- O componente do filtro em `Issues` já é um `Picker` com estilo `.segmented`, então o novo trabalho é mais sobre a estrutura de lista do que sobre filtros.
+- `DSListCardRow` já existe e pode ser parte da solução, mas ele não resolve sozinho a organização inteira da tela.
+- O padrão deve nascer no Shared UI ou em um componente reutilizável equivalente, para não duplicar o mesmo arranjo em várias features.
+- `Chats` e `Tools Browser` servem como referência para master-detail; a meta é aproximar as demais telas desse comportamento sem forçar tudo a virar igual.
+- O item deve considerar que algumas telas precisam de lista lateral, outras de cards empilhados e outras de detail pane, mas todas precisam parecer parte da mesma aplicação.
+
+**Por que isso entra no backlog**  
+Essa padronização melhora muito a leitura do app inteiro, reduz inconsistência entre features e dá uma base visual mais sólida para qualquer nova tela que venha depois.
+
+---
+
+## 45) Ações manuais de status na tela de Issues
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R3 - Médio`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.57`
+
+**Descrição**  
+Permitir que o usuário altere manualmente o status de uma issue diretamente na UI, porque hoje a tela funciona mais como visualização do que como ação operacional. O usuário precisa conseguir mudar uma issue de `active` para `resolved`, `cancelled` ou `suspended`, além de desfazer um estado errado quando a IA ou a automação concluírem algo cedo demais. A regra de `suspended` continua especial: ela precisa de uma data de suspensão, então não pode ser tratada como uma troca simples de status sem campos adicionais.
+
+**Dependências**  
+- `Nenhuma`
+
+**Comportamento desejado**  
+- Adicionar uma ação por issue para trocar o status manualmente.
+- Exigir motivo quando a mudança representar resolução, cancelamento ou reversão operacional.
+- Exigir data/horário quando o novo status for `suspended`.
+- Permitir corrigir manualmente um status que a IA tenha definido errado.
+- Manter o histórico da alteração visível para auditoria.
+
+**Notas técnicas**  
+- A UI pode usar um seletor, menu contextual ou popover de ação por linha, mas a mudança precisa ser explícita e confirmada antes de salvar.
+- `suspended` deve continuar carregando `suspendUntil` e, se fizer sentido, um motivo associado.
+- Essas ações devem atualizar o mesmo modelo de issue e continuar registrando timeline items para não perder o histórico.
+- O design atual de `Issues` é list-only, então essa feature acrescenta a camada de ação que falta sem remover o padrão de listagem.
+
+**Por que isso entra no backlog**  
+Isso devolve ao usuário controle operacional real sobre `Issues`, permitindo corrigir estados, abrir exceções e registrar decisões humanas quando a automação não acertar de primeira.
+
+---
+
+## 46) CRUD manual de memories na tela desktop
+
+Valor: `V3 - Médio`
+Risco de Desenvolvimento: `R3 - Médio`
+Risco da Feature: `R1 - Baixíssimo`
+Score de Execução: `0.50`
+
+**Descrição**  
+Transformar a tela de `Memories` em uma superfície operacional de verdade, não só em uma visualização passiva. Hoje ela apenas lista `key` e `value`, então faltam ações para criar uma memory manualmente, editar uma memory existente e deletar uma memory sem depender exclusivamente das MCP tools. Esse item vale principalmente para a versão desktop, onde faz sentido o usuário administrar o próprio contexto durável com mais liberdade.
+
+**Dependências**  
+- `37) Memórias categorizadas e `list_memories` filtrável`
+
+**Comportamento desejado**  
+- Adicionar um formulário ou botão para criar novas memories diretamente na tela.
+- Permitir edição inline ou por double-click no valor da memory.
+- Permitir salvar a edição com Enter ou com uma ação explícita de confirmação.
+- Adicionar ação de exclusão por memory.
+- Manter a lista sempre visível e útil como painel de gestão do contexto permanente.
+
+**Notas técnicas**  
+- O item deve respeitar o modelo simples atual de `Memory` (`key` e `value`), sem exigir uma estrutura nova para começar.
+- A edição pode ser inline com `TextField` ou `TextEditor`, desde que fique clara e rápida de usar.
+- A criação e a exclusão devem seguir o mesmo repositório e regras da feature, sem criar um armazenamento paralelo.
+- Esse comportamento é especialmente adequado ao desktop; no app mobile a experiência pode continuar mais restrita depois.
+
+**Por que isso entra no backlog**  
+Isso devolve autonomia ao usuário para manter seu próprio contexto assistente, criando, corrigindo e removendo memórias sem depender só da IA ou de ferramentas externas.
+
+---
+
+## 47) Bootstrapping de memories fora do prompt de tool calling
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R3 - Médio`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.57`
+
+**Descrição**  
+Remover a dependência do `list_memories` do prompt operacional e passar a injetar todas as memórias duráveis no começo de cada sessão de IA, como parte fixa do primeiro bloco de contexto do usuário. A ideia é que o `AIConnection` já monte a sessão com as memórias antes de qualquer reasoning ou tool calling, deixando o prompt do sistema mais simples e reduzindo a necessidade de o modelo gastar chamadas só para recuperar contexto permanente. A tool de listagem pode continuar existindo para uso manual e de debug, mas deixa de ser a fonte principal de carregamento do contexto durável na sessão normal.
+
+**Dependências**  
+- `37) Memórias categorizadas e `list_memories` filtrável`
+- `41) Firebase observável com cache local sempre atualizado`
+
+**Comportamento desejado**  
+- Injetar as memórias no boot da sessão como texto fixo inicial do usuário, antes do prompt operacional.
+- Tirar do prompt a obrigação de chamar `list_memories()` para conhecer o contexto permanente.
+- Manter o prompt do sistema mais curto e menos dependente de tool calling para contexto durável.
+- Atualizar a carga inicial de memórias sempre que houver mudança relevante no cache.
+- Preservar uma forma de listagem manual de memories para manutenção e debug, sem depender dela no fluxo padrão.
+
+**Notas técnicas**  
+- O `AIConnectionConversationContextBuilder` já monta system prompt + user prompt, então esse é o ponto natural para append do bloco de memórias.
+- O bootstrap deve receber memórias em formato estável para favorecer cache de input do provedor de IA.
+- Quando houver mudança nas memórias, a sessão nova pode perder cache inicial, mas esse custo é aceitável porque a memória não muda com tanta frequência.
+- O `list_memories` continua útil como ferramenta de inspeção, mas a carga automática deve virar responsabilidade da conexão de IA, não do prompt.
+
+**Por que isso entra no backlog**  
+Isso simplifica o contrato mental do assistente, melhora a chance de reaproveitamento de cache da API de IA e garante que o contexto durável esteja sempre presente sem depender de uma tool call adicional.
+
+---
+
+## 48) Componentes reutilizáveis de voz e request do cliente
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R4 - Alto`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.50`
+
+**Descrição**  
+Reaproveitar a base de `Client Voice` como uma camada mais modular, com componentes de voz que possam ser usados por outras features sem precisar passar dependência manualmente em cada view. A parte de reconhecimento e fala já existe de forma separada no backend de speech, mas falta elevar isso para componentes de UI e helpers de janela que “se virem sozinhos” com as configurações globais de voz, iniciando, cancelando, retomando e exibindo input de fala de forma padronizada.
+
+**Dependências**  
+- `42) `wait_for_event` com fontes de evento ampliadas`
+
+**Comportamento desejado**  
+- Extrair um componente de input de voz reutilizável para outras features.
+- Permitir que o componente controle microfone, gravação, cancelamento e retomada sem exigir wiring manual por tela.
+- Fazer o componente usar as configurações globais de voz já disponíveis na aplicação.
+- Criar uma helper/window reutilizável para abrir a captura de áudio/resposta sem duplicar lógica em cada feature.
+
+**Notas técnicas**  
+- O objetivo não é empurrar o estado de voz para cada tela, e sim trazer esse comportamento para um componente reutilizável que se adapte às configurações globais.
+- A janela/helper de captura deve ser reaproveitável por outras features que precisem de fala rápida do cliente.
+
+**Por que isso entra no backlog**  
+Isso transforma `Client Voice` numa base mais arquitetural e reutilizável para a experiência de voz, além de abrir um canal real para o cliente iniciar trabalho diretamente com o assistente.
+
+---
+
+## 49) Request manual do cliente como evento operacional
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R4 - Alto`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.53`
+
+**Descrição**  
+Adicionar na `Client Voice` um botão/ação para o cliente criar uma request nova diretamente, sem depender de WhatsApp, de uma pergunta já aberta ou de uma tool disparada pelo assistente. Essa request deve entrar no runtime como evento explícito e virar o ponto de partida para a IA criar e tratar a issue correspondente. Hoje o cliente ainda não tem como pedir algo diretamente ao assistente por esse canal, então essa feature fecha a ponta de entrada humana no fluxo de voz.
+
+**Dependências**  
+- `42) `wait_for_event` com fontes de evento ampliadas`
+
+**Comportamento desejado**  
+- Permitir que o cliente crie uma request manual diretamente na `Client Voice`.
+- Fazer essa request entrar no fluxo operacional como evento do runtime.
+- Garantir que a IA trate essa entrada como um pedido iniciado pelo cliente, não como uma resposta automática a outro evento.
+- Persistir o registro da request no mesmo modelo de interação já usado pela feature.
+- Permitir que esse evento seja consumido pelo `wait_for_event` ampliado e pelo prompt operacional.
+
+**Notas técnicas**  
+- A nova request deve usar o mesmo backbone de `ClientInteractionRequest`, mas com origem explícita de cliente.
+- O prompt operacional precisa entender que o runtime pode despertar por uma request manual do cliente, além de WhatsApp e voice replies.
+- Esse evento deve ser fácil de diferenciar de mensagens, respostas e speak requests já existentes.
+- A entrada manual do cliente precisa criar o contexto necessário para que o assistente abra o trabalho certo na sequência.
+
+**Por que isso entra no backlog**  
+Isso dá ao cliente um canal direto para iniciar trabalho com o assistente, fechando a lacuna entre ouvir, responder e pedir algo novo sem depender de um intermediário.
+
+---
+
+## 50) Integração real de e-mail
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R5 - Muito alto`
+Risco da Feature: `R4 - Alto`
+Score de Execução: `0.48`
+
+**Descrição**  
+Implementar a integração real de e-mail da aplicação, indo além da tela/área visual que hoje ainda funciona mais como espaço de configuração ou placeholder. A feature precisa existir de ponta a ponta para que o assistente consiga realmente ler, reagir e operar e-mails como parte do runtime, sem depender só de texto no prompt ou de uma representação visual da área de e-mail. Hoje o app já reserva esse espaço na navegação, então esse item é o trabalho de transformar esse espaço em integração funcional de verdade.
+
+**Dependências**  
+- `35) Menu Gmail/Calendar com assistente de configuração`
+- `36) Arquitetura multi-conta para Gmail e Calendar por perfil`
+
+**Comportamento desejado**  
+- Integrar o fluxo de e-mail ao runtime operacional do assistente.
+- Permitir leitura e reação a e-mails como eventos reais do sistema.
+- Conectar a área de e-mail com o contexto e as preferências do assistente.
+- Evitar que a tela de e-mail seja apenas decorativa ou de status.
+- Preparar a feature para uso por múltiplas contas quando a arquitetura de contas estiver ativa.
+
+**Notas técnicas**  
+- O item precisa aproveitar a base de configuração e multi-conta já pensada para Gmail.
+- A tela/área de e-mail pode continuar servindo como workspace visual, mas agora deve refletir integração de verdade.
+- O comportamento operacional precisa nascer do provider/conta já autenticada, não de dados estáticos.
+- O prompt e o runtime devem conseguir se referir a e-mails como uma fonte real de eventos e trabalho.
+
+**Por que isso entra no backlog**  
+Sem essa integração, o espaço de e-mail no app fica só como placeholder. Este item fecha a lacuna e transforma e-mail em parte real do assistente.
+
+---
+
+## 51) Integração real de calendário
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R5 - Muito alto`
+Risco da Feature: `R4 - Alto`
+Score de Execução: `0.48`
+
+**Descrição**  
+Implementar a integração real de calendário da aplicação, transformando a área/tela de calendário em uma funcionalidade operacional e não apenas visual. A meta é que o assistente consiga usar calendário como fonte de eventos, compromissos e wakeups reais, com o fluxo funcionando de ponta a ponta dentro do runtime. Hoje a interface de calendário já existe como espaço reservado; esse item é a construção da integração de verdade em cima desse espaço.
+
+**Dependências**  
+- `35) Menu Gmail/Calendar com assistente de configuração`
+- `36) Arquitetura multi-conta para Gmail e Calendar por perfil`
+
+**Comportamento desejado**  
+- Integrar o calendário ao runtime operacional do assistente.
+- Permitir leitura de eventos, compromissos e lembretes como eventos reais.
+- Usar o calendário como gatilho para wake events e follow-up.
+- Manter a área visual do calendário como workspace útil e não só como placeholder.
+- Preparar a feature para múltiplas contas quando a arquitetura estiver pronta.
+
+**Notas técnicas**  
+- O item deve reutilizar a infraestrutura de setup e multi-conta já prevista para Calendar.
+- A tela/área de calendário pode continuar como parte do Command Center, mas agora precisa refletir integração funcional.
+- O comportamento operacional deve vir da conta autenticada e configurada no runtime.
+- O prompt e os fluxos de evento precisam conseguir tratar calendário como fonte real de ações e alertas.
+
+**Por que isso entra no backlog**  
+Sem essa integração, o calendário continua sendo só uma promessa visual. Este item transforma o espaço reservado em funcionalidade efetiva do assistente.
+
+---
+
+## 52) Modo desenvolvedor nas settings do Command Center
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R3 - Médio`
+Risco da Feature: `R1 - Baixíssimo`
+Score de Execução: `0.57`
+
+**Descrição**  
+Adicionar uma configuração própria do Command Center para ativar ou desativar o modo desenvolvedor. Quando esse modo estiver desligado, algumas áreas de debug e diagnóstico devem desaparecer da navegação, como `Web YAML Debug`, `Native YAML Debug`, `Logs` e outras superfícies de inspeção mais técnicas. Quando estiver ligado, esses itens voltam a aparecer. A ideia é deixar o Command Center mais limpo no uso normal, sem perder a capacidade de expor as ferramentas internas quando o desenvolvedor precisar.
+
+**Dependências**  
+- `44) Padronização visual das listas e master-detail no app`
+
+**Comportamento desejado**  
+- Exibir uma configuração de `developer mode` nas settings do Command Center.
+- Esconder itens de debug e logs quando o modo estiver desligado.
+- Reexibir essas áreas quando o modo estiver ligado.
+- Manter o estado persistido por profile, se fizer sentido para a experiência do app.
+- Deixar claro na UI quais partes são de uso normal e quais são de depuração.
+
+**Notas técnicas**  
+- O `CommandCenterMenuRegistry` já tem campos para visibilidade por developer mode, então o item deve plugar nisso em vez de criar uma regra paralela.
+- A lógica de visibilidade pode continuar centralizada no registry, mas o estado precisa vir de settings reais e não de flag hardcoded.
+- `Web YAML Debug`, `Native YAML Debug` e `Logs` são os primeiros alvos óbvios de filtragem, junto com qualquer outra área debug que venha depois.
+- O ideal é que a configuração viva no mesmo fluxo de settings do profile para que a visibilidade seja consistente na abertura da janela.
+
+**Por que isso entra no backlog**  
+Isso limpa a experiência do app para uso diário sem perder o acesso às ferramentas de diagnóstico quando for necessário depurar a integração ou o runtime.
