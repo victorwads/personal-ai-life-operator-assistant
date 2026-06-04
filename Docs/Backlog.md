@@ -51,7 +51,7 @@ Score de Execução: `0.44`
 Quando a conversa não estiver visível na lista principal do app, o agente deve conseguir pesquisar o nome ou número na barra de busca do WhatsApp Web/Desktop, validar o resultado e abrir o chat certo antes de seguir com a ação.
 
 **Dependências**  
-- `Mapeamento do parsing do WhatsApp Web via YAML com auto-update`
+- `Nenhuma`
 
 **Por que isso entra no backlog**  
 É um fluxo mais complexo e frágil, porque depende de busca, seleção de resultado, validação de ambiguidade e sincronização do contexto do chat antes do envio.
@@ -69,7 +69,7 @@ Score de Execução: `0.40`
 Adicionar a capacidade de arquivar uma conversa específica para manter o conjunto de chats ativos mais enxuto e organizado. O comportamento padrão do WhatsApp de reabrir o chat quando chegam mensagens novas continua valendo.
 
 **Dependências**  
-- `Mapeamento do parsing do WhatsApp Web via YAML com auto-update`
+- `Nenhuma`
 
 **Evidências/seletores observados na row**  
 - `data-testid="list-item-0"` identifica a linha da conversa.
@@ -92,123 +92,6 @@ Adicionar a capacidade de arquivar uma conversa específica para manter o conjun
 
 **Por que isso entra no backlog**  
 É uma melhoria útil para controle de contexto e limpeza da lista de conversas, com uma implementação relativamente direta em comparação com o fluxo de busca/resolução de chat.
-
----
-
-## 4) Mapeamento do parsing do WhatsApp Web via YAML com auto-update
-
-Valor: `V4 - Alto`
-Risco de Desenvolvimento: `R4 - Alto`
-Risco da Feature: `R4 - Alto`
-Score de Execução: `0.52`
-
-**Descrição**  
-Extrair do código atual todo o mapeamento usado para interpretar o WhatsApp Web e mover esse conhecimento para um arquivo `YAML` versionado. Isso inclui seletores, caminhos relativos, alternativas de match, hooks de JavaScript quando existirem e a estrutura hierárquica de leitura da tela. O `YAML` deve ser bundlado no app como padrão, mas o runtime pode baixar uma versão mais recente via uma URL configurável nas Settings. Se a URL estiver vazia, o app usa apenas o `YAML` embutido e não tenta atualizar.
-
-**Dependências**  
-- `Nenhuma`
-
-**Regras desejadas**  
-- O `YAML` precisa carregar metadados como data da versão e versão do schema.
-- O app só deve tentar atualizar o `YAML` no momento em que o servidor inicia ou o app abre.
-- Se a URL de atualização não estiver configurada, não deve haver tentativa de fetch.
-- Se a versão do schema do `YAML` remoto for incompatível com a versão esperada pelo app, a atualização deve ser ignorada.
-- Enquanto a versão do schema for compatível, o app pode atualizar só o `YAML` sem exigir atualização do binário.
-- Se o schema mudar, a atualização precisa ser feita no app nativo.
-- Toda a lógica de parsing atual do WhatsApp Web deve deixar de depender de valores hardcoded espalhados no código e passar a consultar essa configuração centralizada.
-- O código não deve ter fallback silencioso para outros seletores fora do `YAML`; se o arquivo faltar ou estiver inválido, o fluxo correspondente não deve funcionar.
-- O `YAML` deve permitir múltiplas alternativas por ponto de leitura, para cobrir mudanças de DOM/HTML sem quebrar o fluxo.
-- O formato precisa representar relações hierárquicas, como lista de chats, row de chat e seletores relativos dentro da row.
-- Parte das chaves estruturais pode continuar hardcoded no código, mas o valor de cada chave precisa vir do `YAML`.
-- O modelo deve acomodar tanto seletores CSS/DOM quanto buscas baseadas em JavaScript ou outro mecanismo já usado hoje no parsing.
-
-**Por que isso entra no backlog**  
-Isso reduz o acoplamento com o HTML atual do WhatsApp Web e facilita manter o app funcionando quando a interface mudar, sem precisar lançar uma nova versão para cada alteração pequena de estrutura, mantendo o comportamento atual do parser, mas com os mapeamentos centralizados e atualizáveis.
-
----
-
-## 5) Corrigir ordenação e metadados da lista de chats
-
-Valor: `V5 - Altíssimo`
-Risco de Desenvolvimento: `R4 - Alto`
-Risco da Feature: `R2 - Baixo`
-Score de Execução: `0.63`
-
-**Descrição**  
-Corrigir o bug em que a listagem de chats fica desordenada quando o WhatsApp Web retorna apenas textos como `quinta-feira` ou horários soltos em vez de uma data completa da última mensagem. O objetivo é encontrar, se existir, a origem correta da data/hora real da última mensagem em formato estruturado, mapear esse valor para algo ordenável, preferencialmente `ISO string`, e usar isso tanto na listagem visual quanto no repositório/ordenação interna.
-
-**Dependências**  
-- `Mapeamento do parsing do WhatsApp Web via YAML com auto-update`
-
-**Contexto observado**  
-- No exemplo atual, a row expõe `lastMessageAtText`, `lastMessageDirection`, `lastMessagePreview` e `lastMessageStatus`, mas não mostra um timestamp estruturado.
-- O texto exibido pode servir para UI, mas não é confiável para ordenação consistente.
-- Se o HTML ou metadado interno trouxer um timestamp em `ISO`, esse campo deve ser o candidato principal para armazenar e ordenar.
-
-**Problema observado**  
-- Em `list_chats`, o campo da última mensagem às vezes aparece só como texto humano, sem `ISO date`.
-- Quando a última mensagem não traz data completa, a ordenação quebra ou fica parcial.
-- Alguns metadados da última mensagem ainda precisam ser recuperados corretamente, incluindo o status da última mensagem.
-- A versão nativa já parecia tratar melhor esses dados, mas no Web isso ainda não está estável.
-
-**Objetivo**  
-- Encontrar a origem correta da data da última mensagem, se ela existir em algum metadado interno do WhatsApp Web.
-- Usar essa data estruturada para ordenar os chats no repositório e na listagem visual.
-- Garantir que o status da última mensagem também seja preenchido corretamente.
-
-**Por que isso entra no backlog**  
-Sem uma data real e estruturada, a lista não consegue ser ordenada por recência com confiança, o que afeta diretamente a experiência e a leitura operacional dos chats. Como `ISO string` ordena bem lexicograficamente, ela também simplifica a lógica de sorting quando esse dado estiver disponível.
-
----
-
-## 6) Exposição externa para app mobile via Firebase
-
-Valor: `V2 - Baixo`
-Risco de Desenvolvimento: `R5 - Muito alto`
-Risco da Feature: `R5 - Muito alto`
-Score de Execução: `0.21`
-
-**Descrição**  
-Externalizar parte da experiência do assistente para uma aplicação mobile ou outra interface cliente, com foco em uma experiência voice-first e leve para o usuário final. O mobile deve receber e responder pendências de voz do assistente, mostrar a Home como ponto principal do dia a dia e conversar direto com o Firebase como backend operacional.
-
-**Dependências**  
-- `Nenhuma`
-
-**Capacidades desejadas**  
-- Expor sincronização via Firebase para pendências de voz, estado operacional e histórico recente.
-- Fazer o app mobile ler e escrever direto no Firebase, sem camada própria de API para esse fluxo.
-- Permitir envio e recebimento de áudio, incluindo gravação e reprodução no dispositivo remoto quando fizer sentido.
-- Permitir reconhecimento de voz no lado do cliente, com uso dos recursos nativos de Android e iOS para STT/TTS.
-- Manter a máquina principal como origem do contexto, mas com uma interface externa simples para operação e resposta do usuário.
-
-**Por que isso entra no backlog**  
-Isso amplia o alcance do assistente para fora da máquina local e abre caminho para uma experiência portátil e realmente útil no celular, sem exigir que o usuário lide com detalhes de rede ou com a máquina do Mac.
-
----
-
-## 7) `wait_for_event` não pode consumir pendências
-
-Valor: `V5 - Altíssimo`
-Risco de Desenvolvimento: `R3 - Médio`
-Risco da Feature: `R3 - Médio`
-Score de Execução: `0.67`
-
-**Descrição**  
-Corrigir o bug em que a toll `wait_for_event` está marcando como resolvidas ou “handled” conversas que ainda não tiveram suas mensagens lidas pelo assistente. o evento `wait_for_event` deve ser read only e não alterar nada. O que realmente retorna as não lidas e marca elas como lidas, é o `list_recent_messages` e `wait_for_chat_message`.
-Hoje o assistente esta perdendo as mensagens pois ele chama o `wait_for_event` para listar os chats não lidos, mas esse endpoint esta marcando eles como lidos, então quando o `list_recent_messages` é chamado, ele não encontra mais nada para ler e vem vazio.
-
-**Dependências**  
-- `Nenhuma`
-
-**Regra desejada**  
-- `wait_for_event` apenas informa quais chats têm pendência.
-- Somente `list_recent_messages` ou `wait_for_chat_message` pode marcar mensagens como `handled` para um chat específico.
-- A limpeza de lido/handled deve ocorrer apenas depois do pull real das mensagens do chat.
-- A resposta do `wait_for_event` precisa trazer o nome do evento, como `prompt_from_cliente` ou `unhandled_chat`, e não apenas um tipo genérico como `chat_messages`. pois as vezes o evento não é sobre mensagens, mas sobre outra coisa, como um prompt do cliente ou um evento de sistema.
-- O payload do evento deve ser explícito o suficiente para distinguir o que aconteceu sem depender de inferência externa.
-
-**Por que isso entra no backlog**  
-Esse bug quebra o fluxo de consumo do assistente e faz perder mensagens antes da leitura real, então a responsabilidade de “consumir” precisa ficar restrita ao endpoint certo.
 
 ---
 
@@ -341,7 +224,7 @@ Score de Execução: `0.62`
 Permitir que o `ask_to_client` retorne, além da pergunta principal, um array `suggested_fast_responses` com 2 a 5 respostas curtas, objetivas e prontas para toque. A ideia é que o usuário possa responder sem digitar, tanto dentro do app mobile quanto diretamente por notificação, facilitando respostas rápidas quando o contexto for simples.
 
 **Dependências**  
-- `Exposição externa para app mobile via Firebase`
+- `41) Firebase observável com cache local sempre atualizado`
 
 **Comportamento desejado**  
 - O `ask_to_client` pode preencher `suggested_fast_responses` com opções curtas e úteis.
@@ -373,7 +256,7 @@ Score de Execução: `0.67`
 Definir e implementar o primeiro recorte real do app Android como uma Home centrada em voz. O MVP deve priorizar `ask_to_client` e `speak_to_client`, com STT/TTS nativos, lista de solicitações de voz pendentes e histórico recente de itens resolvidos. O app base já existe em `Apps/Android` e já mostra partes de memórias e voz, mas ainda está cru o suficiente para que esse item continue sendo o fechamento do MVP real.
 
 **Dependências**  
-- `Exposição externa para app mobile via Firebase`
+- `41) Firebase observável com cache local sempre atualizado`
 
 **Regras desejadas**  
 - A Home deve ser a tela principal e responder imediatamente se existe algo pendente para o usuário.
@@ -428,7 +311,7 @@ Score de Execução: `0.62`
 Adicionar a ação de `Unresolve` para subjects na UI e no app mobile, permitindo reabrir um assunto que foi resolvido cedo demais ou que ainda não terminou de verdade. Ao usar essa ação, o usuário deve preencher um motivo obrigatório de reabertura, que pode se chamar `bronca`, para deixar explícito por que o subject não deve ser encerrado agora.
 
 **Dependências**  
-- `Exposição externa para app mobile via Firebase`
+- `41) Firebase observável com cache local sempre atualizado`
 
 **Comportamento desejado**  
 - Permitir desfazer o estado de `resolve` de um subject.
@@ -624,7 +507,7 @@ Score de Execução: `0.40`
 Permitir que alguns chats tenham uma regra explícita para não tentar extrair imagem e sticker na lista de mensagens. Hoje o parser já consegue identificar `image`, `sticker` e outros tipos de mídia, mas nem todo chat precisa desse esforço de leitura. Em alguns casos, o ideal é marcar o chat como “não extrair mídia” e seguir só com o conteúdo textual/operacional.
 
 **Dependências**  
-- `Mapeamento do parsing do WhatsApp Web via YAML com auto-update`
+- `Nenhuma`
 
 **Comportamento desejado**  
 - Permitir marcar um chat com uma política de “não ler mídia”.
@@ -643,3 +526,100 @@ Permitir que alguns chats tenham uma regra explícita para não tentar extrair i
 Isso reduz ruído e processamento desnecessário em chats onde mídia não é útil, sem perder a conversa nem os eventos textuais importantes.
 
 ---
+
+## 40) Revisar ordenação real da lista de chats com inferência contextual
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R4 - Alto`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.63`
+
+**Descrição**  
+Revisar a forma como a lista de chats é ordenada para que a data/hora da última mensagem seja a fonte real de verdade, mesmo quando o WhatsApp Web não expõe um timestamp completo no HTML. O comportamento atual ainda pode se confundir quando mensagens antigas são crawladas depois de mensagens novas, porque a ordem de inserção e a ordem temporal real nem sempre coincidem. A nova regra precisa usar o timestamp exato quando existir e, quando ele não estiver disponível, inferir a data da mensagem usando os registros vizinhos do mesmo chat, a ordem real do crawling e os campos de hora já disponíveis.
+
+**Dependências**  
+- `Nenhuma`
+
+**Comportamento desejado**  
+- Priorizar o timestamp exato quando ele vier completo no HTML/metadado.
+- Quando só existir a hora, inferir a data usando mensagens anteriores e posteriores do mesmo chat.
+- Quando mensagens vizinhas concordarem na mesma data, usar essa data como base para a mensagem sem data completa.
+- Preservar a hora exata da mensagem quando ela existir, mesmo que a data precise ser inferida.
+- Evitar que mensagens crawladas depois apareçam na frente só por terem sido descobertas mais tarde.
+- Manter a ordenação visual e a ordenação interna do repositório alinhadas com a data derivada final.
+
+**Notas técnicas**  
+- A entidade de chat já guarda `listOrder`, mas a ordenação final não deve depender só da ordem em que os itens foram encontrados.
+- O algoritmo pode combinar `createDateAt`, a posição no crawl, o `messageId` e os timestamps dos itens vizinhos para derivar a melhor data possível.
+- Se a inferência ficar ambígua demais, o fallback deve preservar uma ordem estável e previsível, sem saltos bruscos entre sessões.
+- O resultado final precisa ser armazenado em formato ordenável, idealmente `ISO string`, para que sorting lexicográfico continue confiável.
+- Esse item substitui a antiga estratégia simplificada de metadados, porque agora a regra precisa ser mais robusta para mensagens de mídia, mensagens antigas e recrawls tardios.
+
+**Por que isso entra no backlog**  
+Sem essa inferência contextual, a lista continua vulnerável a reordenação errada quando o crawl encontra mensagens fora da sequência temporal ideal. Este item fecha essa lacuna com uma regra mais resistente ao comportamento real do WhatsApp Web.
+
+---
+
+## 41) Firebase observável com cache local sempre atualizado
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R4 - Alto`
+Risco da Feature: `R3 - Médio`
+Score de Execução: `0.53`
+
+**Descrição**  
+Garantir que os repositórios baseados em Firebase funcionem como observáveis de verdade, mantendo o cache local sempre sincronizado com o estado remoto. A ideia é que a aplicação não dependa apenas de leituras pontuais do Firebase, mas de listeners/observers sobre as collections para refletir imediatamente novas mensagens, alterações e deleções no cache local e na UI.
+
+**Dependências**  
+- `Nenhuma`
+
+**Comportamento desejado**  
+- Abrir listeners/observadores para as collections relevantes quando o profile ou o serviço iniciar.
+- Manter o cache local atualizado automaticamente com inserções, alterações e deleções.
+- Garantir que o estado observado sobreviva à navegação entre telas e perfis enquanto o service estiver ativo.
+- Usar o snapshot local como fonte de leitura rápida para a UI e para o runtime.
+- Evitar que o app precise “recarregar do zero” para perceber mudanças feitas por outro dispositivo ou por outra parte do sistema.
+
+**Notas técnicas**  
+- O Firebase já fornece sincronização local por snapshot listeners, então a implementação deve aproveitar isso em vez de reinventar polling.
+- A inicialização precisa registrar os observers no boot do profile, especialmente para settings, memórias, subjects e pendências operacionais.
+- O cache local precisa reagir bem a deleções, porque esse é o tipo de mudança que mais costuma deixar estado obsoleto se o listener não estiver bem amarrado.
+- Esse item é a peça que fecha a experiência multi-dispositivo depois da base de mobile/Firebase já estar disponível.
+
+**Por que isso entra no backlog**  
+Sem observação contínua das collections, o Firebase vira só uma camada de storage remoto e não uma fonte de verdade sincronizada em tempo real. Este item garante que a experiência fique realmente viva e consistente entre dispositivos.
+
+---
+
+## 42) `wait_for_event` com fontes de evento ampliadas
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R4 - Alto`
+Risco da Feature: `R3 - Médio`
+Score de Execução: `0.53`
+
+**Descrição**  
+Recriar o `wait_for_event` como uma ferramenta de orquestração realmente multi-fonte, capaz de aguardar e sinalizar diferentes tipos de eventos do runtime sem ficar restrito a chat pendente. O novo contrato precisa escutar eventos de mensagens de chat, respostas de `client voice`, eventos do sistema, pendências de assuntos, e também mudanças ligadas a `suspended` issues, inclusive quando o prazo de suspensão expirar e algo precisar acordar o assistente de novo.
+
+**Dependências**  
+- `Nenhuma`
+
+**Comportamento desejado**  
+- Escutar eventos de mensagens recebidas e pendências de chat.
+- Escutar eventos de `client voice`, incluindo respostas e novos pedidos do fluxo de voz.
+- Escutar eventos de sistema e eventos operacionais gerais.
+- Disparar wake events quando uma issue suspensa atingir o fim do prazo de suspensão.
+- Diferenciar o tipo de evento retornado para que o agente saiba se precisa ler mensagens, revisar voz, retomar issue ou apenas reiniciar o ciclo.
+- Manter o evento read only: aguardar e informar, mas não consumir pendências sozinho.
+
+**Notas técnicas**  
+- O resultado do wait precisa carregar um tipo de evento explícito, não só um rótulo genérico.
+- A implementação deve considerar `PendingWorkProvider`s, filas de eventos e timers/schedulers de suspensão como fontes legítimas.
+- O fluxo novo precisa conviver com o reinício de sessão e com os demais ciclos do runtime, sem perder o contexto do tipo de evento retornado.
+- `wait_for_event` deixa de ser só “tem chat não lido?” e passa a ser a borda de espera do runtime operacional.
+
+**Por que isso entra no backlog**  
+O comportamento antigo ficou estreito demais para o que o runtime precisa hoje. Esta nova versão fecha a lacuna de eventos do assistente e permite que ele acorde por mensagem, voz, sistema ou expiração de suspensão sem misturar tudo num único tipo genérico.
+
+---
+
