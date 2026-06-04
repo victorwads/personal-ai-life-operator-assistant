@@ -16,6 +16,7 @@ struct DSRuntimeStatusBadge: View {
         case stopping
         case idle
 
+        // TODO: set on ProfileRuntimeStatusItem
         init(statusLabel: String) {
             switch statusLabel.lowercased() {
             case "running":

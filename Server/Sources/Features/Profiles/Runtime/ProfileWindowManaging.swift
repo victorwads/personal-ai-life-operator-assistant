@@ -5,6 +5,7 @@ import SwiftUI
 protocol ProfileWindowManaging: AnyObject {
     func showProfileWindow(profile: Profile)
     func showFeatureWindow(profileId: String, request: FeatureWindowRequest)
+    func hideFeatureWindow(profileId: String, featureWindowId: String)
     func hideProfileWindow(profileId: String)
     func isProfileWindowVisible(profileId: String) -> Bool
 }

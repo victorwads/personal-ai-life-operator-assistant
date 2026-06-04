@@ -14,7 +14,7 @@ final class ProfileRuntimeRegistry: ObservableObject {
         Array(runtimesById.values)
     }
 
-    func upsertRuntime(for profile: Profile) -> ProfileRuntime? {
+    func upsertRuntime(for profile: Profile, windowManager: ProfileWindowManaging? = nil) -> ProfileRuntime? {
         guard let id = profile.id, !id.isEmpty else {
             return nil
         }
@@ -23,7 +23,10 @@ final class ProfileRuntimeRegistry: ObservableObject {
             return existing
         }
 
-        let runtime = ProfileRuntime(context: ProfileContext(profile: profile))
+        let runtime = ProfileRuntime(
+            context: ProfileContext(profile: profile),
+            windowManager: windowManager
+        )
         runtimesById[id] = runtime
         return runtime
     }

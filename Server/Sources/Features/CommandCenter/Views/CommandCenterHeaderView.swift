@@ -65,15 +65,14 @@ struct CommandCenterHeaderView: View {
         }
     }
 
+    // TODO: set on ProfileRuntimeStatusItem
     private func iconName(for actionTitle: String) -> String {
         switch actionTitle {
-        case "Play":
+        case "Set Present", "Start", "Play":
             return "play.fill"
         case "Pause":
             return "pause.fill"
-        case "Start":
-            return "play.fill"
-        case "Stop":
+        case "Set Absent", "Stop":
             return "stop.fill"
         default:
             return "questionmark"

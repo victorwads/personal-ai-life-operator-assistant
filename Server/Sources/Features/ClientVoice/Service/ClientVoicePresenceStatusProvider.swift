@@ -6,14 +6,14 @@ struct ClientVoicePresenceStatusProvider: ProfileRuntimeStatusProvider {
 
     func statusItems() -> [ProfileRuntimeStatusItem] {
         let isPresent = presenceService.isPresent
-        let actionTitle = isPresent ? "Pause" : "Play"
+        let actionTitle = isPresent ? "Set Absent" : "Set Present"
 
         return [
             ProfileRuntimeStatusItem(
                 id: "client.voice.presence",
-                title: "Client Voice",
-                stateLabel: isPresent ? "Running" : "Stopped",
-                detail: isPresent ? "Present" : "Absent",
+                title: "Client Presence",
+                stateLabel: isPresent ? "running" : "Absent",
+                detail: isPresent ? "Client is present" : "Client is absent",
                 actionTitle: actionTitle,
                 action: {
                     await togglePresence()

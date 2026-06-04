@@ -21,6 +21,9 @@ protocol ClientInteractionRequestRepository: AnyObject {
     func markSpeaking(
         id: String,
     ) async throws -> ClientInteractionRequest
+    func markWaitingUser(
+        id: String,
+    ) async throws -> ClientInteractionRequest
     func markCompleted(
         id: String,
     ) async throws -> ClientInteractionRequest
@@ -78,6 +81,16 @@ final class FirestoreClientInteractionRequestRepository: FirestoreRepository<Cli
                 status: .waitingAgent,
                 responseText: responseText,
             )
+        )
+        return try await existingRequest(id: id)
+    }
+
+    func markWaitingUser(
+        id: String,
+    ) async throws -> ClientInteractionRequest {
+        try await super.update(
+            id: id,
+            data: makeUpdateData(status: .waitingUser)
         )
         return try await existingRequest(id: id)
     }

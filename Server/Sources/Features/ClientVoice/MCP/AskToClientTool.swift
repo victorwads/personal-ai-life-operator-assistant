@@ -63,7 +63,7 @@ struct AskToClientTool: MCPToolDefinition {
         let updatedRequest = try await repository.getRequest(id: requestID)
         let responseText = updatedRequest.responseText?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard !responseText.isEmpty else {
-            return .string("error: the client response for request \(requestID) is missing after the wait ended.")
+            return .string("pending: question registered for the client. The client could not answer now. Continue autonomously if possible or wait for an event. You will be notified when the client responds.")
         }
 
         _ = try await repository.markCompleted(id: requestID)

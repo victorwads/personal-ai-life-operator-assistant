@@ -2,8 +2,12 @@ import SwiftUI
 
 struct ClientVoiceScreen: View {
     @StateObject private var viewModel: ClientVoiceScreenViewModel
+    private let openAnswerDialog: (ClientInteractionRequest) -> Void
 
     init(feature: ClientVoiceFeature) {
+        openAnswerDialog = { request in
+            feature.openAnswerDialog(for: request)
+        }
         _viewModel = StateObject(
             wrappedValue: ClientVoiceScreenViewModel(
                 repository: feature.repository
@@ -26,6 +30,7 @@ struct ClientVoiceScreen: View {
                 HStack(spacing: 8) {
                     DSBadge("Initialized", secondaryText: "\(viewModel.initializedRequests.count)", style: .info)
                     DSBadge("Speaking", secondaryText: "\(viewModel.speakingRequests.count)", style: .warning)
+                    DSBadge("Waiting User", secondaryText: "\(viewModel.waitingUserRequests.count)", style: .warning)
                     DSBadge("Waiting Agent", secondaryText: "\(viewModel.waitingAgentRequests.count)", style: .warning)
                     DSBadge("History", secondaryText: "\(viewModel.historyRequests.count)", style: .neutral)
                 }
@@ -65,6 +70,14 @@ struct ClientVoiceScreen: View {
                                     title: "Answered / Waiting Agent",
                                     subtitle: "The client already answered and the agent can now consume the response.",
                                     requests: viewModel.waitingAgentRequests
+                                )
+                            }
+
+                            if !viewModel.waitingUserRequests.isEmpty {
+                                requestSection(
+                                    title: "Waiting User",
+                                    subtitle: "Questions already spoken and waiting for the client response.",
+                                    requests: viewModel.waitingUserRequests
                                 )
                             }
 
@@ -154,10 +167,12 @@ struct ClientVoiceScreen: View {
                 }
 
 
-                if request.kind == .ask, request.status == .initialized {
-                    initializedAskComposer(for: request)
-                } else if request.kind == .speak, request.status == .initialized {
+                if request.kind == .speak, request.status == .initialized {
                     initializedSpeakActions(for: request)
+                }
+
+                if canAnswerAsk(request) {
+                    answerAskActions(for: request)
                 }
 
                 if let responseText = trimmed(request.responseText) {
@@ -180,36 +195,6 @@ struct ClientVoiceScreen: View {
         }
     }
 
-    private func initializedAskComposer(for request: ClientInteractionRequest) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Manual Response")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-
-            HStack(alignment: .top, spacing: 8) {
-                TextField(
-                    "Type the client response and press Enter",
-                    text: viewModel.bindingForResponseDraft(requestID: request.id)
-                )
-                .textFieldStyle(.roundedBorder)
-                .onSubmit {
-                    viewModel.submitResponse(for: request)
-                }
-
-                Button("Submit") {
-                    viewModel.submitResponse(for: request)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(!viewModel.canSubmitResponse(for: request))
-            }
-
-            if let submissionError = viewModel.submissionError(for: request.id) {
-                Text(submissionError)
-                    .foregroundStyle(.red)
-            }
-        }
-    }
-
     private func initializedSpeakActions(for request: ClientInteractionRequest) -> some View {
         HStack(spacing: 8) {
             Button("Mark as completed/read") {
@@ -225,12 +210,29 @@ struct ClientVoiceScreen: View {
         }
     }
 
+    private func answerAskActions(for request: ClientInteractionRequest) -> some View {
+        HStack(spacing: 8) {
+            Button("Responder") {
+                openAnswerDialog(request)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(request.id == nil)
+
+            if request.status == .speaking {
+                Text("This question may have been left open in a previous dialog.")
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     private func sectionIcon(for title: String) -> String {
         switch title {
         case "Initialized":
             return "clock.badge.exclamationmark"
         case "Speaking":
             return "speaker.wave.2"
+        case "Waiting User":
+            return "person.crop.circle.badge.questionmark"
         case "Answered / Waiting Agent":
             return "bubble.left.and.text.bubble.right"
         default:
@@ -244,6 +246,8 @@ struct ClientVoiceScreen: View {
             return "initialized"
         case .speaking:
             return "speaking"
+        case .waitingUser:
+            return "waiting user"
         case .waitingAgent:
             return "answered / waiting agent"
         case .completed:
@@ -257,9 +261,7 @@ struct ClientVoiceScreen: View {
         switch status {
         case .initialized:
             return .info
-        case .speaking:
-            return .warning
-        case .waitingAgent:
+        case .speaking, .waitingAgent, .waitingUser:
             return .warning
         case .completed:
             return .success
@@ -292,5 +294,9 @@ struct ClientVoiceScreen: View {
     private func nonEmpty(_ value: String, fallback: String) -> String {
         let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedValue.isEmpty ? fallback : value
+    }
+
+    private func canAnswerAsk(_ request: ClientInteractionRequest) -> Bool {
+        request.kind == .ask && [.speaking, .waitingUser].contains(request.status)
     }
 }

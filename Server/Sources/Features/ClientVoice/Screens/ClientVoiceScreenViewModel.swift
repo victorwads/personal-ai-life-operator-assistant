@@ -18,6 +18,10 @@ final class ClientVoiceScreenViewModel: ObservableObject {
         requests.filter { $0.status == .speaking }
     }
 
+    var waitingUserRequests: [ClientInteractionRequest] {
+        requests.filter { $0.status == .waitingUser }
+    }
+
     var historyRequests: [ClientInteractionRequest] {
         requests.filter { [.completed, .cancelled].contains($0.status) }
     }
@@ -25,7 +29,6 @@ final class ClientVoiceScreenViewModel: ObservableObject {
     private let repository: ClientInteractionRequestRepository
     private var listenerToken: FirestoreListenerToken?
     private var hasLoaded = false
-    @Published private var responseDrafts: [String: String] = [:]
     @Published private var submissionErrors: [String: String] = [:]
     @Published private var submittingRequestIDs: Set<String> = []
     @Published private(set) var speakingRequestID: String? = nil
@@ -61,29 +64,6 @@ final class ClientVoiceScreenViewModel: ObservableObject {
         }
     }
 
-    func bindingForResponseDraft(requestID: String?) -> Binding<String> {
-        Binding(
-            get: {
-                guard let requestID else { return "" }
-                return self.responseDrafts[requestID] ?? ""
-            },
-            set: { newValue in
-                guard let requestID else { return }
-                self.responseDrafts[requestID] = newValue
-                self.submissionErrors[requestID] = nil
-            }
-        )
-    }
-
-    func canSubmitResponse(for request: ClientInteractionRequest) -> Bool {
-        guard request.status == .initialized, request.kind == .ask, let requestID = request.id else {
-            return false
-        }
-
-        let draft = responseDrafts[requestID]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return !draft.isEmpty && !submittingRequestIDs.contains(requestID)
-    }
-
     func submissionError(for requestID: String?) -> String? {
         guard let requestID else { return "This request cannot be updated because it has no saved id yet." }
         return submissionErrors[requestID]
@@ -92,40 +72,6 @@ final class ClientVoiceScreenViewModel: ObservableObject {
     func isSubmitting(requestID: String?) -> Bool {
         guard let requestID else { return false }
         return submittingRequestIDs.contains(requestID)
-    }
-
-    func submitResponse(for request: ClientInteractionRequest) {
-        guard request.status == .initialized, request.kind == .ask else { return }
-        guard let requestID = request.id else { return }
-
-        let responseText = responseDrafts[requestID]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        guard !responseText.isEmpty else {
-            submissionErrors[requestID] = "Enter a response before submitting."
-            return
-        }
-
-        submittingRequestIDs.insert(requestID)
-        submissionErrors[requestID] = nil
-
-        Task {
-            do {
-                _ = try await repository.markWaitingAgent(
-                    id: requestID,
-                    responseText: responseText,
-                )
-
-                await MainActor.run {
-                    self.responseDrafts[requestID] = nil
-                    self.submissionErrors[requestID] = nil
-                    self.submittingRequestIDs.remove(requestID)
-                }
-            } catch {
-                await MainActor.run {
-                    self.submissionErrors[requestID] = error.localizedDescription
-                    self.submittingRequestIDs.remove(requestID)
-                }
-            }
-        }
     }
 
     func markSpeakCompleted(_ request: ClientInteractionRequest) {

@@ -6,6 +6,7 @@ public final class AppWindowController: NSWindowController, NSWindowDelegate {
     private let windowId: String
     private let visibilityTracker: WindowVisibilityTracker
     private let onVisibilityChange: () -> Void
+    private let onClose: (() -> Void)?
 
     init(
         request: AppWindowRequest,
@@ -15,6 +16,7 @@ public final class AppWindowController: NSWindowController, NSWindowDelegate {
         windowId = request.id
         self.visibilityTracker = visibilityTracker
         self.onVisibilityChange = onVisibilityChange
+        self.onClose = request.onClose
 
         let hostingController = NSHostingController(rootView: request.rootView)
         let window = NSWindow(contentViewController: hostingController)
@@ -31,6 +33,7 @@ public final class AppWindowController: NSWindowController, NSWindowDelegate {
     required init?(coder: NSCoder) { nil }
 
     public func windowShouldClose(_ sender: NSWindow) -> Bool {
+        onClose?()
         sender.orderOut(nil)
         visibilityTracker.setVisible(false, windowId: windowId)
         onVisibilityChange()

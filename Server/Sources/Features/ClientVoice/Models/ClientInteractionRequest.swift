@@ -9,6 +9,7 @@ struct ClientInteractionRequest: PersistableModel, Equatable, Sendable {
     enum Status: String, Codable, Sendable {
         case initialized
         case speaking
+        case waitingUser // Already spoked
         case waitingAgent
         case completed
         case cancelled

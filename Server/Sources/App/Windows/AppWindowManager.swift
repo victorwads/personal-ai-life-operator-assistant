@@ -131,9 +131,15 @@ public final class AppWindowManager: ObservableObject, ProfileWindowManaging {
             AppWindowRequest(
                 id: windowId,
                 title: request.title,
-                rootView: request.rootView
+                rootView: request.rootView,
+                size: request.size,
+                onClose: request.onClose
             )
         )
+    }
+
+    func hideFeatureWindow(profileId: String, featureWindowId requestId: String) {
+        hideWindow(id: featureWindowId(profileId: profileId, featureWindowId: requestId))
     }
 
     public func isProfileWindowVisible(profileId: String) -> Bool {

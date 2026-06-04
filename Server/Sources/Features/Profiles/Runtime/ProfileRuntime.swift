@@ -3,14 +3,16 @@ import Foundation
 @MainActor
 final class ProfileRuntime: ObservableObject {
     let context: ProfileContext
+    private weak var windowManager: ProfileWindowManaging?
 
     @Published private(set) var state: ProfileRuntimeState = .stopped
     @Published private(set) var windowState: ProfileWindowState = .hidden
 
     private(set) var container: ProfileRuntimeContainer?
 
-    init(context: ProfileContext) {
+    init(context: ProfileContext, windowManager: ProfileWindowManaging? = nil) {
         self.context = context
+        self.windowManager = windowManager
     }
 
     @discardableResult
@@ -20,7 +22,7 @@ final class ProfileRuntime: ObservableObject {
             return container
         }
 
-        let container = try ProfileRuntimeContainer(context: context)
+        let container = try ProfileRuntimeContainer(context: context, windowManager: windowManager)
         try await container.startSettings()
         self.container = container
         return container
@@ -50,8 +52,9 @@ final class ProfileRuntime: ObservableObject {
     }
 
     func openWindow(using windowManager: ProfileWindowManaging?) async throws {
+        self.windowManager = windowManager ?? self.windowManager
         try await ensureContainer()
-        windowManager?.showProfileWindow(profile: context.profile)
+        (windowManager ?? self.windowManager)?.showProfileWindow(profile: context.profile)
         windowState = .visible
     }
 
@@ -59,19 +62,21 @@ final class ProfileRuntime: ObservableObject {
         issueId: String,
         using windowManager: ProfileWindowManaging?
     ) async throws {
+        self.windowManager = windowManager ?? self.windowManager
         let container = try await ensureContainer()
         let issuesFeature = container.appFeatures.feature(IssuesFeature.self)
         let request = try await issuesFeature.makeIssueDetailWindowRequest(issueId: issueId)
 
-        windowManager?.showFeatureWindow(
+        (windowManager ?? self.windowManager)?.showFeatureWindow(
             profileId: context.profileId,
             request: request
         )
     }
 
     func hideWindow(using windowManager: ProfileWindowManaging?) {
+        self.windowManager = windowManager ?? self.windowManager
         guard let profileId = context.profile.id else { return }
-        windowManager?.hideProfileWindow(profileId: profileId)
+        (windowManager ?? self.windowManager)?.hideProfileWindow(profileId: profileId)
         windowState = .hidden
     }
 

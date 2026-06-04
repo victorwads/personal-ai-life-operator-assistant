@@ -33,7 +33,7 @@ final class ProfileRuntimeController: ObservableObject {
     }
 
     func startProfile(_ profile: Profile) async {
-        guard let runtime = registry.upsertRuntime(for: profile) else {
+        guard let runtime = registry.upsertRuntime(for: profile, windowManager: windowManager) else {
             return
         }
         do {
@@ -56,7 +56,7 @@ final class ProfileRuntimeController: ObservableObject {
             return
         }
 
-        guard let runtime = registry.upsertRuntime(for: profile) else {
+        guard let runtime = registry.upsertRuntime(for: profile, windowManager: windowManager) else {
             return
         }
 

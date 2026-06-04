@@ -15,7 +15,7 @@ final class ProfileRuntimeContainer {
 
     let appFeatures: AppFeatures
 
-    init(context: ProfileContext) throws {
+    init(context: ProfileContext, windowManager: ProfileWindowManaging?) throws {
         guard let scope = context.scope else {
             throw ProfileRuntimeContainerError.missingProfileScope
         }
@@ -36,6 +36,14 @@ final class ProfileRuntimeContainer {
             mcp: MCPContext(toolRegistry: mcpToolRegistry),
             services: FeatureServicesContext(serviceRegistry: serviceRegistry),
             status: FeatureStatusContext(statusRegistry: statusRegistry),
+            featureWindows: FeatureWindowsContext(
+                show: { request in
+                    windowManager?.showFeatureWindow(profileId: context.profileId, request: request)
+                },
+                hide: { featureWindowId in
+                    windowManager?.hideFeatureWindow(profileId: context.profileId, featureWindowId: featureWindowId)
+                }
+            ),
             sharedLocks: sharedLocks,
             featureResolver: featureResolver
         )

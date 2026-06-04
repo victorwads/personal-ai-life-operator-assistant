@@ -500,14 +500,12 @@ struct IssueDetailScreen: View {
         switch status {
         case .initialized:
             return .info
-        case .waitingAgent:
+        case .speaking, .waitingUser, .waitingAgent:
             return .warning
         case .completed:
             return .success
         case .cancelled:
             return .danger
-        case .speaking:
-            return .warning
         }
     }
 }

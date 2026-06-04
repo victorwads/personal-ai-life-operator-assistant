@@ -12,6 +12,7 @@ final class ListenHandler: @unchecked Sendable {
     // State
     private var currentBestText: String = ""
     private var isFinished = false
+    private var isEndingForFinalResult = false
     private var continuation: CheckedContinuation<String, Never>?
 
     // Timing & Debounce
@@ -64,6 +65,7 @@ final class ListenHandler: @unchecked Sendable {
         lock.lock()
         let shouldResume = !isFinished
         isFinished = true
+        isEndingForFinalResult = false
         let cont = continuation
         continuation = nil
         debounceTask?.cancel()
@@ -143,6 +145,7 @@ final class ListenHandler: @unchecked Sendable {
                 }
                 currentBestText = text
                 let partial = partialCallback
+                let shouldDebounce = !isEndingForFinalResult
                 lock.unlock()
 
                 if let partial = partial {
@@ -151,30 +154,48 @@ final class ListenHandler: @unchecked Sendable {
                     }
                 }
 
-                resetDebounceTimer()
+                if shouldDebounce {
+                    resetDebounceTimer()
+                }
+            }
+        }
+
+        let isFinalResult = result?.isFinal == true
+        if isFinalResult {
+            lock.lock()
+            let shouldFinishWithFinalResult = isEndingForFinalResult && !isFinished
+            lock.unlock()
+
+            if shouldFinishWithFinalResult {
+                finishRecognition(with: snapshotCurrentText())
+                return
             }
         }
 
         if let error = error {
             lock.lock()
             let currentFinished = isFinished
+            let endingForFinalResult = isEndingForFinalResult
             lock.unlock()
 
             if !currentFinished {
                 print("[SpeechListener] Recognition error encountered: \(error)")
                 let nsError = error as NSError
-                if isTransientError(nsError) {
+                if endingForFinalResult {
+                    print("[SpeechListener] Ignoring recognition error while waiting for native final result.")
+                } else if isTransientError(nsError) {
                     restartRecognitionTask()
                 } else {
                     handleFatalError(error)
                 }
             }
-        } else if result?.isFinal == true {
+        } else if isFinalResult {
             lock.lock()
             let currentFinished = isFinished
+            let endingForFinalResult = isEndingForFinalResult
             lock.unlock()
 
-            if !currentFinished {
+            if !currentFinished && !endingForFinalResult {
                 // If Apple Speech session ends normally (usually 1-minute timeout), restart to continue listening
                 restartRecognitionTask()
             }
@@ -205,31 +226,30 @@ final class ListenHandler: @unchecked Sendable {
 
     private func debounceFired() {
         lock.lock()
-        guard !isFinished else {
+        guard !isFinished, !isEndingForFinalResult else {
             lock.unlock()
             return
         }
 
         let text = currentBestText
         if !text.isEmpty {
-            isFinished = true
-            let cont = continuation
-            continuation = nil
-            let finalCb = finalCallback
+            isEndingForFinalResult = true
+            debounceTask?.cancel()
+            debounceTask = nil
             lock.unlock()
 
-            stopAudioAndRecognition()
-
-            if let finalCb = finalCb {
-                Task { @MainActor in
-                    finalCb(text)
-                }
-            }
-
-            cont?.resume(returning: text)
+            requestFinalResultAfterSilence()
         } else {
             lock.unlock()
         }
+    }
+
+    private func requestFinalResultAfterSilence() {
+        if audioEngine.isRunning {
+            audioEngine.stop()
+        }
+        audioEngine.inputNode.removeTap(onBus: 0)
+        recognitionRequest?.endAudio()
     }
 
     private func isTransientError(_ error: NSError) -> Bool {
@@ -280,5 +300,39 @@ final class ListenHandler: @unchecked Sendable {
         stopAudioAndRecognition()
 
         cont?.resume(returning: text)
+    }
+
+    private func finishRecognition(with text: String) {
+        lock.lock()
+        guard !isFinished else {
+            lock.unlock()
+            return
+        }
+
+        isFinished = true
+        isEndingForFinalResult = false
+        let cont = continuation
+        continuation = nil
+        debounceTask?.cancel()
+        debounceTask = nil
+        let finalCb = finalCallback
+        lock.unlock()
+
+        stopAudioAndRecognition()
+
+        if let finalCb = finalCb {
+            Task { @MainActor in
+                finalCb(text)
+            }
+        }
+
+        cont?.resume(returning: text)
+    }
+
+    private func snapshotCurrentText() -> String {
+        lock.lock()
+        let text = currentBestText
+        lock.unlock()
+        return text
     }
 }

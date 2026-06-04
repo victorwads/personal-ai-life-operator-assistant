@@ -7,6 +7,7 @@ struct FeatureContext {
     let mcp: MCPContext
     let services: FeatureServicesContext
     let status: FeatureStatusContext
+    let featureWindows: FeatureWindowsContext
     let sharedLocks: SharedLockRegistry
     let featureResolver: FeatureResolverBox
 

@@ -45,13 +45,6 @@ final class MCPServersFeature: FeatureRuntime {
         )
 
         context.services.serviceRegistry.register(service)
-
-        context.status.statusRegistry.register(
-            MCPServerRuntimeStatusProvider(
-                service: service,
-                port: context.profileContext.mcpPort
-            )
-        )
     }
 
     override func onStartServices() async {
