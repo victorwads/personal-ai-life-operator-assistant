@@ -3,12 +3,15 @@ import Foundation
 struct AIConnectionConversationContextBuilder {
     func bootstrapConversationMessages(
         systemPrompt: String,
-        userPrompt: String
+        userPrompt: String,
+        bootstrapMessage: AIConversationMessage? = nil
     ) -> [AIConversationMessage] {
-        [
-            AIConversationMessage(role: .system, content: systemPrompt),
-            AIConversationMessage(role: .user, content: userPrompt)
-        ]
+        var messages = [AIConversationMessage(role: .system, content: systemPrompt)]
+        if let bootstrapMessage {
+            messages.append(bootstrapMessage)
+        }
+        messages.append(AIConversationMessage(role: .user, content: userPrompt))
+        return messages
     }
 
     func assistantConversationMessage(

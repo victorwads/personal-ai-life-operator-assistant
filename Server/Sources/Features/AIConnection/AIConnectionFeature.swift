@@ -17,9 +17,15 @@ final class AIConnectionFeature: FeatureRuntime {
         self.errorLogStore = errorLogStore
         let settings = AIConnectionSettingsWrapper(settings: context.settings.store)
         self.settings = settings
+        let assistantNameSettings = SentMessagesSettingsWrapper(settings: context.settings.store)
         self.serverLogsProvider = {
             context.feature(ServerLogsFeature.self).service
         }
+        let memoryBootstrapBridge = AIConnectionMemoryBootstrapBridge(
+            featureProvider: {
+                context.feature(MemoriesFeature.self)
+            }
+        )
 
         let streamingService = AIConnectionStreamingService(
             settingsProvider: {
@@ -48,11 +54,21 @@ final class AIConnectionFeature: FeatureRuntime {
         self.streamingService = streamingService
         self.runtimeService = AIConnectionRuntimeService(
             streamingService: streamingService,
+            memoryBootstrapProvider: {
+                await memoryBootstrapBridge.bootstrapMessage()
+            },
+            systemPromptProvider: {
+                AIConnectionRuntimeDefaults.systemPrompt(
+                    assistantName: assistantNameSettings.assistantName
+                )
+            },
             errorLogStore: errorLogStore,
             serverLogsProvider: serverLogsProvider
         )
 
         super.init(context: context)
+
+        runtimeService.refreshSystemPrompt()
 
         context.settings.sectionRegistry.register(
             AIConnectionSettingsSectionProvider(wrapper: settings)

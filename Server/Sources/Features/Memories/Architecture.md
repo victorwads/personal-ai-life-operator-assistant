@@ -20,6 +20,6 @@ No custom persistence behavior exists yet. Generic CRUD from `FirestoreRepositor
 
 ## Surfaces
 
-MCP tools are the assistant-facing API for creating, reading, searching, listing, and deleting memories.
+MCP tools are the assistant-facing API for creating and deleting memories.
 
 The Command Center Memories screen is the user-facing UI. It renders the current profile's memories with shared UI components and does not own persistence rules.

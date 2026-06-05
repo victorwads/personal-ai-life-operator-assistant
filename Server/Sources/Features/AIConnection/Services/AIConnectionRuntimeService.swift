@@ -7,6 +7,8 @@ final class AIConnectionRuntimeService: ObservableObject {
     private let streamingService: any AIConnectionStreamingServing
     private let requestBuilder: AIConnectionRequestBuilder
     private let conversationBuilder: AIConnectionConversationContextBuilder
+    private let memoryBootstrapProvider: @MainActor () async -> AIConversationMessage?
+    private let systemPromptProvider: @MainActor () -> String
     private let usageTracker: AIConnectionUsageTracker
     private let debugRecorder: AIConnectionRuntimeDebugRecorder
     private let toolCallTracker: AIConnectionToolCallTracker
@@ -24,6 +26,8 @@ final class AIConnectionRuntimeService: ObservableObject {
 
     init(
         streamingService: any AIConnectionStreamingServing,
+        memoryBootstrapProvider: @escaping @MainActor () async -> AIConversationMessage? = { nil },
+        systemPromptProvider: @escaping @MainActor () -> String = { AIConnectionRuntimeDefaults.baseSystemPrompt },
         errorLogStore: AIConnectionErrorLogStore = AIConnectionErrorLogStore(),
         serverLogsProvider: @escaping @MainActor () -> ServerLogsService = {
             AIConnectionRuntimeService.defaultServerLogsService
@@ -32,6 +36,8 @@ final class AIConnectionRuntimeService: ObservableObject {
         self.streamingService = streamingService
         self.requestBuilder = AIConnectionRequestBuilder()
         self.conversationBuilder = AIConnectionConversationContextBuilder()
+        self.memoryBootstrapProvider = memoryBootstrapProvider
+        self.systemPromptProvider = systemPromptProvider
         self.usageTracker = AIConnectionUsageTracker()
         self.debugRecorder = AIConnectionRuntimeDebugRecorder(maxEvents: 200)
         self.toolCallTracker = AIConnectionToolCallTracker()
@@ -45,7 +51,11 @@ final class AIConnectionRuntimeService: ObservableObject {
             debugRecorder: debugRecorder,
             runtimeLogger: runtimeLogger
         )
-        self.state = .initial(systemPrompt: AIConnectionRuntimeDefaults.systemPrompt)
+        self.state = .initial(systemPrompt: AIConnectionRuntimeDefaults.baseSystemPrompt)
+    }
+
+    func refreshSystemPrompt() {
+        state.systemPrompt = systemPromptProvider()
     }
 
     func loadTools() async {
@@ -95,7 +105,7 @@ final class AIConnectionRuntimeService: ObservableObject {
         currentRequestLogContext = nil
         toolCallTracker.reset()
         state = .initial(
-            systemPrompt: AIConnectionRuntimeDefaults.systemPrompt,
+            systemPrompt: systemPromptProvider(),
             availableToolDefinitions: state.availableToolDefinitions
         )
     }
@@ -205,10 +215,12 @@ final class AIConnectionRuntimeService: ObservableObject {
     }
 
     private func runSingleCycle(cycleNumber: Int) async throws -> AIConnectionCycleOutcome {
+        let bootstrapMessage = await memoryBootstrapProvider()
         var conversationMessages = await MainActor.run {
             conversationBuilder.bootstrapConversationMessages(
                 systemPrompt: state.systemPrompt,
-                userPrompt: state.userPrompt
+                userPrompt: state.userPrompt,
+                bootstrapMessage: bootstrapMessage
             )
         }
         var requestIndex = 0
@@ -305,7 +317,7 @@ final class AIConnectionRuntimeService: ObservableObject {
         state.runId = runId
         state.startedAt = runStartedAt
         state.endedAt = nil
-        state.systemPrompt = AIConnectionRuntimeDefaults.systemPrompt
+        state.systemPrompt = systemPromptProvider()
         state.userPrompt = userPrompt
         state.assistantText = ""
         state.reasoningText = ""

@@ -24,7 +24,6 @@ final class SentMessagesFeature: FeatureRuntime {
         )
 
         context.mcp.toolRegistry.register([
-            GetAssistantNameTool(settings: settings),
             SendMessageTool(
                 repository: repository,
                 chatRepositoryProvider: {

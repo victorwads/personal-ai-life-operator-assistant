@@ -12,9 +12,14 @@ This folder owns AI provider configuration, provider clients, and the app-side s
 - provider-neutral request/response models
 - app-side services that call AI providers directly
 - feature-local bridges that adapt AI tool calling to existing runtime APIs
+- feature-local bootstrap of durable memories into each fresh AI session
 
 `AIConnection` does not require the MCP HTTP server.
 Provider calls happen directly from the app through provider HTTP APIs.
+Durable memories are injected at session start through the AIConnection runtime
+bridge rather than being fetched from the operational prompt flow.
+The memory bootstrap is a single optional plain-text system message with a
+readable sectioned layout, not a JSON payload.
 
 ## MCP boundary
 

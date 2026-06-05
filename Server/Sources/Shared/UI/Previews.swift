@@ -217,10 +217,15 @@ struct SharedUIPreviews: View {
         previewSection("Code Blocks") {
             DSCodeBlock(
                 """
-                {
-                  "tool": "list_memories",
-                  "limit": 5
-                }
+                # Client memories
+
+                ## key: client_language
+                pt-BR
+
+                ---
+
+                ## key: client_identity
+                Victor
                 """
             )
             .frame(height: 96)

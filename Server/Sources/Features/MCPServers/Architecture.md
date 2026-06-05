@@ -101,7 +101,6 @@ The current tool groups are:
 ### Sent Messages tools
 
 - `send_message`
-- `get_assistant_name`
 
 ### Client voice tools
 
@@ -111,9 +110,6 @@ The current tool groups are:
 ### Memory tools
 
 - `create_memory`
-- `get_memory`
-- `search_memories`
-- `list_memories`
 - `delete_memory`
 
 ### Sensitive data tools
@@ -141,7 +137,6 @@ The current tool groups are:
 ## Ownership updates
 
 - `get_current_datetime` is the only date/time utility owned by `MCPServersFeature`.
-- `get_assistant_name` is owned and registered by `SentMessagesFeature`.
 - `send_message` is owned and registered by `SentMessagesFeature`.
 - `wait_for_event` is deferred runtime/orchestration work and is not registered by `ChatsFeature`.
 - `send_message` is owned and registered by `SentMessagesFeature`, executed through the shared MCP validator pipeline, and backed by SentMessages audit plus WhatsAppCrawling transport.

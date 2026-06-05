@@ -59,6 +59,50 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
         }
     }
 
+    func testBootstrapsMemoriesBeforeUserPrompt() async throws {
+        let bootstrapMessage = AIConversationMessage(
+            role: .system,
+            content: """
+            # Client memories
+
+            ## key: client_language
+            pt-BR
+            """
+        )
+        let streamingService = FakeAIConnectionStreamingService(
+            streamPlans: [
+                .waitUntilCancelled
+            ]
+        )
+        let service = AIConnectionRuntimeService(
+            streamingService: streamingService,
+            memoryBootstrapProvider: { [bootstrapMessage] in bootstrapMessage }
+        )
+
+        service.startRun(userPrompt: "start your job")
+
+        try await waitUntil {
+            streamingService.recordedRequestCount() >= 1
+        }
+
+        let recordedRequests = streamingService.recordedRequestsSnapshot()
+        XCTAssertEqual(recordedRequests.count, 1)
+        XCTAssertEqual(recordedRequests[0].messages.count, 3)
+        XCTAssertEqual(recordedRequests[0].messages[0].role, .system)
+        XCTAssertEqual(recordedRequests[0].messages[1].role, .system)
+        XCTAssertTrue(recordedRequests[0].messages[1].content?.contains("# Client memories") == true)
+        XCTAssertTrue(recordedRequests[0].messages[1].content?.contains("## key: client_language") == true)
+        XCTAssertTrue(recordedRequests[0].messages[1].content?.contains("pt-BR") == true)
+        XCTAssertEqual(recordedRequests[0].messages[2].role, .user)
+        XCTAssertEqual(recordedRequests[0].messages[2].content, "start your job")
+
+        service.cancelRun()
+
+        try await waitUntil {
+            service.state.status == .cancelled
+        }
+    }
+
     func testPlainAssistantTextAppendsCorrectionAndRetriesInSameContext() async throws {
         let speakToolCall = AIRequestedToolCall(
             id: "tool-speak",

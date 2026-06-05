@@ -17,9 +17,6 @@ final class MemoriesFeature: FeatureRuntime {
 
         context.mcp.toolRegistry.register([
             CreateMemoryTool(repository: repository),
-            GetMemoryTool(repository: repository),
-            ListMemoriesTool(repository: repository),
-            SearchMemoriesTool(repository: repository),
             DeleteMemoryTool(repository: repository)
         ])
     }

@@ -8,13 +8,6 @@ enum MemoryMCPToolSupport {
             "value": .string(memory.value)
         ])
     }
-
-    static func memoryList(_ memories: [Memory]) -> MCPJSONValue {
-        .object([
-            "count": .integer(memories.count),
-            "memories": .array(memories.map(memoryObject))
-        ])
-    }
 }
 
 enum MemoryMCPToolError: Error, MCPServerErrorProviding {
