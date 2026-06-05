@@ -780,37 +780,6 @@ Isso devolve ao usuário controle operacional real sobre `Issues`, permitindo co
 
 ---
 
-## 46) CRUD manual de memories na tela desktop
-
-Valor: `V3 - Médio`
-Risco de Desenvolvimento: `R3 - Médio`
-Risco da Feature: `R1 - Baixíssimo`
-Score de Execução: `0.50`
-
-**Descrição**  
-Transformar a tela de `Memories` em uma superfície operacional de verdade, não só em uma visualização passiva. Hoje ela apenas lista `key` e `value`, então faltam ações para criar uma memory manualmente, editar uma memory existente e deletar uma memory sem depender exclusivamente das MCP tools. Esse item vale principalmente para a versão desktop, onde faz sentido o usuário administrar o próprio contexto durável com mais liberdade.
-
-**Dependências**  
-- `37) Memórias categorizadas e `list_memories` filtrável`
-
-**Comportamento desejado**  
-- Adicionar um formulário ou botão para criar novas memories diretamente na tela.
-- Permitir edição inline ou por double-click no valor da memory.
-- Permitir salvar a edição com Enter ou com uma ação explícita de confirmação.
-- Adicionar ação de exclusão por memory.
-- Manter a lista sempre visível e útil como painel de gestão do contexto permanente.
-
-**Notas técnicas**  
-- O item deve respeitar o modelo simples atual de `Memory` (`key` e `value`), sem exigir uma estrutura nova para começar.
-- A edição pode ser inline com `TextField` ou `TextEditor`, desde que fique clara e rápida de usar.
-- A criação e a exclusão devem seguir o mesmo repositório e regras da feature, sem criar um armazenamento paralelo.
-- Esse comportamento é especialmente adequado ao desktop; no app mobile a experiência pode continuar mais restrita depois.
-
-**Por que isso entra no backlog**  
-Isso devolve autonomia ao usuário para manter seu próprio contexto assistente, criando, corrigindo e removendo memórias sem depender só da IA ou de ferramentas externas.
-
----
-
 ## 47) Bootstrapping de memories fora do prompt de tool calling
 
 Valor: `V4 - Alto`
@@ -1087,3 +1056,34 @@ Investigar e corrigir o fluxo de extração de imagens das mensagens do WhatsApp
 
 **Por que isso entra no backlog**  
 Imagem borrada ou em baixa resolução prejudica tanto a leitura humana quanto qualquer fluxo futuro que dependa de mídia correta, então vale corrigir isso na base.
+
+---
+
+## 56) Incluir imagens no contexto de IA durante o tool calling
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R4 - Alto`
+Risco da Feature: `R4 - Alto`
+Score de Execução: `0.48`
+
+**Descrição**  
+Adicionar suporte real para que mensagens com imagem entrem no contexto do modelo de IA durante o fluxo de tool calling. Hoje os modelos usados já aceitam visão, mas o runtime ainda não deixa claro como a imagem deve ser enviada para a IA quando a mensagem do WhatsApp vem com mídia. O objetivo deste item é descobrir e implementar a forma correta de incluir a imagem no contexto da request, seja enviando o asset diretamente para o modelo, seja convertendo a mídia em uma representação textual/estruturada que o modelo consiga consumir sem perder a informação visual.
+
+**Dependências**  
+- `55) Extrair imagem em alta resolução na mensagem`
+
+**Comportamento desejado**  
+- Incluir imagens relevantes no contexto quando a mensagem do WhatsApp vier com mídia visual.
+- Definir se o fluxo vai usar imagem bruta, asset multimodal ou uma descrição textual gerada antes da chamada ao modelo.
+- Garantir que o modelo receba a mídia certa junto da mensagem certa, sem confundir o contexto textual com o visual.
+- Cobrir o caso de mensagens com imagem antes de ativar qualquer lógica automática de interpretação visual.
+- Validar o comportamento com exemplos reais do WhatsApp para evitar perda da informação visual.
+
+**Notas técnicas**  
+- O primeiro passo é investigar a capacidade real do pipeline atual de IA para receber multimodalidade no formato que a codebase já usa.
+- Se o modelo não puder receber imagem diretamente no ponto atual do tool calling, a alternativa pode ser gerar uma descrição/metadata estruturada e anexar isso à request.
+- Esse item precisa esclarecer a fronteira entre `Chats`, `WhatsAppCrawling` e `AIConnection`, para não misturar extração de mídia com transporte da request.
+- Como há risco de duplicar payload ou de enviar a imagem errada para o contexto errado, vale implementar com bastante cobertura de teste e exemplos reais.
+
+**Por que isso entra no backlog**  
+Isso habilita o assistente a realmente “ver” o que chegou no WhatsApp, o que é uma base importante para responder melhor a mensagens que dependem de mídia e não só de texto.
