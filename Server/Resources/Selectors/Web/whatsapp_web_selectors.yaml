@@ -95,7 +95,9 @@ web:
         selector: '[role="row"]'
         extract:
           sent:
-            selector: '.message-out'
+            selectors:
+              - '.message-out'
+              - '[data-testid="tail-out"]'
             type: boolean
 
           messageId:
