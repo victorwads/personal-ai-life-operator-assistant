@@ -17,21 +17,11 @@ struct PreviewSection<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.title3.weight(.semibold))
-
-                if let subtitle {
-                    Text(subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-
-            DSCard {
-                content
-            }
+            DSFeatureHeader(
+                title: title,
+                subtitle: subtitle,
+            )
+            content
         }
     }
 }
