@@ -64,6 +64,7 @@ private final class IdleAIConnectionStreamingService: AIConnectionStreamingServi
             payload: nil,
             errorMessage: nil,
             suggestedAction: nil,
+            validationErrors: [],
             durationMilliseconds: nil
         )
     }

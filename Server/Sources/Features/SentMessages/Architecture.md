@@ -54,7 +54,7 @@ This feature is transport-agnostic. `send_message` now composes outbound content
 Future integrations include:
 
 - WhatsApp outbound `send_message`
-- Client Voice `speak_to_client`
+- Client Voice `announce_to_client`
 - Client Voice `ask_to_client`
 - future email outbound actions
 
@@ -76,7 +76,7 @@ SentMessages settings define how outbound text is composed:
 - Avoid extra blank lines when header/footer are empty.
 - Final formatting behavior should stay centralized in SentMessages.
 
-Future `send_message`, `speak_to_client`, and `ask_to_client` should compose outbound communication through these settings.
+Future `send_message`, `announce_to_client`, and `ask_to_client` should compose outbound communication through these settings.
 
 ## Send transport flow
 

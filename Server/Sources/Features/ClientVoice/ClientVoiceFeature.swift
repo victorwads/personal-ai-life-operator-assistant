@@ -1,14 +1,15 @@
 import Foundation
-import SwiftUI
 
 @MainActor
 final class ClientVoiceFeature: FeatureRuntime {
     override class var id: String { "clientVoice" }
     private static let workerServiceId = "client.voice.worker"
+    private static let manualClientPromptText = "Eu vi que voce me chamou, o que voce precisa?"
 
     let repository: FirestoreClientInteractionRequestRepository
     let settings: ClientVoiceSettingsWrapper
     let presenceService: ClientVoicePresenceService
+    let askDialogPresenter: ClientVoiceAskDialogPresenter
     let workerService: ClientVoiceWorkerService
 
     required init(context: FeatureContext) {
@@ -21,6 +22,11 @@ final class ClientVoiceFeature: FeatureRuntime {
         let presenceService = ClientVoicePresenceService(
             repository: RealtimeDatabaseClientVoicePresenceRepository(scope: scope)
         )
+        let askDialogPresenter = ClientVoiceAskDialogPresenter(
+            repository: repository,
+            featureWindows: context.featureWindows,
+            settings: settings
+        )
         let workerService = ClientVoiceWorkerService(
             id: Self.workerServiceId,
             title: "Voice Worker",
@@ -28,19 +34,27 @@ final class ClientVoiceFeature: FeatureRuntime {
             sharedLocks: context.sharedLocks,
             presenceService: presenceService,
             presentAskDialog: { request, speakHandler in
-                Self.openAskDialog(
+                askDialogPresenter.present(
                     request: request,
-                    repository: repository,
-                    sharedLocks: context.sharedLocks,
-                    featureWindows: context.featureWindows,
                     speakHandler: speakHandler,
-                    listenConfig: settings.speechRecognitionListenConfig
+                    dismissActionTitle: "Answer Later",
+                    onSubmitSuccess: {
+                        if let requestID = request.id {
+                            await context.sharedLocks.unlock(id: "ask_to_client:\(requestID)")
+                        }
+                    },
+                    onCloseWithoutResponse: {
+                        if let requestID = request.id {
+                            await context.sharedLocks.unlock(id: "ask_to_client:\(requestID)")
+                        }
+                    }
                 )
             }
         )
         self.repository = repository
         self.settings = settings
         self.presenceService = presenceService
+        self.askDialogPresenter = askDialogPresenter
         self.workerService = workerService
         super.init(context: context)
 
@@ -57,7 +71,7 @@ final class ClientVoiceFeature: FeatureRuntime {
         )
 
         context.mcp.toolRegistry.register([
-            SpeakToClientTool(
+            AnnounceToClientTool(
                 repository: repository,
                 sharedLocks: context.sharedLocks,
                 isClientPresentProvider: { [presenceService] in presenceService.isPresent }
@@ -87,52 +101,59 @@ final class ClientVoiceFeature: FeatureRuntime {
     }
 
     func openAnswerDialog(for request: ClientInteractionRequest) {
-        Self.openAskDialog(
+        guard let requestID = request.id else { return }
+
+        Task {
+            do {
+                let updatedRequest = try await repository.markWaitingUser(id: requestID)
+                askDialogPresenter.present(
+                    request: updatedRequest,
+                    speakHandler: CompletedSpeechSpeakHandler(),
+                    dismissActionTitle: "Answer Later",
+                    onSubmitSuccess: {
+                        await self.unlockAskLock(requestID: requestID)
+                    },
+                    onCloseWithoutResponse: {
+                        await self.unlockAskLock(requestID: requestID)
+                    }
+                )
+            } catch {
+                print("Failed to reopen ask dialog for request \(requestID): \(error.localizedDescription)")
+            }
+        }
+    }
+
+    func openNewManualRequestDialog() async throws {
+        let request = try await repository.createRequest(
+            issueId: nil,
+            kind: .ask,
+            status: .waitingUser,
+            promptText: Self.manualClientPromptText
+        )
+        askDialogPresenter.present(
             request: request,
-            repository: repository,
-            sharedLocks: context.sharedLocks,
-            featureWindows: context.featureWindows,
             speakHandler: CompletedSpeechSpeakHandler(),
-            listenConfig: settings.speechRecognitionListenConfig
+            dismissActionTitle: "Cancel Request",
+            onSubmitSuccess: {
+                await self.unlockGlobalEventLock()
+            },
+            onCloseWithoutResponse: {
+                guard let requestID = request.id else { return }
+                do {
+                    _ = try await self.repository.markCancelled(id: requestID)
+                    await self.unlockGlobalEventLock()
+                } catch {
+                    print("Failed to cancel manual client request \(requestID): \(error.localizedDescription)")
+                }
+            }
         )
     }
 
-    private static func openAskDialog(
-        request: ClientInteractionRequest,
-        repository: ClientInteractionRequestRepository,
-        sharedLocks: SharedLockRegistry,
-        featureWindows: FeatureWindowsContext,
-        speakHandler: SpeechSpeakHandler,
-        listenConfig: ListenConfig
-    ) {
-        guard let requestID = request.id else { return }
+    private func unlockAskLock(requestID: String) async {
+        await context.sharedLocks.unlock(id: "ask_to_client:\(requestID)")
+    }
 
-        let windowID = "client_voice_ask_\(requestID)"
-        let closeWindow = {
-            featureWindows.hide(windowID)
-        }
-        let viewModel = ClientVoiceAskDialogViewModel(
-            repository: repository,
-            request: request,
-            speakHandler: speakHandler,
-            listenProvider: .swiftAPI,
-            listenConfig: listenConfig,
-            unlock: {
-                await sharedLocks.unlock(id: "ask_to_client:\(requestID)")
-            },
-            closeWindow: closeWindow
-        )
-
-        featureWindows.show(
-            FeatureWindowRequest(
-                id: windowID,
-                title: "Client Question",
-                rootView: AnyView(ClientVoiceAskDialog(viewModel: viewModel)),
-                size: CGSize(width: 520, height: 320),
-                onClose: {
-                    viewModel.handleSystemClose()
-                }
-            )
-        )
+    private func unlockGlobalEventLock() async {
+        await context.sharedLocks.unlock(id: SharedLockIDs.globalEvent)
     }
 }

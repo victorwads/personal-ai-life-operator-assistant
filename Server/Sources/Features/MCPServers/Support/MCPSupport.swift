@@ -3,7 +3,7 @@ import Foundation
 enum MCPSupport {
     static func string(_ name: String, from call: MCPToolCall) throws -> String {
         guard let value = call.arguments[name]?.stringValue?.trimmedNonEmpty else {
-            throw MCPToolExtractionError.missingOrInvalid(name)
+            throw MCPToolExtractionError.expectedNonEmptyString(name)
         }
         return value
     }
@@ -14,7 +14,7 @@ enum MCPSupport {
 
     static func int(_ name: String, from call: MCPToolCall) throws -> Int {
         guard let value = call.arguments[name]?.intValue else {
-            throw MCPToolExtractionError.missingOrInvalid(name)
+            throw MCPToolExtractionError.expectedInt(name)
         }
         return value
     }
@@ -60,12 +60,21 @@ enum MCPSupport {
 
 enum MCPToolExtractionError: Error, LocalizedError {
     case missingOrInvalid(String)
+    case expectedNonEmptyString(String)
+    case expectedInt(String)
+    case invalidField(String, reason: String)
     case invalidDate(String)
 
     var errorDescription: String? {
         switch self {
         case let .missingOrInvalid(field):
             return "Tool argument extraction failed for field `\(field)`."
+        case let .expectedNonEmptyString(field):
+            return "Field `\(field)` must be a non-empty string."
+        case let .expectedInt(field):
+            return "Field `\(field)` must be an integer."
+        case let .invalidField(field, reason):
+            return "Field `\(field)` is invalid: \(reason)"
         case let .invalidDate(field):
             return "Tool argument extraction failed for date field `\(field)`; expected ISO-8601."
         }

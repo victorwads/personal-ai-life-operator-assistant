@@ -14,6 +14,7 @@ final class ChatsFeature: FeatureRuntime {
 
         let repository = FirestoreChatRepository(scope: scope)
         let crawlingSettings = WhatsAppCrawlingSettingsWrapper(settings: context.settings.store)
+        let sentMessagesSettings = SentMessagesSettingsWrapper(settings: context.settings.store)
         self.repository = repository
         self.crawlingSettings = crawlingSettings
         super.init(context: context)
@@ -23,14 +24,21 @@ final class ChatsFeature: FeatureRuntime {
                 repository: repository,
                 permissionModeProvider: { crawlingSettings.chatPermissionMode }
             ),
-            ListChatsBySearchTool(),
+            ListChatsBySearchTool(
+                repository: repository,
+                permissionModeProvider: { crawlingSettings.chatPermissionMode }
+            ),
             ListUnhandledChatsTool(
                 repository: repository,
                 permissionModeProvider: { crawlingSettings.chatPermissionMode }
             ),
             ListChatMessagesTool(
                 repository: repository,
-                permissionModeProvider: { crawlingSettings.chatPermissionMode }
+                permissionModeProvider: { crawlingSettings.chatPermissionMode },
+                assistantNameProvider: { sentMessagesSettings.assistantName }
+            ),
+            MarkChatMessagesAsHandledTool(
+                repository: repository
             )
         ])
     }

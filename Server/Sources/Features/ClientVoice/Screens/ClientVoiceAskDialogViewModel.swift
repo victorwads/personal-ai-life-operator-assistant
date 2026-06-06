@@ -10,12 +10,23 @@ final class ClientVoiceAskDialogViewModel: ObservableObject {
 
     let promptText: String
 
+    var askSendMode: ClientVoiceAskSendMode {
+        settings.askSendMode
+    }
+
+    var dismissActionTitle: String {
+        dismissActionTitleProvider()
+    }
+
     private let repository: ClientInteractionRequestRepository
     private let request: ClientInteractionRequest
     private let speakHandler: SpeechSpeakHandler
     private let listenProvider: ListenProvider?
     private let listenConfig: ListenConfig
-    private let unlock: @MainActor () async -> Void
+    private let settings: ClientVoiceSettingsWrapper
+    private let dismissActionTitleProvider: () -> String
+    private let onSubmitSuccess: @MainActor () async -> Void
+    private let onCloseWithoutResponse: @MainActor () async -> Void
     private let closeWindow: @MainActor () -> Void
 
     private var listener: ListenHandler?
@@ -28,7 +39,10 @@ final class ClientVoiceAskDialogViewModel: ObservableObject {
         speakHandler: SpeechSpeakHandler,
         listenProvider: ListenProvider?,
         listenConfig: ListenConfig = .init(),
-        unlock: @escaping @MainActor () async -> Void,
+        settings: ClientVoiceSettingsWrapper,
+        dismissActionTitleProvider: @escaping () -> String,
+        onSubmitSuccess: @escaping @MainActor () async -> Void,
+        onCloseWithoutResponse: @escaping @MainActor () async -> Void,
         closeWindow: @escaping @MainActor () -> Void
     ) {
         self.repository = repository
@@ -36,7 +50,10 @@ final class ClientVoiceAskDialogViewModel: ObservableObject {
         self.speakHandler = speakHandler
         self.listenProvider = listenProvider
         self.listenConfig = listenConfig
-        self.unlock = unlock
+        self.settings = settings
+        self.dismissActionTitleProvider = dismissActionTitleProvider
+        self.onSubmitSuccess = onSubmitSuccess
+        self.onCloseWithoutResponse = onCloseWithoutResponse
         self.closeWindow = closeWindow
         self.promptText = request.promptText
     }
@@ -65,7 +82,12 @@ final class ClientVoiceAskDialogViewModel: ObservableObject {
                 }
                 listener.onFinal { [weak self] text in
                     self?.responseText = text
-                    self?.submit(autoText: text)
+                    if self?.settings.askSendMode == .handsFree {
+                        self?.submit(autoText: text)
+                    } else {
+                        self?.isSpeaking = false
+                        self?.isListening = false
+                    }
                 }
             } catch {
                 isListening = false
@@ -78,13 +100,17 @@ final class ClientVoiceAskDialogViewModel: ObservableObject {
         submit(autoText: nil)
     }
 
+    func toggleAskSendMode(_ mode: ClientVoiceAskSendMode) {
+        settings.askSendMode = mode
+    }
+
     func cancelListening() {
         listener?.cancel()
         listener = nil
         isListening = false
     }
 
-    func answerLaterAndClose() {
+    func dismissWithoutResponse() {
         Task {
             await prepareForCloseWithoutResponse()
             closeWindow()
@@ -123,7 +149,7 @@ final class ClientVoiceAskDialogViewModel: ObservableObject {
                     id: requestID,
                     responseText: trimmedText
                 )
-                await unlock()
+                await onSubmitSuccess()
                 closeWindow()
             } catch {
                 isSubmitting = false
@@ -138,6 +164,6 @@ final class ClientVoiceAskDialogViewModel: ObservableObject {
         hasFinished = true
         speakHandler.cancel()
         cancelListening()
-        await unlock()
+        await onCloseWithoutResponse()
     }
 }

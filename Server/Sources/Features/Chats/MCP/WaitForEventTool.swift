@@ -2,14 +2,14 @@ import Foundation
 
 struct WaitForEventTool: MCPToolDefinition {
     private let sharedLocks: SharedLockRegistry
-    private let pendingWorkProviders: [any PendingWorkProvider]
+    private let snapshotLoader: PendingWorkSnapshotLoader
 
     init(
         sharedLocks: SharedLockRegistry,
         pendingWorkProviders: [any PendingWorkProvider] = []
     ) {
         self.sharedLocks = sharedLocks
-        self.pendingWorkProviders = pendingWorkProviders
+        self.snapshotLoader = PendingWorkSnapshotLoader(providers: pendingWorkProviders)
     }
 
     let name = "wait_for_event"
@@ -31,17 +31,22 @@ struct WaitForEventTool: MCPToolDefinition {
         context _: MCPServerContext
     ) async throws -> MCPJSONValue {
         _ = call
-        for provider in pendingWorkProviders {
-            if try await provider.hasPendingWork() {
-                return .string(
-                    "event: pending work already exists. Start a new cycle and inspect active chats, issues, and client interactions."
+        let initialSnapshot = try await snapshotLoader.load()
+        if !initialSnapshot.isEmpty {
+            return .string(
+                PendingWorkTextRenderer.waitForEventMessage(
+                    for: initialSnapshot,
+                    trigger: .pendingAlreadyExists
                 )
-            }
+            )
         }
 
         try await sharedLocks.lockAndWait(id: SharedLockIDs.globalEvent)
         return .string(
-            "event: something changed. Start a new cycle and inspect active chats, issues, and client interactions."
+            PendingWorkTextRenderer.waitForEventMessage(
+                for: try await snapshotLoader.load(),
+                trigger: .globalEventUnlocked
+            )
         )
     }
 }

@@ -16,7 +16,7 @@ final class AIConnectionErrorLogStoreTests: XCTestCase {
             cycleNumber: 7,
             message: "provider exploded",
             status: "recovering",
-            userPrompt: "start your job",
+            userPrompt: "",
             assistantText: "partial output",
             reasoningText: "partial reasoning",
             accumulatedErrors: ["provider exploded"],

@@ -34,7 +34,7 @@ struct AIConnectionRuntimeStatusProvider: ProfileRuntimeStatusProvider {
         case .initializing, .promptProcessing, .reasoning, .executingTool, .receivingOutput, .cycleCompleted, .recovering, .waitingUser, .waitingEvent:
             runtimeService.cancelRun()
         case .stopped, .paused, .completed, .failed, .cancelled:
-            runtimeService.startRun(userPrompt: "start your job")
+            runtimeService.startRun()
         }
     }
 

@@ -64,6 +64,16 @@ final class SQLiteServerLogRepositoryTests: XCTestCase {
         )
         XCTAssertEqual(toolEntries.map(\.id), ["newer"])
 
+        let successfulEntries = try await repository.list(
+            ServerLogQuery(limit: 10, success: true)
+        )
+        XCTAssertEqual(successfulEntries.map(\.id), ["newer"])
+
+        let failedEntries = try await repository.list(
+            ServerLogQuery(limit: 10, success: false)
+        )
+        XCTAssertTrue(failedEntries.isEmpty)
+
         try await repository.clear()
 
         let clearedEntries = try await repository.list(ServerLogQuery(limit: 10))

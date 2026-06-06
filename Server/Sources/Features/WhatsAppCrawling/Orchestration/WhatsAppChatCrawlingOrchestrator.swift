@@ -3,6 +3,7 @@ import WebKit
 
 @MainActor
 final class WhatsAppChatCrawlingOrchestrator {
+    private let profileId: String
     private let chatRepositoryProvider: @MainActor () -> any ChatRepository
     private let permissionModeProvider: @MainActor () -> ChatPermissionMode
     private let yamlText: String
@@ -13,6 +14,7 @@ final class WhatsAppChatCrawlingOrchestrator {
     private let forcedStartupCrawlCycleCount = 5
 
     init(
+        profileId: String,
         chatRepositoryProvider: @escaping @MainActor () -> any ChatRepository,
         permissionModeProvider: @escaping @MainActor () -> ChatPermissionMode,
         yamlText: String,
@@ -20,6 +22,7 @@ final class WhatsAppChatCrawlingOrchestrator {
         sharedLocks: SharedLockRegistry,
         onStatusUpdate: ((String) -> Void)? = nil
     ) {
+        self.profileId = profileId
         self.chatRepositoryProvider = chatRepositoryProvider
         self.permissionModeProvider = permissionModeProvider
         self.yamlText = yamlText
@@ -355,7 +358,10 @@ final class WhatsAppChatCrawlingOrchestrator {
             guard !existingIds.contains(messageId) else { continue }
             guard enrichedMessages[index].kind == .image || enrichedMessages[index].kind == .sticker else { continue }
 
-            if let existingPaths = try? ChatMediaStorage.existingRelativeMediaPaths(forMessageId: messageId),
+            if let existingPaths = try? ChatMediaStorage.existingRelativeMediaPaths(
+                profileId: profileId,
+                forMessageId: messageId
+            ),
                !existingPaths.isEmpty {
                 enrichedMessages[index].localMediaPaths = existingPaths
                 logStore.append(source: "Media", "Reused \(existingPaths.count) local media file(s) for \(messageId).")
@@ -372,7 +378,11 @@ final class WhatsAppChatCrawlingOrchestrator {
                     logStore.append(source: "Media", "Extraction returned no media for \(messageId); saving message without local media.")
                     continue
                 }
-                let relativePaths = try ChatMediaStorage.savePNGData([resolved.pngData], forMessageId: messageId)
+                let relativePaths = try ChatMediaStorage.savePNGData(
+                    [resolved.pngData],
+                    profileId: profileId,
+                    forMessageId: messageId
+                )
                 enrichedMessages[index].localMediaPaths = relativePaths
                 logStore.append(source: "Media", "Saved \(relativePaths.count) local media file(s) for \(messageId).")
             } catch {

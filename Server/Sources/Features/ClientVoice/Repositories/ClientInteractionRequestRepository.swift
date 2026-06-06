@@ -9,7 +9,7 @@ protocol ClientInteractionRequestRepository: AnyObject {
     func observeRequests(_ listener: @escaping ([ClientInteractionRequest]) -> Void) -> FirestoreListenerToken
     func getRequest(id: String) async throws -> ClientInteractionRequest
     func createRequest(
-        issueId: String,
+        issueId: String?,
         kind: ClientInteractionRequest.Kind,
         status: ClientInteractionRequest.Status,
         promptText: String
@@ -28,6 +28,7 @@ protocol ClientInteractionRequestRepository: AnyObject {
         id: String,
     ) async throws -> ClientInteractionRequest
     func markCancelled(id: String) async throws -> ClientInteractionRequest
+    func deleteRequest(id: String) async throws
 }
 
 final class FirestoreClientInteractionRequestRepository: FirestoreRepository<ClientInteractionRequest>, ClientInteractionRequestRepository {
@@ -49,7 +50,11 @@ final class FirestoreClientInteractionRequestRepository: FirestoreRepository<Cli
     }
 
     func observeRequests(_ listener: @escaping ([ClientInteractionRequest]) -> Void) -> FirestoreListenerToken {
-        super.observe(listener)
+        super.observe({
+            Task {
+                listener(try await self.listRequests())
+            }
+        })
     }
 
     func getRequest(id: String) async throws -> ClientInteractionRequest {
@@ -57,7 +62,7 @@ final class FirestoreClientInteractionRequestRepository: FirestoreRepository<Cli
     }
 
     func createRequest(
-        issueId: String,
+        issueId: String?,
         kind: ClientInteractionRequest.Kind,
         status: ClientInteractionRequest.Status,
         promptText: String,
@@ -121,6 +126,10 @@ final class FirestoreClientInteractionRequestRepository: FirestoreRepository<Cli
             data: makeUpdateData(status: .cancelled)
         )
         return try await existingRequest(id: id)
+    }
+
+    func deleteRequest(id: String) async throws {
+        try await super.delete(id)
     }
 
     private func existingRequest(id: String) async throws -> ClientInteractionRequest {

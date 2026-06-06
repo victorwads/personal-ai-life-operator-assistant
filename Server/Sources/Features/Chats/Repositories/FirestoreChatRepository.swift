@@ -6,6 +6,11 @@ private enum ChatMessageField {
     static let handled = "handled"
 }
 
+private enum ChatMessageRangeOperation {
+    case handledThrough
+    case unhandledFrom
+}
+
 private enum ChatField {
     static let permission = "permission"
     static let stateHash = "stateHash"
@@ -82,9 +87,11 @@ final class FirestoreChatRepository: ChatRepository {
         try await chatStore.deleteAll(ids: Array(chatIds))
     }
 
-    func listUnhandledChats(limit: Int? = nil) async throws -> [Chat] {
+    func listUnhandledChats(limit: Int? = nil, permissionMode: ChatPermissionMode) async throws -> [Chat] {
         let chats = try await listChats()
-        let filtered = chats.filter { $0.unhandledCount > 0 }
+        let filtered = chats.filter {
+            $0.unhandledCount > 0 && ChatPermissionResolver.isChatAllowed($0, mode: permissionMode)
+        }
         guard let limit else { return filtered }
         return Array(filtered.prefix(max(1, limit)))
     }
@@ -141,6 +148,68 @@ final class FirestoreChatRepository: ChatRepository {
         )
     }
 
+    func markMessagesHandledThrough(chatId: String, lastChatMessageId: String) async throws -> Int {
+        let unhandledMessages = try await messageStore.query(
+            matching: [
+                ChatMessageField.chatId: chatId,
+                ChatMessageField.handled: false
+            ],
+            sortedBy: [
+                FirestoreRepositorySort(field: FirestoreRepositoryMetadataField.createdAt, descending: true),
+                FirestoreRepositorySort(field: ChatMessageField.listOrder, descending: true)
+            ]
+        )
+
+        guard let boundaryIndex = unhandledMessages.firstIndex(where: { $0.id == lastChatMessageId }) else {
+            throw ChatMessageRangeOperationError.messageNotFound(
+                chatId: chatId,
+                messageId: lastChatMessageId,
+                operation: .handledThrough
+            )
+        }
+
+        let ids = try messageIDs(in: unhandledMessages[boundaryIndex...])
+        try await messageStore.updateAll(
+            ids: ids,
+            data: [ChatMessageField.handled: true]
+        )
+        if !ids.isEmpty {
+            try await updateUnhandledCount(chatId: chatId, count: nil)
+        }
+        return ids.count
+    }
+
+    func markMessagesUnhandledFrom(chatId: String, firstChatMessageId: String) async throws -> Int {
+        let handledMessages = try await messageStore.query(
+            matching: [
+                ChatMessageField.chatId: chatId,
+                ChatMessageField.handled: true
+            ],
+            sortedBy: [
+                FirestoreRepositorySort(field: FirestoreRepositoryMetadataField.createdAt, descending: true),
+                FirestoreRepositorySort(field: ChatMessageField.listOrder, descending: true)
+            ]
+        )
+
+        guard let boundaryIndex = handledMessages.firstIndex(where: { $0.id == firstChatMessageId }) else {
+            throw ChatMessageRangeOperationError.messageNotFound(
+                chatId: chatId,
+                messageId: firstChatMessageId,
+                operation: .unhandledFrom
+            )
+        }
+
+        let ids = try messageIDs(in: handledMessages[0...boundaryIndex])
+        try await messageStore.updateAll(
+            ids: ids,
+            data: [ChatMessageField.handled: false]
+        )
+        if !ids.isEmpty {
+            try await updateUnhandledCount(chatId: chatId, count: nil)
+        }
+        return ids.count
+    }
+
     func existingMessageIds(chatId: String) async throws -> Set<String> {
         try await messageStore.existingIds(
             matching: [ChatMessageField.chatId: chatId]
@@ -181,6 +250,15 @@ final class FirestoreChatRepository: ChatRepository {
         )
     }
 
+    private func messageIDs(in messages: ArraySlice<ChatMessage>) throws -> [String] {
+        try messages.map { message in
+            guard let id = message.id, !id.isEmpty else {
+                throw ChatMessageRangeOperationError.missingMessageID
+            }
+            return id
+        }
+    }
+
     private func compareChatsForListOrder(_ lhs: Chat, _ rhs: Chat) -> Bool {
         switch (lhs.lastDigestedAt, rhs.lastDigestedAt) {
         case let (left?, right?):
@@ -204,5 +282,26 @@ final class FirestoreChatRepository: ChatRepository {
         let leftId = lhs.id ?? ""
         let rightId = rhs.id ?? ""
         return leftId < rightId
+    }
+}
+
+private enum ChatMessageRangeOperationError: LocalizedError {
+    case messageNotFound(chatId: String, messageId: String, operation: ChatMessageRangeOperation)
+    case missingMessageID
+
+    var errorDescription: String? {
+        switch self {
+        case let .messageNotFound(chatId, messageId, operation):
+            let description: String
+            switch operation {
+            case .handledThrough:
+                description = "No unhandled chat message with id '\(messageId)' was found in chat '\(chatId)'."
+            case .unhandledFrom:
+                description = "No handled chat message with id '\(messageId)' was found in chat '\(chatId)'."
+            }
+            return description
+        case .missingMessageID:
+            return "Chat message id is missing."
+        }
     }
 }

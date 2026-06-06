@@ -1,6 +1,6 @@
 import Foundation
 
-struct SpeakToClientTool: MCPToolDefinition {
+struct AnnounceToClientTool: MCPToolDefinition {
     private let repository: ClientInteractionRequestRepository
     private let sharedLocks: SharedLockRegistry
     private let isClientPresentProvider: @MainActor @Sendable () -> Bool
@@ -15,7 +15,7 @@ struct SpeakToClientTool: MCPToolDefinition {
         self.isClientPresentProvider = isClientPresentProvider
     }
 
-    let name = "speak_to_client"
+    let name = "announce_to_client"
     let icon = "speaker.wave.2"
     let description = "Registers an auditable message for the client."
     let group = "clientVoice"
@@ -48,7 +48,7 @@ struct SpeakToClientTool: MCPToolDefinition {
         )
 
         guard let requestID = request.id, !requestID.isEmpty else {
-            return .string("error: speak_to_client created a request without an id, so delivery cannot be awaited.")
+            return .string("error: announce_to_client created a request without an id, so delivery cannot be awaited.")
         }
 
         let isClientPresent = await MainActor.run { isClientPresentProvider() }
@@ -57,7 +57,7 @@ struct SpeakToClientTool: MCPToolDefinition {
             return .string("warning: client is not present. The message was registered and will be delivered when the client is available. You may continue.")
         }
 
-        try await sharedLocks.lockAndWait(id: "speak_to_client:\(requestID)")
+        try await sharedLocks.lockAndWait(id: "announce_to_client:\(requestID)")
 
         return .string("ok: message delivered to the client.")
     }

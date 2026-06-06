@@ -11,3 +11,4 @@ Rules:
 - UI reads through feature/view-model boundaries and must not own SQLite or persistence logic directly.
 - AI Connection and future runtime producers should write meaningful completed milestones only. Do not persist every streaming delta or raw debug event.
 - Payload inspection should reuse `DSDebugObjectsInspector` rather than creating a feature-specific inspector.
+- Server Logs detail should render `DSDebugObjectsInspector` inline inside the detail pane rather than nesting another popover-style debug affordance inside a debug screen.

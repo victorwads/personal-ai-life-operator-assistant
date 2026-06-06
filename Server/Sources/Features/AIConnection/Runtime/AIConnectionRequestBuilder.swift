@@ -3,15 +3,17 @@ import Foundation
 struct AIConnectionRequestBuilder {
     func buildRequest(
         messages: [AIConversationMessage],
-        availableToolDefinitions: [AIToolDefinition]
+        availableToolDefinitions: [AIToolDefinition],
+        configuration: AIConnectionProviderConfiguration
     ) -> AIProviderRequest {
         AIProviderRequest(
-            model: "",
+            model: configuration.model,
             messages: messages,
             tools: availableToolDefinitions,
-            temperature: 0.7,
-            maxOutputTokens: nil,
-            cacheMode: .automatic
+            temperature: configuration.temperature,
+            reasoningEffort: configuration.reasoningEffort,
+            maxOutputTokens: configuration.maxOutputTokens,
+            cacheMode: configuration.cacheMode
         )
     }
 }

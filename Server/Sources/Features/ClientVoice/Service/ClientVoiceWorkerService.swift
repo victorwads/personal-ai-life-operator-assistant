@@ -118,7 +118,7 @@ final class ClientVoiceWorkerService: ProfileRuntimeService, @unchecked Sendable
                 case .speak:
                     await handler.await()
                     _ = try await repository.markCompleted(id: id)
-                    unlock(lockId: "speak_to_client:\(id)")
+                    unlock(lockId: "announce_to_client:\(id)")
                 case .ask:
                     presentAskDialog(request, handler)
                     await handler.await()
@@ -142,7 +142,7 @@ final class ClientVoiceWorkerService: ProfileRuntimeService, @unchecked Sendable
         guard request.kind == .speak, let id = request.id else { return }
         print("ClientVoice worker observed request status \(request.status) for \(id)")
 
-        let lockId = "speak_to_client:\(id)"
+        let lockId = "announce_to_client:\(id)"
         unlock(lockId: lockId)
     }
 

@@ -33,4 +33,47 @@ final class MCPToolsBrowserJSONFormattingTests: XCTestCase {
         XCTAssertTrue(rendered.contains("\"message\""))
         XCTAssertTrue(rendered.contains("\"suggestedAction\""))
     }
+
+    func testPrettyPrintedSuccessPayloadReturnsPlainTextForStringPayload() {
+        let rendered = MCPToolsBrowserJSONFormatting.prettyPrintedSuccessPayload(
+            .string("Hello from the tool")
+        )
+
+        XCTAssertEqual(rendered, "Hello from the tool")
+    }
+
+    func testPrettyPrintedSuccessPayloadFormatsJSONStringPayload() {
+        let rendered = MCPToolsBrowserJSONFormatting.prettyPrintedSuccessPayload(
+            .string("{\"name\":\"Victor\",\"count\":2}")
+        )
+
+        XCTAssertEqual(
+            rendered,
+            """
+            {
+              "count" : 2,
+              "name" : "Victor"
+            }
+            """
+        )
+    }
+
+    func testPrettyPrintedSuccessPayloadFormatsStructuredJSONPayload() {
+        let rendered = MCPToolsBrowserJSONFormatting.prettyPrintedSuccessPayload(
+            .object([
+                "name": .string("Victor"),
+                "count": .int(2)
+            ])
+        )
+
+        XCTAssertEqual(
+            rendered,
+            """
+            {
+              "count" : 2,
+              "name" : "Victor"
+            }
+            """
+        )
+    }
 }

@@ -34,8 +34,7 @@ struct ListUnhandledChatsTool: MCPToolDefinition {
     ) async throws -> MCPJSONValue {
         let limit = MCPSupport.optionalLimit(from: call, default: 10)
         let mode = await permissionModeProvider()
-        let chats = try await repository.listUnhandledChats(limit: nil)
-            .filter { ChatPermissionResolver.isChatAllowed($0, mode: mode) }
+        let chats = try await repository.listUnhandledChats(limit: nil, permissionMode: mode)
         let limitedChats = Array(chats.prefix(max(1, limit)))
         return .object([
             "count": .int(limitedChats.count),

@@ -31,7 +31,7 @@ final class ClientVoiceWorkerServiceTests: XCTestCase {
         try? await Task.sleep(nanoseconds: 200_000_000)
 
         XCTAssertTrue(repository.recordedCalls.isEmpty)
-        let isLocked = await sharedLocks.isLocked(id: "speak_to_client:speak-1")
+        let isLocked = await sharedLocks.isLocked(id: "announce_to_client:speak-1")
         XCTAssertFalse(isLocked)
 
         await service.stop()
@@ -65,7 +65,7 @@ final class ClientVoiceWorkerServiceTests: XCTestCase {
 
         let waiter = Task {
             waiterStarted.fulfill()
-            try await sharedLocks.lockAndWait(id: "speak_to_client:speak-1")
+            try await sharedLocks.lockAndWait(id: "announce_to_client:speak-1")
             waiterResumed.fulfill()
         }
 
@@ -89,7 +89,7 @@ final class ClientVoiceWorkerServiceTests: XCTestCase {
             .markSpeaking("speak-1"),
             .markCompleted("speak-1")
         ])
-        let isLocked = await sharedLocks.isLocked(id: "speak_to_client:speak-1")
+        let isLocked = await sharedLocks.isLocked(id: "announce_to_client:speak-1")
         XCTAssertFalse(isLocked)
         XCTAssertEqual(service.state, .running)
 
@@ -200,7 +200,7 @@ private final class ClientVoiceWorkerRepositorySpy: ClientInteractionRequestRepo
     }
 
     func createRequest(
-        issueId _: String,
+        issueId _: String?,
         kind _: ClientInteractionRequest.Kind,
         status _: ClientInteractionRequest.Status,
         promptText _: String
@@ -247,6 +247,10 @@ private final class ClientVoiceWorkerRepositorySpy: ClientInteractionRequestRepo
     }
 
     func markCancelled(id _: String) async throws -> ClientInteractionRequest {
+        throw ClientInteractionRequestRepositoryError.requestNotFound("unused")
+    }
+
+    func deleteRequest(id _: String) async throws {
         throw ClientInteractionRequestRepositoryError.requestNotFound("unused")
     }
 

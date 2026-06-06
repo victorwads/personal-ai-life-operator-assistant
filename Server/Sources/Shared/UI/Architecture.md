@@ -2,6 +2,8 @@
 
 This folder owns the small shared SwiftUI foundation used by feature screens. It is the app's local UI design-system layer for reusable visual primitives.
 
+The runnable design-system catalog lives in [PreviewApp/Architecture.md](PreviewApp/Architecture.md).
+
 Keep this layer lightweight:
 
 - Prefer native SwiftUI and platform styles.
@@ -15,7 +17,7 @@ Feature screens should not duplicate card, badge, empty state, code block, or ma
 Feature-specific views may compose shared UI components, but they must not move feature logic into `Shared/UI`.
 Do not create one-off local visual wrappers when an existing shared component matches the same role.
 If a screen needs a new recurring visual pattern, add it to Shared UI first or document why the pattern is feature-specific.
-New shared components should have a clear `DS*` name, a concise purpose, and a realistic example in `Previews.swift`.
+New shared components should have a clear `DS*` name, a concise purpose, and a realistic example in the Design System Preview app.
 
 Shared UI must not know feature models, repositories, Firebase, MCP runtime internals, or app services.
 
@@ -27,7 +29,7 @@ Preferred shared components:
 - Use `DSBadge` for generic simple pills, groups, traits, and lightweight metadata.
 - Use `DSRuntimeStatusBadge` for runtime/service status capsules with state dots, secondary status text, and optional start/stop action icons.
 - Use `DSCodeBlock` for JSON, code, schema, payload, and result displays.
-- Use `DSDebugObjectsInspector` as the shared debug helper for inspecting one or more named values, preserving raw strings and falling back to reflection for arbitrary objects.
+- Use `DSDebugObjectsInspector` as the shared debug helper for inspecting one or more named values, preserving raw strings and falling back to reflection for arbitrary objects. Use its tooltip presentation for compact inline triggers inside feature rows/cards, and its inline presentation when a dedicated debug/detail pane should show the inspector content directly.
 - Use `DSListCardRow` for consistent list-like cards across feature indexes.
 - Use `DSMessageBubbleRow` for chat-like conversation UIs and voice interaction histories.
 
@@ -56,6 +58,7 @@ Command Center guidance:
 
 Preview rule:
 
-- Every shared UI component in this folder must be represented in `Previews.swift`.
-- When adding or changing a component, update `Previews.swift` with at least one realistic example.
-- Keep previews useful as a visual catalog for Xcode, not as production screen composition.
+- Every shared UI component in this folder must be represented in the runnable Design System Preview app under `PreviewApp/`.
+- When adding or changing a component, update or add the focused preview page for that component's category.
+- Keep preview-only fake data and demo controllers under `PreviewApp`, preferably next to the page that owns them when they are page-specific.
+- Keep previews useful as a visual catalog, not as production screen composition.

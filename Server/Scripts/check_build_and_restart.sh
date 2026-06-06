@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${0}")/.." && pwd)"
 APP_NAME="AIAssistantHub"
 PROJECT_FILE="$ROOT_DIR/AIAssistantHub.xcodeproj"
-SCHEME_NAME="${SCHEME_NAME:-AIAssistantHubEmulators}"
+SCHEME_NAME="${SCHEME_NAME:-AIAssistantHub}"
 CONFIGURATION="Debug"
 TEST_DESTINATION="platform=macOS"
 APP_ICON_DIR="$ROOT_DIR/Resources/Assets.xcassets/AppIcon.appiconset"
@@ -52,8 +52,8 @@ if [[ ! -d "$APP_PATH" ]]; then
   exit 1
 fi
 
-echo "==> Stopping running app"
-osascript -e "tell application \"$APP_NAME\" to quit" >/dev/null 2>&1 || true
-
-echo "==> Opening built app"
-open "$APP_PATH"
+#echo "==> Stopping running app"
+#osascript -e "tell application \"$APP_NAME\" to quit" >/dev/null 2>&1 || true
+#
+#echo "==> Opening built app"
+#open "$APP_PATH"

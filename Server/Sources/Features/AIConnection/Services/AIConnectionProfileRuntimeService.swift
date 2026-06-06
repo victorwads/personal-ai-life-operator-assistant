@@ -34,7 +34,7 @@ final class AIConnectionProfileRuntimeService: ProfileRuntimeService {
 
     func start() async {
         guard canStart else { return }
-        runtimeService.startRun(userPrompt: "start your job")
+        runtimeService.startRun()
     }
 
     func stop() async {

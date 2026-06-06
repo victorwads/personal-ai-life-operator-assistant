@@ -5,6 +5,8 @@ final class ClientVoiceScreenViewModel: ObservableObject {
     @Published private(set) var requests: [ClientInteractionRequest] = []
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
+    @Published private(set) var creationErrorMessage: String?
+    @Published private(set) var isCreatingRequest = false
 
     var initializedRequests: [ClientInteractionRequest] {
         requests.filter { $0.status == .initialized }
@@ -22,11 +24,16 @@ final class ClientVoiceScreenViewModel: ObservableObject {
         requests.filter { $0.status == .waitingUser }
     }
 
+    var activeRequests: [ClientInteractionRequest] {
+        requests.filter { ![.completed, .cancelled].contains($0.status) }
+    }
+
     var historyRequests: [ClientInteractionRequest] {
         requests.filter { [.completed, .cancelled].contains($0.status) }
     }
 
     private let repository: ClientInteractionRequestRepository
+    private let createManualRequestAction: @MainActor () async throws -> Void
     private var listenerToken: FirestoreListenerToken?
     private var hasLoaded = false
     @Published private var submissionErrors: [String: String] = [:]
@@ -36,9 +43,11 @@ final class ClientVoiceScreenViewModel: ObservableObject {
 
 
     init(
-        repository: ClientInteractionRequestRepository
+        repository: ClientInteractionRequestRepository,
+        createManualRequestAction: @escaping @MainActor () async throws -> Void
     ) {
         self.repository = repository
+        self.createManualRequestAction = createManualRequestAction
     }
 
     func loadIfNeeded() {
@@ -74,6 +83,10 @@ final class ClientVoiceScreenViewModel: ObservableObject {
         return submittingRequestIDs.contains(requestID)
     }
 
+    func canDeletePermanently(_ request: ClientInteractionRequest) -> Bool {
+        request.id != nil && trimmedIssueId(for: request) == nil
+    }
+
     func markSpeakCompleted(_ request: ClientInteractionRequest) {
         guard request.status == .initialized, request.kind == .speak else { return }
         guard let requestID = request.id else { return }
@@ -84,6 +97,28 @@ final class ClientVoiceScreenViewModel: ObservableObject {
         Task {
             do {
                 _ = try await repository.markCompleted(id: requestID)
+                await MainActor.run {
+                    self.submissionErrors[requestID] = nil
+                    self.submittingRequestIDs.remove(requestID)
+                }
+            } catch {
+                await MainActor.run {
+                    self.submissionErrors[requestID] = error.localizedDescription
+                    self.submittingRequestIDs.remove(requestID)
+                }
+            }
+        }
+    }
+
+    func deleteRequest(_ request: ClientInteractionRequest) {
+        guard canDeletePermanently(request), let requestID = request.id else { return }
+
+        submittingRequestIDs.insert(requestID)
+        submissionErrors[requestID] = nil
+
+        Task {
+            do {
+                try await repository.deleteRequest(id: requestID)
                 await MainActor.run {
                     self.submissionErrors[requestID] = nil
                     self.submittingRequestIDs.remove(requestID)
@@ -117,6 +152,28 @@ final class ClientVoiceScreenViewModel: ObservableObject {
         }
     }
 
+    func createManualRequest() {
+        guard !isCreatingRequest else { return }
+
+        creationErrorMessage = nil
+        isCreatingRequest = true
+
+        Task {
+            do {
+                try await createManualRequestAction()
+                await MainActor.run {
+                    self.creationErrorMessage = nil
+                    self.isCreatingRequest = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.creationErrorMessage = error.localizedDescription
+                    self.isCreatingRequest = false
+                }
+            }
+        }
+    }
+
     private func ensureObservation() {
         guard listenerToken == nil else { return }
         listenerToken = repository.observeRequests { [weak self] requests in
@@ -124,5 +181,11 @@ final class ClientVoiceScreenViewModel: ObservableObject {
                 self?.requests = requests
             }
         }
+    }
+
+    private func trimmedIssueId(for request: ClientInteractionRequest) -> String? {
+        let value = request.issueId?.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let value, !value.isEmpty else { return nil }
+        return value
     }
 }

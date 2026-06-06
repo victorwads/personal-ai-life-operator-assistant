@@ -21,6 +21,30 @@ bridge rather than being fetched from the operational prompt flow.
 The memory bootstrap is a single optional plain-text system message with a
 readable sectioned layout, not a JSON payload.
 
+## Session bootstrap
+
+`AIConnection` owns the first-request bootstrap contract for continuous runtime
+sessions.
+
+Rules:
+
+- The runtime must start from structured bootstrap messages, not from a fake
+  manual prompt such as "start your job".
+- Context that is already known before the first provider request should be
+  injected at session start instead of forcing the model to discover it through
+  extra reasoning/tool loops.
+- Durable memories are startup context, so they should be formatted once and
+  injected as a bootstrap message.
+- Pending actionable work is startup context too, so the runtime should inject
+  a bootstrap summary of ready work before the first cycle begins.
+- Bootstrap content should be readable plain text intended for the model, not a
+  transport/debug JSON blob.
+- Prompt/run inspection should preserve the exact bootstrap sections sent at
+  session start so debugging reflects the real provider payload.
+
+This keeps the first request already aware of important memories and ready work,
+which reduces unnecessary tool discovery, reasoning latency, and token waste.
+
 ## MCP boundary
 
 `MCPServersFeature` still owns:

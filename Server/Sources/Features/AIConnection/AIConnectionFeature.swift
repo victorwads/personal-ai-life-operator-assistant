@@ -26,6 +26,12 @@ final class AIConnectionFeature: FeatureRuntime {
                 context.feature(MemoriesFeature.self)
             }
         )
+        let pendingWorkProviders = PendingWorkProviderCatalog.makeProviders(context: context)
+        let pendingWorkBootstrapBridge = AIConnectionPendingWorkBootstrapBridge(
+            snapshotProvider: {
+                try await PendingWorkSnapshotLoader(providers: pendingWorkProviders).load()
+            }
+        )
 
         let streamingService = AIConnectionStreamingService(
             settingsProvider: {
@@ -57,10 +63,16 @@ final class AIConnectionFeature: FeatureRuntime {
             memoryBootstrapProvider: {
                 await memoryBootstrapBridge.bootstrapMessage()
             },
+            pendingWorkBootstrapProvider: {
+                await pendingWorkBootstrapBridge.bootstrapMessage()
+            },
             systemPromptProvider: {
                 AIConnectionRuntimeDefaults.systemPrompt(
                     assistantName: assistantNameSettings.assistantName
                 )
+            },
+            providerConfigurationProvider: {
+                settings.providerConfiguration
             },
             errorLogStore: errorLogStore,
             serverLogsProvider: serverLogsProvider

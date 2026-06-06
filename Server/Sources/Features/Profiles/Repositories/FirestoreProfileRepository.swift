@@ -17,7 +17,11 @@ public final class FirestoreProfileRepository: FirestoreRepository<Profile>, Pro
     }
 
     public func observeProfiles(_ listener: @escaping ([Profile]) -> Void) -> FirestoreListenerToken {
-        super.observe(listener)
+        super.observe({
+            Task {
+                listener(try await self.listProfiles())
+            }
+        })
     }
 
     public func getProfile(id: String) async throws -> Profile? {

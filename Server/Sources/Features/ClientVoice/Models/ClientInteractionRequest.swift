@@ -22,7 +22,7 @@ struct ClientInteractionRequest: PersistableModel, Equatable, Sendable {
 
     @DocumentID var id: String?
 
-    var issueId: String
+    var issueId: String?
     var kind: Kind
     var status: Status = .initialized
 

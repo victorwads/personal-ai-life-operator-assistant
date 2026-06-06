@@ -3,6 +3,9 @@ import SwiftUI
 
 @MainActor
 public final class AppWindowController: NSWindowController, NSWindowDelegate {
+    private static let frameAutosavePrefix = "appWindowFrame."
+
+    private let frameAutosaveName: String
     private let windowId: String
     private let visibilityTracker: WindowVisibilityTracker
     private let onVisibilityChange: () -> Void
@@ -14,6 +17,7 @@ public final class AppWindowController: NSWindowController, NSWindowDelegate {
         onVisibilityChange: @escaping () -> Void
     ) {
         windowId = request.id
+        frameAutosaveName = Self.frameAutosaveName(for: request.id)
         self.visibilityTracker = visibilityTracker
         self.onVisibilityChange = onVisibilityChange
         self.onClose = request.onClose
@@ -21,9 +25,13 @@ public final class AppWindowController: NSWindowController, NSWindowDelegate {
         let hostingController = NSHostingController(rootView: request.rootView)
         let window = NSWindow(contentViewController: hostingController)
         window.title = request.title
-        window.setContentSize(NSSize(width: request.size.width, height: request.size.height))
         window.styleMask.insert(.closable)
         window.isReleasedWhenClosed = false
+        _ = window.setFrameAutosaveName(frameAutosaveName)
+        let restoredFrame = window.setFrameUsingName(frameAutosaveName)
+        if !restoredFrame {
+            window.setContentSize(NSSize(width: request.size.width, height: request.size.height))
+        }
 
         super.init(window: window)
         window.delegate = self
@@ -34,6 +42,7 @@ public final class AppWindowController: NSWindowController, NSWindowDelegate {
 
     public func windowShouldClose(_ sender: NSWindow) -> Bool {
         onClose?()
+        saveWindowFrame(sender)
         sender.orderOut(nil)
         visibilityTracker.setVisible(false, windowId: windowId)
         onVisibilityChange()
@@ -49,8 +58,29 @@ public final class AppWindowController: NSWindowController, NSWindowDelegate {
     }
 
     public func hide() {
-        window?.orderOut(nil)
+        if let window {
+            saveWindowFrame(window)
+            window.orderOut(nil)
+        }
         visibilityTracker.setVisible(false, windowId: windowId)
         onVisibilityChange()
+    }
+
+    public func windowDidMove(_ notification: Notification) {
+        guard let window else { return }
+        saveWindowFrame(window)
+    }
+
+    public func windowDidEndLiveResize(_ notification: Notification) {
+        guard let window else { return }
+        saveWindowFrame(window)
+    }
+
+    private static func frameAutosaveName(for windowId: String) -> String {
+        "\(frameAutosavePrefix)\(windowId)"
+    }
+
+    private func saveWindowFrame(_ window: NSWindow) {
+        window.saveFrame(usingName: frameAutosaveName)
     }
 }

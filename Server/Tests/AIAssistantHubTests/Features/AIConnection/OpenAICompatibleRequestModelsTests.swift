@@ -81,6 +81,60 @@ final class OpenAICompatibleRequestModelsTests: XCTestCase {
         XCTAssertEqual(toolMessage["content"] as? String, "{\"success\":true}")
     }
 
+    func testReasoningOffSerializesAsStringOff() throws {
+        let request = OpenAICompatibleChatCompletionsRequest(
+            request: AIProviderRequest(
+                model: "model-1",
+                messages: [
+                    AIConversationMessage(role: .user, content: "hello")
+                ],
+                reasoningEffort: .off
+            )
+        )
+
+        let jsonObject = try encodedJSONObject(for: request)
+
+        XCTAssertEqual(jsonObject["reasoning"] as? String, "off")
+        XCTAssertNil(jsonObject["extra_body"])
+    }
+
+    func testReasoningNoneSerializesInsideEffortObject() throws {
+        let request = OpenAICompatibleChatCompletionsRequest(
+            request: AIProviderRequest(
+                model: "model-1",
+                messages: [
+                    AIConversationMessage(role: .user, content: "hello")
+                ],
+                reasoningEffort: .none
+            )
+        )
+
+        let jsonObject = try encodedJSONObject(for: request)
+        let reasoning = try XCTUnwrap(jsonObject["reasoning"] as? [String: Any])
+
+        XCTAssertEqual(reasoning["effort"] as? String, "none")
+        XCTAssertNil(jsonObject["extra_body"])
+    }
+
+    func testQwenOffSerializesExtraBodyWithoutReasoningField() throws {
+        let request = OpenAICompatibleChatCompletionsRequest(
+            request: AIProviderRequest(
+                model: "model-1",
+                messages: [
+                    AIConversationMessage(role: .user, content: "hello")
+                ],
+                reasoningEffort: .qwenOff
+            )
+        )
+
+        let jsonObject = try encodedJSONObject(for: request)
+        let extraBody = try XCTUnwrap(jsonObject["extra_body"] as? [String: Any])
+        let chatTemplateKwargs = try XCTUnwrap(extraBody["chat_template_kwargs"] as? [String: Any])
+
+        XCTAssertEqual(chatTemplateKwargs["enable_thinking"] as? Bool, false)
+        XCTAssertNil(jsonObject["reasoning"])
+    }
+
     private func encodedJSONObject(for request: OpenAICompatibleChatCompletionsRequest) throws -> [String: Any] {
         let data = try JSONEncoder().encode(request)
         let object = try JSONSerialization.jsonObject(with: data)

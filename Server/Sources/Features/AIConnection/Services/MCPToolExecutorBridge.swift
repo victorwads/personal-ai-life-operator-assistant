@@ -22,6 +22,7 @@ final class MCPToolExecutorBridge: AIConnectionToolExecuting {
                 payload: nil,
                 errorMessage: error.localizedDescription,
                 suggestedAction: "Return a valid JSON object for tool call arguments.",
+                validationErrors: [],
                 durationMilliseconds: nil
             )
         }
@@ -34,6 +35,7 @@ final class MCPToolExecutorBridge: AIConnectionToolExecuting {
             payload: result.payload.map(aiValue),
             errorMessage: result.error?.localizedDescription,
             suggestedAction: suggestedAction(from: result.error),
+            validationErrors: validationErrors(from: result.error),
             durationMilliseconds: result.durationMilliseconds
         )
     }
@@ -48,6 +50,20 @@ final class MCPToolExecutorBridge: AIConnectionToolExecuting {
         }
 
         return nil
+    }
+
+    private static func validationErrors(from error: MCPServerError?) -> [AIToolExecutionResult.ValidationError] {
+        guard case let .validationFailed(validationErrors)? = error else {
+            return []
+        }
+
+        return validationErrors.map {
+            AIToolExecutionResult.ValidationError(
+                fieldPath: $0.fieldPath,
+                message: $0.message,
+                suggestedAction: $0.suggestedAction
+            )
+        }
     }
 
     private static func aiValue(_ value: MCPJSONValue) -> AIJSONValue {

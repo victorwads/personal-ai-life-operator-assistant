@@ -13,7 +13,7 @@ struct AIConnectionScreen: View {
         FeatureScreenContainer {
             DSFeatureHeader(
                 title: "AI Connection",
-                subtitle: "Runtime inspector/controller for prompt, output, reasoning, tools, usage, and errors."
+                subtitle: "Runtime inspector/controller for bootstrap context, output, reasoning, tools, usage, and errors."
             ) {
                 HStack(spacing: 8) {
                     Button("Load Tools") {

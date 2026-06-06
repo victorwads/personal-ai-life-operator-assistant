@@ -39,6 +39,16 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "chatId", "order": "ASCENDING" },
+        { "fieldPath": "handled", "order": "ASCENDING" },
+        { "fieldPath": "_createdAt", "order": "DESCENDING" },
+        { "fieldPath": "listOrder", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "ChatMessages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "chatId", "order": "ASCENDING" },
         { "fieldPath": "handled", "order": "ASCENDING" }
       ]
     },

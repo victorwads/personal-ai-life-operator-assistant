@@ -43,6 +43,7 @@ struct ServerLogQuery: Sendable {
     var sessionId: String?
     var kind: ServerLogKind?
     var severity: ServerLogSeverity?
+    var success: Bool?
     var toolName: String?
 }
 

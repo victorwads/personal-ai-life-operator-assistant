@@ -74,6 +74,18 @@ final class MCPToolExecutorValidationAggregationTests: XCTestCase {
         )
         XCTAssertTrue(errors.allSatisfy { $0.message.contains("must not be empty") })
     }
+
+    func testUpdateIssueSchemaIncludesTitleAndResolutionCondition() {
+        let tool = UpdateIssueValidationTestTool()
+
+        guard case let .object(root) = tool.inputSchema,
+              case let .object(properties)? = root["properties"],
+              case .object = properties["title"],
+              case .object = properties["resolutionCondition"]
+        else {
+            return XCTFail("Expected update_issue schema to expose title and resolutionCondition.")
+        }
+    }
 }
 
 private struct CreateIssueValidationTestTool: MCPToolDefinition {
@@ -124,5 +136,35 @@ private struct ValidationAggregationTestTool: MCPToolDefinition {
             .string("text"),
             .string("reason")
         ])
+    ])
+}
+
+private struct UpdateIssueValidationTestTool: MCPToolDefinition {
+    let name = "update_issue"
+    let icon = "pencil"
+    let description = "Updates an existing operational issue by id."
+    let group = "issues"
+    let traits: [MCPToolTrait] = [.writesState]
+    let inputSchema: MCPJSONValue = .object([
+        "type": .string("object"),
+        "properties": .object([
+            "id": .object(["type": .string("string")]),
+            "title": .object(["type": .string("string")]),
+            "description": .object(["type": .string("string")]),
+            "resolutionCondition": .object(["type": .string("string")]),
+            "priority": .object(["type": .string("number")]),
+            "timelineItems": .object([
+                "type": .string("array"),
+                "items": .object([
+                    "type": .string("object"),
+                    "properties": .object([
+                        "kind": .object(["type": .string("string")]),
+                        "description": .object(["type": .string("string")])
+                    ]),
+                    "required": .array([.string("kind"), .string("description")])
+                ])
+            ])
+        ]),
+        "required": .array([.string("id")])
     ])
 }

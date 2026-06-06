@@ -22,6 +22,27 @@ The Tools Browser UI lives in `Sources/Features/ToolsBrowser/` and consumes MCP 
 `executeToolCall(_:)` is backed by `Runtime/MCPToolExecutor.swift`, which is the official manual tool execution path.
 Tool definitions are never executed directly from UI/ViewModel code.
 
+## Pending work bootstrap providers
+
+`Runtime/PendingWorkProviderCatalog.swift` is the composition point for
+startup-visible pending work sources that should be summarized before the first
+AI Connection request.
+
+Rules:
+
+- The catalog owns which feature-level pending work providers participate in the
+  startup snapshot.
+- Providers should summarize already-actionable work that the runtime ought to
+  know before it starts reasoning, not background diagnostics or generic status
+  noise.
+- Provider output is intended for a model-readable startup summary, so each
+  provider should return concise, plain-text-ready sections instead of feature-
+  specific transport payloads.
+- The catalog may compose providers from multiple features, but the provider
+  implementations should remain owned by their respective features.
+- `AIConnection` may consume the catalog output as bootstrap context, but it
+  must not own the provider registry itself.
+
 ## Validation pipeline
 
 `MCPToolExecutor` is the only official tool execution path for:
@@ -104,7 +125,7 @@ The current tool groups are:
 
 ### Client voice tools
 
-- `speak_to_client`
+- `announce_to_client`
 - `ask_to_client`
 
 ### Memory tools

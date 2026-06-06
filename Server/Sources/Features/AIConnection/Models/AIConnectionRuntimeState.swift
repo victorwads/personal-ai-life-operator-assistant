@@ -9,6 +9,7 @@ struct AIConnectionRuntimeState {
 
     var systemPrompt: String
     var userPrompt: String
+    var promptSections: [AIRunPromptSection]
     var assistantText: String
     var reasoningText: String
 
@@ -48,6 +49,7 @@ struct AIConnectionRuntimeState {
             currentPhaseStartedAt: nil,
             systemPrompt: systemPrompt,
             userPrompt: "",
+            promptSections: [],
             assistantText: "",
             reasoningText: "",
             availableToolDefinitions: availableToolDefinitions,

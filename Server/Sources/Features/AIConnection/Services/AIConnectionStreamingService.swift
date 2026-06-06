@@ -34,6 +34,7 @@ final class AIConnectionStreamingService: AIConnectionStreamingServing {
                         messages: request.messages,
                         tools: request.tools.isEmpty ? await availableTools() : request.tools,
                         temperature: request.temperature,
+                        reasoningEffort: request.reasoningEffort,
                         maxOutputTokens: request.maxOutputTokens,
                         cacheMode: request.cacheMode
                     )

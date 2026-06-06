@@ -3,9 +3,16 @@ import SwiftUI
 struct DebugObjectItem: Identifiable {
     let title: String
     let value: Any
-    private let identity = UUID()
+    private let identity: UUID
 
     init(title: String, value: Any) {
+        self.identity = UUID()
+        self.title = title
+        self.value = value
+    }
+
+    init(id: UUID, title: String, value: Any) {
+        self.identity = id
         self.title = title
         self.value = value
     }
@@ -14,29 +21,55 @@ struct DebugObjectItem: Identifiable {
 }
 
 struct DSDebugObjectsInspector: View {
+    enum PresentationStyle {
+        case tooltip
+        case inline
+    }
+
     let title: String
     let items: [DebugObjectItem]
+    let presentationStyle: PresentationStyle
 
     @State private var isPresented = false
     @State private var isSheetPresented = false
-    @State private var renderedItems: [UUID: String] = [:]
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    init(title: String, items: [DebugObjectItem]) {
+    init(
+        title: String,
+        items: [DebugObjectItem],
+        presentationStyle: PresentationStyle = .tooltip
+    ) {
         self.title = title
         self.items = items
+        self.presentationStyle = presentationStyle
     }
 
-    init(title: String, values: [String: Any]) {
+    init(
+        title: String,
+        values: [String: Any],
+        presentationStyle: PresentationStyle = .tooltip
+    ) {
         self.init(
             title: title,
             items: values.keys.sorted().map { key in
                 DebugObjectItem(title: key, value: values[key] as Any)
-            }
+            },
+            presentationStyle: presentationStyle
         )
     }
 
     var body: some View {
+        Group {
+            switch presentationStyle {
+            case .tooltip:
+                triggerButton
+            case .inline:
+                inlineContent
+            }
+        }
+    }
+
+    private var triggerButton: some View {
         Button {
             if horizontalSizeClass == .compact {
                 isSheetPresented = true
@@ -53,13 +86,13 @@ struct DSDebugObjectsInspector: View {
         .controlSize(.mini)
         .help(title)
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {
-            inspectorContent
+            inspectorContent(showCloseButton: true)
                 .frame(width: popoverSize.width, height: popoverSize.height)
                 .padding(12)
         }
         .sheet(isPresented: $isSheetPresented) {
             NavigationStack {
-                inspectorContent
+                inspectorContent(showCloseButton: true)
                     .padding(12)
                     .navigationTitle(title)
                     .toolbar {
@@ -71,7 +104,11 @@ struct DSDebugObjectsInspector: View {
         }
     }
 
-    private var inspectorContent: some View {
+    private var inlineContent: some View {
+        inspectorContent(showCloseButton: false)
+    }
+
+    private func inspectorContent(showCloseButton: Bool) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
                 Label(title, systemImage: "curlybraces")
@@ -79,12 +116,14 @@ struct DSDebugObjectsInspector: View {
 
                 Spacer(minLength: 12)
 
-                Button("Close") {
-                    isPresented = false
-                    isSheetPresented = false
+                if showCloseButton {
+                    Button("Close") {
+                        isPresented = false
+                        isSheetPresented = false
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
             }
 
             Divider()
@@ -97,32 +136,24 @@ struct DSDebugObjectsInspector: View {
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
-                        ForEach(items) { item in
+                        ForEach(DSDebugObjectsInspectorRenderer.renderedItems(for: items)) { item in
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(item.title)
                                     .font(.subheadline.weight(.semibold))
 
-                                if let rendered = renderedItems[item.id] {
-                                    DSCodeBlock(rendered)
-                                        .frame(maxWidth: .infinity, minHeight: 72, alignment: .topLeading)
-                                } else {
-                                    ProgressView()
-                                        .frame(maxWidth: .infinity, minHeight: 72)
-                                }
+                                DSCodeBlock(item.renderedValue)
+                                    .frame(maxWidth: .infinity, minHeight: 72, alignment: .topLeading)
                             }
                         }
                     }
-                }
-                .task {
-                    renderItemsIfNeeded()
                 }
             }
         }
     }
 
     private var popoverSize: CGSize {
-        let text = items
-            .map { renderedItems[$0.id] ?? "" }
+        let text = DSDebugObjectsInspectorRenderer.renderedItems(for: items)
+            .map(\.renderedValue)
             .joined(separator: "\n")
         let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
         let longestLineLength = lines.map(\.count).max() ?? 2
@@ -131,15 +162,23 @@ struct DSDebugObjectsInspector: View {
         let height = min(max(CGFloat(estimatedLineCount) * 16 + 110, 220), 760)
         return CGSize(width: width, height: height)
     }
+}
 
-    private func renderItemsIfNeeded() {
-        guard renderedItems.count != items.count else { return }
+enum DSDebugObjectsInspectorRenderer {
+    struct RenderedItem: Identifiable, Equatable {
+        let id: UUID
+        let title: String
+        let renderedValue: String
+    }
 
-        var nextRenderedItems = renderedItems
-        for item in items where nextRenderedItems[item.id] == nil {
-            nextRenderedItems[item.id] = DSDebugObjectFormatter.formattedText(for: item.value)
+    static func renderedItems(for items: [DebugObjectItem]) -> [RenderedItem] {
+        items.map { item in
+            RenderedItem(
+                id: item.id,
+                title: item.title,
+                renderedValue: DSDebugObjectFormatter.formattedText(for: item.value)
+            )
         }
-        renderedItems = nextRenderedItems
     }
 }
 

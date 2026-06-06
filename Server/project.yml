@@ -4,14 +4,16 @@ options:
   deploymentTarget:
     macOS: "14.0"
 fileGroups:
-  - project.yml
   - ../firestore.indexes.json
   - ../firebase.rules
   - ../firebase.json
+  - ../Docs
+  - ../AGENTS.md
   - AGENTS.md
-  - Docs
-  - Sources
+  - project.yml
   - Scripts
+  - Packages
+  - Sources
   - Tests
 packages:
   MCP:
@@ -23,6 +25,8 @@ packages:
   GoogleSignIn:
     url: https://github.com/google/GoogleSignIn-iOS.git
     from: "9.1.0"
+  WhisperCPP:
+    path: Packages/WhisperCPP
   Yams:
     url: https://github.com/jpsim/Yams.git
     from: "6.0.1"
@@ -33,6 +37,7 @@ targets:
     sources:
       - path: Sources
         excludes:
+          - "Shared/UI/PreviewApp/**"
           - "**/*.md"
       - path: Resources
         buildPhase: resources
@@ -49,6 +54,8 @@ targets:
         product: FirebaseDatabase
       - package: GoogleSignIn
         product: GoogleSignIn
+      - package: WhisperCPP
+        product: WhisperCPP
       - package: Yams
         product: Yams
     settings:
@@ -66,6 +73,21 @@ targets:
 
         MACOSX_DEPLOYMENT_TARGET: "14.0"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  AIAssistantHubDesignSystemPreview:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/Shared/UI
+        excludes:
+          - "**/*.md"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.localaiassistant.aiassistanthub.designsystempreview
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: DU6489YN3U
+        CODE_SIGN_IDENTITY: "Apple Development"
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
   AIAssistantHubTests:
     type: bundle.unit-test
     platform: macOS
@@ -94,20 +116,9 @@ schemes:
       config: Debug
       targets:
         - AIAssistantHubTests
-  AIAssistantHubEmulators:
+  AIAssistantHubDesignSystemPreview:
     build:
       targets:
-        AIAssistantHub: all
-        AIAssistantHubTests: [test]
+        AIAssistantHubDesignSystemPreview: all
     run:
       config: Debug
-      environmentVariables:
-        FIREBASE_USE_EMULATORS: "1"
-        FIREBASE_EMULATOR_HOST: "localhost"
-        FIRESTORE_EMULATOR_PORT: "8080"
-        FIREBASE_AUTH_EMULATOR_PORT: "9099"
-        FIREBASE_DATABASE_EMULATOR_PORT: "9000"
-    test:
-      config: Debug
-      targets:
-        - AIAssistantHubTests

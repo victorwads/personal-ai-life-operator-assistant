@@ -8,7 +8,9 @@ final class AIConnectionRuntimeService: ObservableObject {
     private let requestBuilder: AIConnectionRequestBuilder
     private let conversationBuilder: AIConnectionConversationContextBuilder
     private let memoryBootstrapProvider: @MainActor () async -> AIConversationMessage?
+    private let pendingWorkBootstrapProvider: @MainActor () async -> AIConversationMessage?
     private let systemPromptProvider: @MainActor () -> String
+    private let providerConfigurationProvider: @MainActor () -> AIConnectionProviderConfiguration
     private let usageTracker: AIConnectionUsageTracker
     private let debugRecorder: AIConnectionRuntimeDebugRecorder
     private let toolCallTracker: AIConnectionToolCallTracker
@@ -27,7 +29,21 @@ final class AIConnectionRuntimeService: ObservableObject {
     init(
         streamingService: any AIConnectionStreamingServing,
         memoryBootstrapProvider: @escaping @MainActor () async -> AIConversationMessage? = { nil },
+        pendingWorkBootstrapProvider: @escaping @MainActor () async -> AIConversationMessage? = { nil },
         systemPromptProvider: @escaping @MainActor () -> String = { AIConnectionRuntimeDefaults.baseSystemPrompt },
+        providerConfigurationProvider: @escaping @MainActor () -> AIConnectionProviderConfiguration = {
+            AIConnectionProviderConfiguration(
+                providerKind: .openRouter,
+                baseURL: "",
+                apiKey: "",
+                model: "",
+                temperature: 0.6,
+                reasoningEffort: .off,
+                maxOutputTokens: nil,
+                streamingEnabled: true,
+                cacheMode: .automatic
+            )
+        },
         errorLogStore: AIConnectionErrorLogStore = AIConnectionErrorLogStore(),
         serverLogsProvider: @escaping @MainActor () -> ServerLogsService = {
             AIConnectionRuntimeService.defaultServerLogsService
@@ -37,7 +53,9 @@ final class AIConnectionRuntimeService: ObservableObject {
         self.requestBuilder = AIConnectionRequestBuilder()
         self.conversationBuilder = AIConnectionConversationContextBuilder()
         self.memoryBootstrapProvider = memoryBootstrapProvider
+        self.pendingWorkBootstrapProvider = pendingWorkBootstrapProvider
         self.systemPromptProvider = systemPromptProvider
+        self.providerConfigurationProvider = providerConfigurationProvider
         self.usageTracker = AIConnectionUsageTracker()
         self.debugRecorder = AIConnectionRuntimeDebugRecorder(maxEvents: 200)
         self.toolCallTracker = AIConnectionToolCallTracker()
@@ -68,14 +86,14 @@ final class AIConnectionRuntimeService: ObservableObject {
         appendDebug(kind: "tools.loaded", summary: "Loaded \(loadedTools.count) tool definition(s).")
     }
 
-    func startRun(userPrompt: String) {
+    func startRun() {
         guard state.canStart, activeStreamingTask == nil else {
             state.errors.append("A run is already active. Cancel or reset before starting another.")
             appendDebug(kind: "run.start.rejected", summary: "Attempted to start while another run was active.")
             return
         }
 
-        prepareStateForNewRun(userPrompt: userPrompt)
+        prepareStateForNewRun()
 
         activeStreamingTask = Task { [weak self] in
             guard let self else { return }
@@ -180,7 +198,8 @@ final class AIConnectionRuntimeService: ObservableObject {
                 runtimeLogger.logCycleCompleted(
                     state: state,
                     outcome: cycleOutcome,
-                    cycleNumber: cycleNumber
+                    cycleNumber: cycleNumber,
+                    requestContext: currentRequestLogContext
                 )
                 transitionStatus(.cycleCompleted)
                 appendDebug(
@@ -215,12 +234,20 @@ final class AIConnectionRuntimeService: ObservableObject {
     }
 
     private func runSingleCycle(cycleNumber: Int) async throws -> AIConnectionCycleOutcome {
-        let bootstrapMessage = await memoryBootstrapProvider()
+        let memoryBootstrapMessage = await memoryBootstrapProvider()
+        let pendingWorkBootstrapMessage = await pendingWorkBootstrapProvider()
         var conversationMessages = await MainActor.run {
-            conversationBuilder.bootstrapConversationMessages(
+            let bootstrapMessages = [memoryBootstrapMessage, pendingWorkBootstrapMessage].compactMap { $0 }
+            if state.promptSections.isEmpty {
+                let promptSections = buildPromptSections(
+                    systemPrompt: state.systemPrompt,
+                    pendingWorkBootstrapMessage: pendingWorkBootstrapMessage
+                )
+                state.promptSections = promptSections
+            }
+            return conversationBuilder.bootstrapConversationMessages(
                 systemPrompt: state.systemPrompt,
-                userPrompt: state.userPrompt,
-                bootstrapMessage: bootstrapMessage
+                bootstrapMessages: bootstrapMessages
             )
         }
         var requestIndex = 0
@@ -231,7 +258,8 @@ final class AIConnectionRuntimeService: ObservableObject {
             let request = await MainActor.run {
                 requestBuilder.buildRequest(
                     messages: conversationMessages,
-                    availableToolDefinitions: state.availableToolDefinitions
+                    availableToolDefinitions: state.availableToolDefinitions,
+                    configuration: providerConfigurationProvider()
                 )
             }
 
@@ -311,14 +339,15 @@ final class AIConnectionRuntimeService: ObservableObject {
         throw CancellationError()
     }
 
-    private func prepareStateForNewRun(userPrompt: String) {
+    private func prepareStateForNewRun() {
         let runStartedAt = Date()
         let runId = UUID()
         state.runId = runId
         state.startedAt = runStartedAt
         state.endedAt = nil
         state.systemPrompt = systemPromptProvider()
-        state.userPrompt = userPrompt
+        state.userPrompt = ""
+        state.promptSections = []
         state.assistantText = ""
         state.reasoningText = ""
         state.toolCalls = []
@@ -333,8 +362,32 @@ final class AIConnectionRuntimeService: ObservableObject {
         toolCallTracker.reset()
 
         appendDebug(kind: "runtime.started", summary: "Continuous runtime loop started.")
-        runtimeLogger.logSessionStarted(state: state)
         transitionStatus(.initializing)
+    }
+
+    private func buildPromptSections(
+        systemPrompt: String,
+        pendingWorkBootstrapMessage: AIConversationMessage?
+    ) -> [AIRunPromptSection] {
+        var sections = [
+            AIRunPromptSection(
+                title: "System Prompt",
+                roleLabel: AIConversationMessage.Role.system.rawValue,
+                content: systemPrompt
+            )
+        ]
+
+        if let content = pendingWorkBootstrapMessage?.content, !content.isEmpty {
+            sections.append(
+                AIRunPromptSection(
+                    title: "Pending Work Bootstrap",
+                    roleLabel: pendingWorkBootstrapMessage?.role.rawValue ?? AIConversationMessage.Role.user.rawValue,
+                    content: content
+                )
+            )
+        }
+
+        return sections
     }
 
     private func prepareStateForCycle(cycleNumber: Int) {
@@ -360,8 +413,15 @@ final class AIConnectionRuntimeService: ObservableObject {
             currentRequestLogContext = AIConnectionRequestLogContext(
                 cycleNumber: cycleNumber,
                 requestIndex: requestIndex,
-                startedAt: Date()
+                startedAt: Date(),
+                requestMessages: request.messages
             )
+            if cycleNumber == 1 && requestIndex == 1 {
+                runtimeLogger.logSessionStarted(
+                    state: state,
+                    requestMessages: request.messages
+                )
+            }
             transitionStatus(.promptProcessing)
             appendDebug(
                 kind: "tool.loop.request",
@@ -549,7 +609,11 @@ final class AIConnectionRuntimeService: ObservableObject {
         toolCallTracker.finalizeAsCancelledIfNeeded(at: endedAt, state: &state)
         usageTracker.finalize(at: endedAt, state: &state)
         state.endedAt = endedAt
-        runtimeLogger.logCancelled(state: state, endedAt: endedAt)
+        runtimeLogger.logCancelled(
+            state: state,
+            endedAt: endedAt,
+            requestContext: currentRequestLogContext
+        )
         currentRequestLogContext = nil
         transitionStatus(.cancelled)
     }

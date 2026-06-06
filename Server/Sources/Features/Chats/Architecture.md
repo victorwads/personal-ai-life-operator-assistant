@@ -11,6 +11,7 @@ This document owns chat/message domain model and repository rules.
 - `Chat.unhandledCount` is a cached count of messages with `handled == false`. The source of truth remains `ChatMessages`; the repository can recompute it via `updateUnhandledCount(chatId:count:)`, using Firestore count aggregation (not document reads).
 - When new messages are inserted, the repository recomputes `Chat.unhandledCount` for affected chats. This avoids recalculating counts on every chat list read.
 - `list_chats` exposes `unhandledCount`, and `list_unhandled_chats` uses cached `Chat.unhandledCount` to avoid scanning `ChatMessages` during listing. The source of truth remains `ChatMessage.handled`.
+- Permission-aware unhandled listing must be centralized in the repository path so MCP/runtime callers do not need to remember a second `isChatAllowed` filter after requesting unhandled chats.
 - Existing data may have missing or stale cached counts; the MCP tool `backfill_unhandled_counts` recomputes `Chat.unhandledCount` for all persisted chats by calling `updateUnhandledCount(chatId:count:)` per chat.
 
 ## ID format rules
@@ -29,9 +30,10 @@ This document owns chat/message domain model and repository rules.
 
 ## MCP tool boundaries
 
-- Chats currently owns read-only listing tools such as `list_chats`, `list_chat_messages`, and `list_unhandled_chats`.
+- Chats owns chat listing tools such as `list_chats`, `list_chat_messages`, and `list_unhandled_chats`, plus the explicit handled-marking tool `mark_chat_messages_as_handled`.
+- `list_chat_messages` returns a read receipt token for the last returned message and does not mutate handled state.
 - `send_message` does not belong to Chats. Outbound audit and tool ownership belong to SentMessages.
-- `list_chats_by_search` stays deferred until repository-backed search exists.
+- `list_chats_by_search` performs a simple similarity search over `Chat.title` and `Chat.lastMessagePreview`; when no chats match, it returns a textual fallback with the latest 10 allowed chats showing only title and ID.
 - `wait_for_event` belongs to runtime/orchestration and is intentionally deferred until late-stage integration across Issues, Chats, SentMessages, SensitiveData, ClientVoice, and event queues.
 
 ## Direction ownership field

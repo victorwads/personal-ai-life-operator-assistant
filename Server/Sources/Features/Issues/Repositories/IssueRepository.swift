@@ -9,7 +9,7 @@ final class FirestoreIssueRepository: FirestoreRepository<Issue> {
     init(scope: FirebaseProfileScope) {
         super.init(
             entityName: "Issue",
-            path: .profileScoped(scope: scope, collection: "Issues")
+            path: .profileScoped(scope: scope, collection: "Issues"),
         )
     }
 

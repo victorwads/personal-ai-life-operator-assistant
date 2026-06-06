@@ -55,7 +55,7 @@ private final class AskToClientRepositorySpy: ClientInteractionRequestRepository
     }
 
     func createRequest(
-        issueId: String,
+        issueId: String?,
         kind: ClientInteractionRequest.Kind,
         status: ClientInteractionRequest.Status,
         promptText: String
@@ -93,6 +93,10 @@ private final class AskToClientRepositorySpy: ClientInteractionRequestRepository
     }
 
     func markCancelled(id: String) async throws -> ClientInteractionRequest {
+        throw ClientInteractionRequestRepositoryError.requestNotFound(id)
+    }
+
+    func deleteRequest(id: String) async throws {
         throw ClientInteractionRequestRepositoryError.requestNotFound(id)
     }
 

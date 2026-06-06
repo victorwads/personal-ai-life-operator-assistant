@@ -8,10 +8,12 @@ protocol ChatRepository {
     func deleteChat(id: String) async throws
     func deleteAllChatsAndMessages() async throws
 
-    func listUnhandledChats(limit: Int?) async throws -> [Chat]
+    func listUnhandledChats(limit: Int?, permissionMode: ChatPermissionMode) async throws -> [Chat]
     func listMessages(chatId: String, limit: Int?) async throws -> [ChatMessage]
     func insertMessages(_ messages: [ChatMessage]) async throws -> [ChatMessage]
     func markMessagesHandled(ids: [String]) async throws
+    func markMessagesHandledThrough(chatId: String, lastChatMessageId: String) async throws -> Int
+    func markMessagesUnhandledFrom(chatId: String, firstChatMessageId: String) async throws -> Int
     func existingMessageIds(chatId: String) async throws -> Set<String>
     func deleteMessage(id: String) async throws
     func deleteChatAndMessages(chatId: String) async throws

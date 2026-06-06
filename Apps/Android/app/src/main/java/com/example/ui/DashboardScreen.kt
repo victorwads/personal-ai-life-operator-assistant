@@ -95,7 +95,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
                                 color = UiTokens.TextDark
                             )
                             Text(
-                                text = "ask_to_client and speak_to_client live here first.",
+                                text = "ask_to_client and announce_to_client live here first.",
                                 fontSize = 12.sp,
                                 color = UiTokens.MutedSlate
                             )
