@@ -64,7 +64,7 @@ struct ChatMessageBubbleView: View {
         case .text:
             Text(message.text ?? "(empty text message)")
         case .image:
-            mediaPreviewOrPlaceholder(placeholder: "[Image]")
+            imageMessageContent
         case .sticker:
             mediaPreviewOrPlaceholder(placeholder: "[Sticker]")
         case .audio:
@@ -101,6 +101,13 @@ struct ChatMessageBubbleView: View {
         return quotedMessageText
     }
 
+    private var trimmedMessageText: String? {
+        guard let text = message.text?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else {
+            return nil
+        }
+        return text
+    }
+
     private var kindBadge: some View {
         switch message.kind {
         case .text:
@@ -113,6 +120,17 @@ struct ChatMessageBubbleView: View {
             return DSBadge("Audio", systemImage: "waveform", style: .info)
         case .unknown:
             return DSBadge("Unknown", systemImage: "questionmark.circle", style: .warning)
+        }
+    }
+
+    @ViewBuilder
+    private var imageMessageContent: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            mediaPreviewOrPlaceholder(placeholder: "[Image]")
+
+            if let trimmedMessageText {
+                Text(trimmedMessageText)
+            }
         }
     }
 
