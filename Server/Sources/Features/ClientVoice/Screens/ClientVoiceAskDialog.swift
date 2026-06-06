@@ -64,7 +64,6 @@ struct ClientVoiceAskDialog: View {
             }
         }
         .padding(20)
-        .frame(minWidth: 420, idealWidth: 520)
         .task {
             viewModel.startIfNeeded()
         }
