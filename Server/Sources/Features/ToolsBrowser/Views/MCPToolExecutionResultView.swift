@@ -26,21 +26,32 @@ struct MCPToolExecutionResultView: View {
 
     private func resultContent(_ result: MCPToolExecutionResult, isSuccess: Bool) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label(
-                isSuccess ? "Success" : "Failed",
-                systemImage: isSuccess ? "checkmark.circle.fill" : "xmark.octagon.fill"
-            )
-            .foregroundStyle(isSuccess ? .green : .red)
+            if isSuccess {
+                if let renderedPayload = MCPToolsBrowserJSONFormatting.prettyPrintedSuccessPayload(
+                    result.payload
+                ) {
+                    DSCodeBlock(renderedPayload)
+                } else {
+                    Text("This tool completed without returning a payload.")
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Label(
+                    "Failed",
+                    systemImage: "xmark.octagon.fill"
+                )
+                .foregroundStyle(.red)
 
-            if let duration = result.durationMilliseconds {
-                Text("\(duration, specifier: "%.1f") ms")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if let duration = result.durationMilliseconds {
+                    Text("\(duration, specifier: "%.1f") ms")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Text("Result JSON")
+                    .font(.subheadline.weight(.semibold))
+                DSCodeBlock(MCPToolsBrowserJSONFormatting.prettyPrinted(result: result))
             }
-
-            Text("Result JSON")
-                .font(.subheadline.weight(.semibold))
-            DSCodeBlock(MCPToolsBrowserJSONFormatting.prettyPrinted(result: result))
         }
     }
 }

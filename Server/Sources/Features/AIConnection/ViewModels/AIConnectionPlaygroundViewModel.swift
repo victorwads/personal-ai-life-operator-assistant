@@ -3,7 +3,6 @@ import Foundation
 
 @MainActor
 final class AIConnectionPlaygroundViewModel: ObservableObject {
-    @Published var prompt = "start your job"
     @Published private(set) var runtimeState: AIConnectionRuntimeState
     @Published private(set) var logsFolderPath: String
     @Published private(set) var logsFolderError: String?
@@ -32,7 +31,7 @@ final class AIConnectionPlaygroundViewModel: ObservableObject {
     var canReset: Bool { runtimeState.canReset }
 
     var promptState: AIRunPromptState {
-        AIRunPromptState(systemPrompt: runtimeState.systemPrompt, userPrompt: runtimeState.userPrompt)
+        AIRunPromptState(sections: runtimeState.promptSections)
     }
 
     func loadTools() async {
@@ -40,7 +39,7 @@ final class AIConnectionPlaygroundViewModel: ObservableObject {
     }
 
     func startJob() {
-        runtimeService.startRun(userPrompt: normalizedPrompt)
+        runtimeService.startRun()
     }
 
     func cancelRun() {
@@ -58,10 +57,5 @@ final class AIConnectionPlaygroundViewModel: ObservableObject {
         } catch {
             logsFolderError = error.localizedDescription
         }
-    }
-
-    private var normalizedPrompt: String {
-        let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "start your job" : trimmed
     }
 }

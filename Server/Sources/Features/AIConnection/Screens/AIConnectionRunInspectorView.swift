@@ -33,14 +33,10 @@ struct AIRunHeaderView: View {
     var body: some View {
         DSTitledSection(
             title: "Run",
-            subtitle: "Runtime-owned execution inspector for prompt, outputs, tool calls, usage, and errors.",
+            subtitle: "Runtime-owned execution inspector for bootstrap context, outputs, tool calls, usage, and errors.",
             systemImage: "play.circle"
         ) {
             VStack(alignment: .leading, spacing: 10) {
-                TextField("User prompt", text: $viewModel.prompt)
-                    .textFieldStyle(.roundedBorder)
-                    .autocorrectionDisabled()
-
                 HStack(spacing: 8) {
                     Text("Status")
                         .font(.caption)
@@ -161,26 +157,48 @@ struct AIRunPromptPanelView: View {
     var body: some View {
         DSTitledSection(
             title: "Prompts",
-            subtitle: "Exact system and user prompts sent in the current run.",
+            subtitle: "Exact session-start prompt payload sent in the current run.",
             systemImage: "text.append"
         ) {
-            HStack(alignment: .center, spacing: 10) {
-                Text("Inspect exact prompt payloads with preserved raw formatting.")
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Inspect the exact system prompt and every bootstrap message used to open the session.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
-                DSDebugObjectsInspector(
-                    title: "Prompts",
-                    items: [
-                        DebugObjectItem(title: "System Prompt", value: promptState.systemPrompt),
-                        DebugObjectItem(
-                            title: "User Prompt",
-                            value: promptState.userPrompt.isEmpty ? "No run started yet." : promptState.userPrompt
-                        )
-                    ]
-                )
+                if promptState.sections.isEmpty {
+                    Text("No session has started yet.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(Array(promptState.sections.enumerated()), id: \.offset) { entry in
+                        AIRunPromptSectionDisclosureView(section: entry.element)
+                    }
+                }
+            }
+        }
+    }
+}
 
-                Spacer(minLength: 0)
+private struct AIRunPromptSectionDisclosureView: View {
+    let section: AIRunPromptSection
+    @State private var isExpanded = false
+
+    var body: some View {
+        DisclosureGroup(isExpanded: $isExpanded) {
+            DSCodeBlock(section.content)
+                .frame(minHeight: 120, maxHeight: 280)
+                .padding(.top, 8)
+        } label: {
+            HStack(alignment: .center, spacing: 8) {
+                Text(section.title)
+                    .font(.subheadline.weight(.semibold))
+                Text(section.roleLabel.uppercased())
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.secondary.opacity(0.12), in: Capsule())
+                Spacer()
             }
         }
     }

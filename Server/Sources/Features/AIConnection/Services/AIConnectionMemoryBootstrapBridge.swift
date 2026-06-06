@@ -20,7 +20,7 @@ final class AIConnectionMemoryBootstrapBridge {
             }
 
             return AIConversationMessage(
-                role: .system,
+                role: .user,
                 content: formattedBootstrapText(for: sortedMemories)
             )
         } catch {
@@ -32,15 +32,17 @@ final class AIConnectionMemoryBootstrapBridge {
     private func formattedBootstrapText(for memories: [Memory]) -> String {
         let sections = memories.map { memory in
             """
-            ## key: \(memory.key)
+            <Memory key="\(memory.key)">
             \(memory.value)
+            </Memory>
             """
         }
 
         return """
-        # Client memories
-
-        \(sections.joined(separator: "\n\n---\n\n"))
+        # Client important memories
+        <ClientMemories>
+        \(sections.joined(separator: "\n"))
+        </ClientMemories>
         """
     }
 }

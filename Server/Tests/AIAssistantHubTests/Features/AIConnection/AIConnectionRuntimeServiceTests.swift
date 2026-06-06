@@ -39,7 +39,7 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
         )
         let service = AIConnectionRuntimeService(streamingService: streamingService)
 
-        service.startRun(userPrompt: "start your job")
+        service.startRun()
 
         try await waitUntil {
             streamingService.recordedRequestCount() >= 3
@@ -49,6 +49,7 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
         XCTAssertEqual(recordedRequests[0].messages.count, 2)
         XCTAssertEqual(recordedRequests[1].messages.count, 2)
         XCTAssertEqual(recordedRequests[2].messages.count, 2)
+        XCTAssertEqual(recordedRequests[0].messages[1].role, .user)
         XCTAssertTrue(service.state.isRunning)
         XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "cycle.completed" }))
 
@@ -59,9 +60,9 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
         }
     }
 
-    func testBootstrapsMemoriesBeforeUserPrompt() async throws {
+    func testBootstrapsMemoriesAtSessionStart() async throws {
         let bootstrapMessage = AIConversationMessage(
-            role: .system,
+            role: .user,
             content: """
             # Client memories
 
@@ -79,7 +80,7 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
             memoryBootstrapProvider: { [bootstrapMessage] in bootstrapMessage }
         )
 
-        service.startRun(userPrompt: "start your job")
+        service.startRun()
 
         try await waitUntil {
             streamingService.recordedRequestCount() >= 1
@@ -87,14 +88,56 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
 
         let recordedRequests = streamingService.recordedRequestsSnapshot()
         XCTAssertEqual(recordedRequests.count, 1)
-        XCTAssertEqual(recordedRequests[0].messages.count, 3)
+        XCTAssertEqual(recordedRequests[0].messages.count, 2)
         XCTAssertEqual(recordedRequests[0].messages[0].role, .system)
-        XCTAssertEqual(recordedRequests[0].messages[1].role, .system)
+        XCTAssertEqual(recordedRequests[0].messages[1].role, .user)
         XCTAssertTrue(recordedRequests[0].messages[1].content?.contains("# Client memories") == true)
         XCTAssertTrue(recordedRequests[0].messages[1].content?.contains("## key: client_language") == true)
         XCTAssertTrue(recordedRequests[0].messages[1].content?.contains("pt-BR") == true)
-        XCTAssertEqual(recordedRequests[0].messages[2].role, .user)
-        XCTAssertEqual(recordedRequests[0].messages[2].content, "start your job")
+        XCTAssertEqual(service.state.promptSections.map(\.title), ["System Prompt"])
+
+        service.cancelRun()
+
+        try await waitUntil {
+            service.state.status == .cancelled
+        }
+    }
+
+    func testBootstrapsPendingWorkAsUserMessageAtSessionStart() async throws {
+        let pendingWorkMessage = AIConversationMessage(
+            role: .user,
+            content: """
+            Pending work is already available at startup.
+
+            Unhandled chats:
+            - Family (chatId: wa:123)
+            """
+        )
+        let streamingService = FakeAIConnectionStreamingService(
+            streamPlans: [
+                .waitUntilCancelled
+            ]
+        )
+        let service = AIConnectionRuntimeService(
+            streamingService: streamingService,
+            pendingWorkBootstrapProvider: { [pendingWorkMessage] in pendingWorkMessage }
+        )
+
+        service.startRun()
+
+        try await waitUntil {
+            streamingService.recordedRequestCount() >= 1
+        }
+
+        let recordedRequests = streamingService.recordedRequestsSnapshot()
+        XCTAssertEqual(recordedRequests.count, 1)
+        XCTAssertEqual(recordedRequests[0].messages.count, 2)
+        XCTAssertEqual(recordedRequests[0].messages[0].role, .system)
+        XCTAssertEqual(recordedRequests[0].messages[1].role, .user)
+        XCTAssertTrue(recordedRequests[0].messages[1].content?.contains("Pending work is already available at startup.") == true)
+        XCTAssertTrue(recordedRequests[0].messages[1].content?.contains("Family (chatId: wa:123)") == true)
+        XCTAssertEqual(service.state.promptSections.map(\.title), ["System Prompt", "Pending Work Bootstrap"])
+        XCTAssertEqual(service.state.promptSections.last?.roleLabel, "user")
 
         service.cancelRun()
 
@@ -106,7 +149,7 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
     func testPlainAssistantTextAppendsCorrectionAndRetriesInSameContext() async throws {
         let speakToolCall = AIRequestedToolCall(
             id: "tool-speak",
-            name: "speak_to_client",
+            name: "announce_to_client",
             argumentsJSON: "{\"message\":\"I am checking now.\"}"
         )
         let invalidAssistantText = "I will tell the client I am checking now."
@@ -148,7 +191,7 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
         )
         let service = AIConnectionRuntimeService(streamingService: streamingService)
 
-        service.startRun(userPrompt: "stay operational")
+        service.startRun()
 
         try await waitUntil {
             streamingService.recordedRequestCount() >= 3
@@ -214,13 +257,14 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
                     payload: .string("event: something changed. Start a new cycle and inspect active chats, issues, and client interactions."),
                     errorMessage: nil,
                     suggestedAction: nil,
+                    validationErrors: [],
                     durationMilliseconds: nil
                 )
             }
         )
         let service = AIConnectionRuntimeService(streamingService: streamingService)
 
-        service.startRun(userPrompt: "stay alive and keep watching")
+        service.startRun()
 
         try await waitUntil {
             streamingService.recordedRequestCount() >= 1
@@ -297,7 +341,7 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
             errorLogStore: AIConnectionErrorLogStore(logsDirectoryURL: logsDirectoryURL)
         )
 
-        service.startRun(userPrompt: "keep running forever")
+        service.startRun()
 
         try await waitUntil {
             streamingService.recordedRequestCount() >= 3
@@ -388,7 +432,7 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
         )
         let service = AIConnectionRuntimeService(streamingService: streamingService)
 
-        service.startRun(userPrompt: "do not speak directly")
+        service.startRun()
 
         try await waitUntil(timeoutNanoseconds: 4_000_000_000) {
             streamingService.recordedRequestCount() >= 4
@@ -428,6 +472,14 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
             name: "get_current_datetime",
             argumentsJSON: "{\"timezone\":\"UTC\"}"
         )
+        let memoryBootstrapMessage = AIConversationMessage(
+            role: .user,
+            content: "# Client memories\n\n## key: timezone\nUTC"
+        )
+        let pendingWorkMessage = AIConversationMessage(
+            role: .user,
+            content: "Pending work is already available at startup."
+        )
         let streamingService = FakeAIConnectionStreamingService(
             streamPlans: [
                 .events([
@@ -457,16 +509,19 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
                     payload: .object(["timestamp": .string("2026-06-03T12:00:00Z")]),
                     errorMessage: nil,
                     suggestedAction: nil,
+                    validationErrors: [],
                     durationMilliseconds: 18
                 )
             }
         )
         let service = AIConnectionRuntimeService(
             streamingService: streamingService,
+            memoryBootstrapProvider: { memoryBootstrapMessage },
+            pendingWorkBootstrapProvider: { pendingWorkMessage },
             serverLogsProvider: { serverLogsService }
         )
 
-        service.startRun(userPrompt: "Check the current time.")
+        service.startRun()
 
         try await waitUntil {
             let entries = try? await repository.list(ServerLogQuery(limit: 20))
@@ -486,7 +541,16 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
                 && $0.toolName == "get_current_datetime"
                 && $0.durationMilliseconds == 18
                 && $0.success == true
-                && $0.outputPayload?.contains("\"timestamp\":\"2026-06-03T12:00:00Z\"") == true
+                && $0.outputPayload?.contains("Tool: get_current_datetime") == true
+                && $0.outputPayload?.contains("Status: success") == true
+                && $0.outputPayload?.contains("2026-06-03T12:00:00Z") == true
+        }))
+        XCTAssertTrue(entries.contains(where: {
+            $0.kind == .sessionStarted
+                && $0.inputPayload?.contains("\"role\":\"system\"") == true
+                && $0.inputPayload?.contains("\"role\":\"user\"") == true
+                && $0.inputPayload?.contains("# Client memories") == true
+                && $0.inputPayload?.contains("Pending work is already available at startup.") == true
         }))
 
         service.cancelRun()
@@ -514,6 +578,7 @@ private final class FakeAIConnectionStreamingService: AIConnectionStreamingServi
                 payload: nil,
                 errorMessage: nil,
                 suggestedAction: nil,
+                validationErrors: [],
                 durationMilliseconds: nil
             )
         }

@@ -5,6 +5,8 @@ struct OpenAICompatibleChatCompletionsRequest: Encodable {
     let messages: [OpenAICompatibleChatMessage]
     let tools: [OpenAICompatibleTool]?
     let temperature: Double
+    let reasoning: OpenAICompatibleReasoningPayload?
+    let extraBody: OpenAICompatibleExtraBody?
     let maxTokens: Int?
     let stream: Bool
 
@@ -13,6 +15,8 @@ struct OpenAICompatibleChatCompletionsRequest: Encodable {
         case messages
         case tools
         case temperature
+        case reasoning
+        case extraBody = "extra_body"
         case maxTokens = "max_tokens"
         case stream
     }
@@ -22,8 +26,46 @@ struct OpenAICompatibleChatCompletionsRequest: Encodable {
         self.messages = request.messages.map { OpenAICompatibleChatMessage(message: $0) }
         self.tools = request.tools.isEmpty ? nil : request.tools.map { OpenAICompatibleTool(definition: $0) }
         self.temperature = request.temperature
+        self.reasoning = request.reasoningEffort.reasoningPayload
+        self.extraBody = request.reasoningEffort.extraBody
         self.maxTokens = request.maxOutputTokens
         self.stream = true
+    }
+}
+
+enum OpenAICompatibleReasoningPayload: Encodable {
+    case off
+    case effort(String)
+
+    func encode(to encoder: Encoder) throws {
+        switch self {
+        case .off:
+            var container = encoder.singleValueContainer()
+            try container.encode("off")
+        case let .effort(effort):
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(effort, forKey: .effort)
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case effort
+    }
+}
+
+struct OpenAICompatibleExtraBody: Encodable {
+    let chatTemplateKwargs: OpenAICompatibleChatTemplateKwargs
+
+    enum CodingKeys: String, CodingKey {
+        case chatTemplateKwargs = "chat_template_kwargs"
+    }
+}
+
+struct OpenAICompatibleChatTemplateKwargs: Encodable {
+    let enableThinking: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case enableThinking = "enable_thinking"
     }
 }
 

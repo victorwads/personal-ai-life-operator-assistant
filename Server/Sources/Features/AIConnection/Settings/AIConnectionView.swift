@@ -8,7 +8,8 @@ struct AIConnectionSettingsView: View {
     @State private var baseURL = ""
     @State private var apiKey = ""
     @State private var model = ""
-    @State private var temperature = 0.7
+    @State private var temperature = 0.6
+    @State private var reasoningEffort = AIConnectionReasoningEffort.off
     @State private var maxOutputTokens = ""
     @State private var cacheMode = AIConnectionCacheMode.automatic
 
@@ -31,6 +32,11 @@ struct AIConnectionSettingsView: View {
                 in: 0...2,
                 step: 0.1
             )
+            Picker("Reasoning", selection: reasoningEffortBinding) {
+                ForEach(AIConnectionReasoningEffort.allCases, id: \.self) { effort in
+                    Text(effort.displayName).tag(effort)
+                }
+            }
             TextField("Max Output Tokens (optional)", text: maxOutputTokensBinding)
                 .autocorrectionDisabled()
             Picker("Cache Mode", selection: cacheModeBinding) {
@@ -103,6 +109,15 @@ struct AIConnectionSettingsView: View {
         }
     }
 
+    private var reasoningEffortBinding: Binding<AIConnectionReasoningEffort> {
+        Binding {
+            reasoningEffort
+        } set: { value in
+            reasoningEffort = value
+            wrapper.reasoningEffort = value
+        }
+    }
+
     private var maxOutputTokensBinding: Binding<String> {
         Binding {
             maxOutputTokens
@@ -129,6 +144,7 @@ struct AIConnectionSettingsView: View {
         apiKey = wrapper.apiKey
         model = wrapper.model
         temperature = wrapper.temperature
+        reasoningEffort = wrapper.reasoningEffort
         maxOutputTokens = wrapper.maxOutputTokens.map(String.init) ?? ""
         cacheMode = wrapper.cacheMode
     }

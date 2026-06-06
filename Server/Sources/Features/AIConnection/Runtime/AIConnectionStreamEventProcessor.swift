@@ -122,7 +122,6 @@ final class AIConnectionStreamEventProcessor {
                 response: response,
                 requestContext: requestContext
             )
-            requestContext = nil
             transitionStatus(.waitingUser, state: &state)
             return response
         case .failed:

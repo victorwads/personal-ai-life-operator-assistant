@@ -17,6 +17,7 @@ final class AIConnectionSettingsWrapper {
         static let apiKey = "apiKey"
         static let model = "model"
         static let temperature = "temperature"
+        static let reasoningEffort = "reasoningEffort"
         static let maxOutputTokens = "maxOutputTokens"
         static let streamingEnabled = "streamingEnabled"
         static let cacheMode = "cacheMode"
@@ -99,13 +100,29 @@ final class AIConnectionSettingsWrapper {
         get {
             let rawValue = settings.value(scope: Self.scopeName, key: Key.temperature) ?? ""
             guard let value = Double(rawValue) else {
-                return 0.7
+                return 0.6
             }
 
             return value
         }
         set {
             settings.setValue(scope: Self.scopeName, key: Key.temperature, value: Self.format(newValue))
+        }
+    }
+
+    var reasoningEffort: AIConnectionReasoningEffort {
+        get {
+            guard
+                let rawValue = settings.value(scope: Self.scopeName, key: Key.reasoningEffort),
+                let reasoningEffort = AIConnectionReasoningEffort(rawValue: rawValue)
+            else {
+                return .off
+            }
+
+            return reasoningEffort
+        }
+        set {
+            settings.setValue(scope: Self.scopeName, key: Key.reasoningEffort, value: newValue.rawValue)
         }
     }
 
@@ -159,6 +176,7 @@ final class AIConnectionSettingsWrapper {
             apiKey: apiKey,
             model: model,
             temperature: temperature,
+            reasoningEffort: reasoningEffort,
             maxOutputTokens: maxOutputTokens,
             streamingEnabled: streamingEnabled,
             cacheMode: cacheMode

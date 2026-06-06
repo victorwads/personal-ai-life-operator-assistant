@@ -42,6 +42,17 @@ enum MCPToolsBrowserJSONFormatting {
         return string.replacingOccurrences(of: "\\/", with: "/")
     }
 
+    static func prettyPrintedSuccessPayload(_ payload: MCPJSONValue?) -> String? {
+        guard let payload else { return nil }
+
+        switch payload {
+        case let .string(text):
+            return DSDebugMirrorJSON.prettyPrintedJSONString(text) ?? text
+        default:
+            return prettyPrinted(payload)
+        }
+    }
+
     static func parse(_ text: String) -> MCPJSONValue? {
         guard let data = text.data(using: .utf8) else { return nil }
         return try? JSONDecoder().decode(MCPJSONValue.self, from: data)

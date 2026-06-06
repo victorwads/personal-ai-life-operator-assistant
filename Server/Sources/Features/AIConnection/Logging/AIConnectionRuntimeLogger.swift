@@ -13,7 +13,10 @@ final class AIConnectionRuntimeLogger {
         self.serverLogsProvider = serverLogsProvider
     }
 
-    func logSessionStarted(state: AIConnectionRuntimeState) {
+    func logSessionStarted(
+        state: AIConnectionRuntimeState,
+        requestMessages: [AIConversationMessage]
+    ) {
         log(
             kind: .sessionStarted,
             severity: .info,
@@ -21,12 +24,10 @@ final class AIConnectionRuntimeLogger {
             summary: "Continuous runtime loop started.",
             sessionId: state.runId?.uuidString,
             runId: state.runId?.uuidString,
-            inputPayload: ServerLogPayloadEncoder.objectString([
-                ("systemPrompt", .string(state.systemPrompt)),
-                ("userPrompt", .string(state.userPrompt))
-            ]),
+            inputPayload: requestMessagesPayload(requestMessages),
             metadataPayload: ServerLogPayloadEncoder.objectString([
-                ("availableToolCount", .int(state.availableToolDefinitions.count))
+                ("availableToolCount", .int(state.availableToolDefinitions.count)),
+                ("bootstrapMessageCount", .int(max(0, requestMessages.count - 1)))
             ])
         )
     }
@@ -47,9 +48,7 @@ final class AIConnectionRuntimeLogger {
             runId: state.runId?.uuidString,
             cycleNumber: cycleNumber,
             success: false,
-            inputPayload: ServerLogPayloadEncoder.objectString([
-                ("userPrompt", .string(state.userPrompt))
-            ]),
+            inputPayload: requestContext.flatMap { requestMessagesPayload($0.requestMessages) },
             outputPayload: ServerLogPayloadEncoder.objectString([
                 ("assistantText", state.assistantText.isEmpty ? nil : .string(state.assistantText)),
                 ("reasoningText", state.reasoningText.isEmpty ? nil : .string(state.reasoningText))
@@ -122,7 +121,11 @@ final class AIConnectionRuntimeLogger {
         }
     }
 
-    func logCancelled(state: AIConnectionRuntimeState, endedAt: Date) {
+    func logCancelled(
+        state: AIConnectionRuntimeState,
+        endedAt: Date,
+        requestContext: AIConnectionRequestLogContext?
+    ) {
         log(
             kind: .sessionCompleted,
             severity: .success,
@@ -132,9 +135,13 @@ final class AIConnectionRuntimeLogger {
             runId: state.runId?.uuidString,
             durationMilliseconds: state.startedAt.map { endedAt.timeIntervalSince($0) * 1_000 },
             success: true,
+            inputPayload: requestContext.flatMap { requestMessagesPayload($0.requestMessages) },
             metadataPayload: ServerLogPayloadEncoder.objectString([
                 ("completionReason", .string("cancelled")),
-                ("errorCount", .int(state.errors.count))
+                ("errorCount", .int(state.errors.count)),
+                ("requestIndex", requestContext.map { .int($0.requestIndex) }),
+                ("provider", requestContext?.provider.map { .string($0.rawValue) }),
+                ("model", requestContext?.model.map { .string($0) })
             ])
         )
     }
@@ -210,7 +217,8 @@ final class AIConnectionRuntimeLogger {
     func logCycleCompleted(
         state: AIConnectionRuntimeState,
         outcome: AIConnectionCycleOutcome,
-        cycleNumber: Int
+        cycleNumber: Int,
+        requestContext: AIConnectionRequestLogContext?
     ) {
         log(
             kind: .sessionCompleted,
@@ -221,9 +229,13 @@ final class AIConnectionRuntimeLogger {
             runId: state.runId?.uuidString,
             cycleNumber: cycleNumber,
             success: true,
+            inputPayload: requestContext.flatMap { requestMessagesPayload($0.requestMessages) },
             metadataPayload: ServerLogPayloadEncoder.objectString([
                 ("completionReason", .string(outcome.completionReason)),
-                ("status", .string(state.status.rawValue))
+                ("status", .string(state.status.rawValue)),
+                ("requestIndex", requestContext.map { .int($0.requestIndex) }),
+                ("provider", requestContext?.provider.map { .string($0.rawValue) }),
+                ("model", requestContext?.model.map { .string($0) })
             ])
         )
     }
@@ -287,6 +299,48 @@ final class AIConnectionRuntimeLogger {
             ("finishReason", response.finishReason.map { .string($0) }),
             ("toolCallCount", .int(response.toolCalls.count))
         ])
+    }
+
+    private func requestMessagesPayload(_ messages: [AIConversationMessage]) -> String? {
+        ServerLogPayloadEncoder.objectString([
+            (
+                "messages",
+                .array(
+                    messages.map { message in
+                        .object(requestMessageObject(for: message))
+                    }
+                )
+            )
+        ])
+    }
+
+    private func requestMessageObject(for message: AIConversationMessage) -> [String: AIJSONValue] {
+        var object: [String: AIJSONValue] = [
+            "role": .string(message.role.rawValue)
+        ]
+
+        if let content = message.content {
+            object["content"] = .string(content)
+        }
+        if let name = message.name {
+            object["name"] = .string(name)
+        }
+        if let toolCallID = message.toolCallID {
+            object["tool_call_id"] = .string(toolCallID)
+        }
+        if !message.toolCalls.isEmpty {
+            object["tool_calls"] = .array(
+                message.toolCalls.map { toolCall in
+                    .object([
+                        "id": .string(toolCall.id),
+                        "name": .string(toolCall.name),
+                        "arguments": .string(toolCall.argumentsJSON)
+                    ])
+                }
+            )
+        }
+
+        return object
     }
 
     private func log(

@@ -6,6 +6,7 @@ struct AIConnectionProviderConfiguration: Equatable, Sendable {
     let apiKey: String
     let model: String
     let temperature: Double
+    let reasoningEffort: AIConnectionReasoningEffort
     let maxOutputTokens: Int?
     let streamingEnabled: Bool
     let cacheMode: AIConnectionCacheMode

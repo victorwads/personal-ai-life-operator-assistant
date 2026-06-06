@@ -5,6 +5,7 @@ struct AIProviderRequest: Equatable, Sendable {
     let messages: [AIConversationMessage]
     let tools: [AIToolDefinition]
     let temperature: Double
+    let reasoningEffort: AIConnectionReasoningEffort
     let maxOutputTokens: Int?
     let cacheMode: AIConnectionCacheMode
 
@@ -12,7 +13,8 @@ struct AIProviderRequest: Equatable, Sendable {
         model: String,
         messages: [AIConversationMessage],
         tools: [AIToolDefinition] = [],
-        temperature: Double = 0.7,
+        temperature: Double = 0.6,
+        reasoningEffort: AIConnectionReasoningEffort = .off,
         maxOutputTokens: Int? = nil,
         cacheMode: AIConnectionCacheMode = .automatic
     ) {
@@ -20,6 +22,7 @@ struct AIProviderRequest: Equatable, Sendable {
         self.messages = messages
         self.tools = tools
         self.temperature = temperature
+        self.reasoningEffort = reasoningEffort
         self.maxOutputTokens = maxOutputTokens
         self.cacheMode = cacheMode
     }
