@@ -15,7 +15,8 @@ final class ClientVoiceAskDialogViewModel: ObservableObject {
     private let speakHandler: SpeechSpeakHandler
     private let listenProvider: ListenProvider?
     private let listenConfig: ListenConfig
-    private let unlock: @MainActor () async -> Void
+    private let onSubmitSuccess: @MainActor () async -> Void
+    private let onCloseWithoutResponse: @MainActor () async -> Void
     private let closeWindow: @MainActor () -> Void
 
     private var listener: ListenHandler?
@@ -28,7 +29,8 @@ final class ClientVoiceAskDialogViewModel: ObservableObject {
         speakHandler: SpeechSpeakHandler,
         listenProvider: ListenProvider?,
         listenConfig: ListenConfig = .init(),
-        unlock: @escaping @MainActor () async -> Void,
+        onSubmitSuccess: @escaping @MainActor () async -> Void,
+        onCloseWithoutResponse: @escaping @MainActor () async -> Void,
         closeWindow: @escaping @MainActor () -> Void
     ) {
         self.repository = repository
@@ -36,7 +38,8 @@ final class ClientVoiceAskDialogViewModel: ObservableObject {
         self.speakHandler = speakHandler
         self.listenProvider = listenProvider
         self.listenConfig = listenConfig
-        self.unlock = unlock
+        self.onSubmitSuccess = onSubmitSuccess
+        self.onCloseWithoutResponse = onCloseWithoutResponse
         self.closeWindow = closeWindow
         self.promptText = request.promptText
     }
@@ -123,7 +126,7 @@ final class ClientVoiceAskDialogViewModel: ObservableObject {
                     id: requestID,
                     responseText: trimmedText
                 )
-                await unlock()
+                await onSubmitSuccess()
                 closeWindow()
             } catch {
                 isSubmitting = false
@@ -138,6 +141,6 @@ final class ClientVoiceAskDialogViewModel: ObservableObject {
         hasFinished = true
         speakHandler.cancel()
         cancelListening()
-        await unlock()
+        await onCloseWithoutResponse()
     }
 }

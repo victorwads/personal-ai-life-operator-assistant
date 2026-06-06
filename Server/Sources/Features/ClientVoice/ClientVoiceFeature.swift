@@ -5,6 +5,7 @@ import SwiftUI
 final class ClientVoiceFeature: FeatureRuntime {
     override class var id: String { "clientVoice" }
     private static let workerServiceId = "client.voice.worker"
+    private static let manualClientPromptText = "Eu vi que voce me chamou, o que voce precisa?"
 
     let repository: FirestoreClientInteractionRequestRepository
     let settings: ClientVoiceSettingsWrapper
@@ -31,10 +32,19 @@ final class ClientVoiceFeature: FeatureRuntime {
                 Self.openAskDialog(
                     request: request,
                     repository: repository,
-                    sharedLocks: context.sharedLocks,
                     featureWindows: context.featureWindows,
                     speakHandler: speakHandler,
-                    listenConfig: settings.speechRecognitionListenConfig
+                    listenConfig: settings.speechRecognitionListenConfig,
+                    onSubmitSuccess: {
+                        if let requestID = request.id {
+                            await context.sharedLocks.unlock(id: "ask_to_client:\(requestID)")
+                        }
+                    },
+                    onCloseWithoutResponse: {
+                        if let requestID = request.id {
+                            await context.sharedLocks.unlock(id: "ask_to_client:\(requestID)")
+                        }
+                    }
                 )
             }
         )
@@ -90,20 +100,50 @@ final class ClientVoiceFeature: FeatureRuntime {
         Self.openAskDialog(
             request: request,
             repository: repository,
-            sharedLocks: context.sharedLocks,
             featureWindows: context.featureWindows,
             speakHandler: CompletedSpeechSpeakHandler(),
-            listenConfig: settings.speechRecognitionListenConfig
+            listenConfig: settings.speechRecognitionListenConfig,
+            onSubmitSuccess: {
+                if let requestID = request.id {
+                    await self.context.sharedLocks.unlock(id: "ask_to_client:\(requestID)")
+                }
+            },
+            onCloseWithoutResponse: {
+                if let requestID = request.id {
+                    await self.context.sharedLocks.unlock(id: "ask_to_client:\(requestID)")
+                }
+            }
+        )
+    }
+
+    func openNewManualRequestDialog() async throws {
+        let request = try await repository.createRequest(
+            issueId: nil,
+            kind: .ask,
+            status: .waitingUser,
+            promptText: Self.manualClientPromptText
+        )
+        Self.openAskDialog(
+            request: request,
+            repository: repository,
+            featureWindows: context.featureWindows,
+            speakHandler: CompletedSpeechSpeakHandler(),
+            listenConfig: settings.speechRecognitionListenConfig,
+            onSubmitSuccess: {
+                await self.context.sharedLocks.unlock(id: SharedLockIDs.globalEvent)
+            },
+            onCloseWithoutResponse: {}
         )
     }
 
     private static func openAskDialog(
         request: ClientInteractionRequest,
         repository: ClientInteractionRequestRepository,
-        sharedLocks: SharedLockRegistry,
         featureWindows: FeatureWindowsContext,
         speakHandler: SpeechSpeakHandler,
-        listenConfig: ListenConfig
+        listenConfig: ListenConfig,
+        onSubmitSuccess: @escaping @MainActor () async -> Void,
+        onCloseWithoutResponse: @escaping @MainActor () async -> Void
     ) {
         guard let requestID = request.id else { return }
 
@@ -117,9 +157,8 @@ final class ClientVoiceFeature: FeatureRuntime {
             speakHandler: speakHandler,
             listenProvider: .swiftAPI,
             listenConfig: listenConfig,
-            unlock: {
-                await sharedLocks.unlock(id: "ask_to_client:\(requestID)")
-            },
+            onSubmitSuccess: onSubmitSuccess,
+            onCloseWithoutResponse: onCloseWithoutResponse,
             closeWindow: closeWindow
         )
 

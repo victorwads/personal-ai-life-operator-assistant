@@ -5,6 +5,8 @@ final class ClientVoiceScreenViewModel: ObservableObject {
     @Published private(set) var requests: [ClientInteractionRequest] = []
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
+    @Published private(set) var creationErrorMessage: String?
+    @Published private(set) var isCreatingRequest = false
 
     var initializedRequests: [ClientInteractionRequest] {
         requests.filter { $0.status == .initialized }
@@ -27,6 +29,7 @@ final class ClientVoiceScreenViewModel: ObservableObject {
     }
 
     private let repository: ClientInteractionRequestRepository
+    private let createManualRequestAction: @MainActor () async throws -> Void
     private var listenerToken: FirestoreListenerToken?
     private var hasLoaded = false
     @Published private var submissionErrors: [String: String] = [:]
@@ -36,9 +39,11 @@ final class ClientVoiceScreenViewModel: ObservableObject {
 
 
     init(
-        repository: ClientInteractionRequestRepository
+        repository: ClientInteractionRequestRepository,
+        createManualRequestAction: @escaping @MainActor () async throws -> Void
     ) {
         self.repository = repository
+        self.createManualRequestAction = createManualRequestAction
     }
 
     func loadIfNeeded() {
@@ -112,6 +117,28 @@ final class ClientVoiceScreenViewModel: ObservableObject {
             await MainActor.run {
                 if (self.speakingRequestID == requestID ) {
                     self.speakingRequestID = nil
+                }
+            }
+        }
+    }
+
+    func createManualRequest() {
+        guard !isCreatingRequest else { return }
+
+        creationErrorMessage = nil
+        isCreatingRequest = true
+
+        Task {
+            do {
+                try await createManualRequestAction()
+                await MainActor.run {
+                    self.creationErrorMessage = nil
+                    self.isCreatingRequest = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.creationErrorMessage = error.localizedDescription
+                    self.isCreatingRequest = false
                 }
             }
         }

@@ -9,7 +9,7 @@ protocol ClientInteractionRequestRepository: AnyObject {
     func observeRequests(_ listener: @escaping ([ClientInteractionRequest]) -> Void) -> FirestoreListenerToken
     func getRequest(id: String) async throws -> ClientInteractionRequest
     func createRequest(
-        issueId: String,
+        issueId: String?,
         kind: ClientInteractionRequest.Kind,
         status: ClientInteractionRequest.Status,
         promptText: String
@@ -57,7 +57,7 @@ final class FirestoreClientInteractionRequestRepository: FirestoreRepository<Cli
     }
 
     func createRequest(
-        issueId: String,
+        issueId: String?,
         kind: ClientInteractionRequest.Kind,
         status: ClientInteractionRequest.Status,
         promptText: String,

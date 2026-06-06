@@ -55,7 +55,7 @@ private final class AskToClientRepositorySpy: ClientInteractionRequestRepository
     }
 
     func createRequest(
-        issueId: String,
+        issueId: String?,
         kind: ClientInteractionRequest.Kind,
         status: ClientInteractionRequest.Status,
         promptText: String

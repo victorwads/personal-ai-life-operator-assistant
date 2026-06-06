@@ -10,7 +10,10 @@ struct ClientVoiceScreen: View {
         }
         _viewModel = StateObject(
             wrappedValue: ClientVoiceScreenViewModel(
-                repository: feature.repository
+                repository: feature.repository,
+                createManualRequestAction: {
+                    try await feature.openNewManualRequestDialog()
+                }
             )
         )
     }
@@ -22,9 +25,22 @@ struct ClientVoiceScreen: View {
                     title: "Voice Client",
                     subtitle: "Manual and auditable interaction requests for the client."
                 ) {
-                    DSRefreshButton(isLoading: viewModel.isLoading) {
-                        viewModel.refresh()
+                    HStack(spacing: 8) {
+                        Button("New") {
+                            viewModel.createManualRequest()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(viewModel.isCreatingRequest)
+
+                        DSRefreshButton(isLoading: viewModel.isLoading) {
+                            viewModel.refresh()
+                        }
                     }
+                }
+
+                if let creationErrorMessage = viewModel.creationErrorMessage {
+                    Text(creationErrorMessage)
+                        .foregroundStyle(.red)
                 }
 
                 HStack(spacing: 8) {
@@ -291,7 +307,8 @@ struct ClientVoiceScreen: View {
         return trimmedValue.isEmpty ? nil : trimmedValue
     }
 
-    private func nonEmpty(_ value: String, fallback: String) -> String {
+    private func nonEmpty(_ value: String?, fallback: String) -> String {
+        guard let value else { return fallback }
         let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedValue.isEmpty ? fallback : value
     }

@@ -200,7 +200,7 @@ private final class ClientVoiceWorkerRepositorySpy: ClientInteractionRequestRepo
     }
 
     func createRequest(
-        issueId _: String,
+        issueId _: String?,
         kind _: ClientInteractionRequest.Kind,
         status _: ClientInteractionRequest.Status,
         promptText _: String
