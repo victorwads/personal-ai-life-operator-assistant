@@ -396,21 +396,74 @@ enum WebViewJavaScripts {
     }
   }
 
-  function extractElementBounds(element) {
+  function isLargeEnoughImage(image) {
     try {
-      if (!element || typeof element.getBoundingClientRect !== "function") return null;
-      const rect = element.getBoundingClientRect();
-      const width = Number(rect.width || 0);
-      const height = Number(rect.height || 0);
-      if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
-
-      const x = Number(rect.left || 0);
-      const y = Number(rect.top || 0);
-      if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-
-      return { x, y, width, height };
+      if (!image) return false;
+      const width = image.naturalWidth || image.width || 0;
+      const height = image.naturalHeight || image.height || 0;
+      return Number.isFinite(width) && Number.isFinite(height) && width >= 100 && height >= 100;
     } catch (_) {
-      return null;
+      return false;
+    }
+  }
+
+  function dedupeExtractedImages(items) {
+    const result = [];
+    const seen = new Set();
+
+    for (const item of items) {
+      if (!item || typeof item !== "object") continue;
+      const width = Number(item.width || 0);
+      const height = Number(item.height || 0);
+      if (!Number.isFinite(width) || !Number.isFinite(height) || width < 100 || height < 100) continue;
+
+      const source = typeof item.source === "string" && item.source.length > 0 ? item.source : null;
+      const base64 = typeof item.base64 === "string" && item.base64.length > 0 ? item.base64 : null;
+      const key = source
+        ? `${source}|${width}|${height}`
+        : `${width}|${height}|${base64 ? base64.length : 0}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result.push(item);
+    }
+
+    return result;
+  }
+
+  function extractImagesFromElements(elements) {
+    try {
+      if (!Array.isArray(elements) || elements.length === 0) return [];
+
+      const extracted = [];
+      for (const id of elements) {
+        if (typeof id !== "string" || id.trim().length === 0) continue;
+        const element = elementRegistry[id];
+        if (!element) continue;
+
+        const image = imageElementFrom(element);
+        if (!image || !isLargeEnoughImage(image)) continue;
+
+        try { image.scrollIntoView({ block: "center", inline: "center" }); } catch (_) {}
+        focusFocusableAncestor(image);
+
+        const record = extractImageData(image);
+        if (record) {
+          extracted.push(record);
+          continue;
+        }
+
+        const source = image.currentSrc || image.src || null;
+        if (!source) continue;
+        extracted.push({
+          width: image.naturalWidth || image.width || 0,
+          height: image.naturalHeight || image.height || 0,
+          source
+        });
+      }
+
+      return dedupeExtractedImages(extracted);
+    } catch (_) {
+      return [];
     }
   }
 
@@ -447,15 +500,12 @@ enum WebViewJavaScripts {
         focusFocusableAncestor(image);
         const extracted = extractImageData(image);
         if (extracted) return extracted;
-
-        const bounds = extractElementBounds(image) || extractElementBounds(element);
-        if (!bounds) return null;
+        const source = image.currentSrc || image.src || null;
+        if (!source) return null;
         return {
-          x: bounds.x,
-          y: bounds.y,
-          width: bounds.width,
-          height: bounds.height,
-          source: image.currentSrc || image.src || null
+          width: image.naturalWidth || image.width || 0,
+          height: image.naturalHeight || image.height || 0,
+          source
         };
       }
       try { element.scrollIntoView({ block: "center", inline: "center" }); } catch (_) {}
@@ -565,6 +615,22 @@ enum WebViewJavaScripts {
     }
   }
 
+  function interactWithElements(ids, action, payload) {
+    try {
+      if (!Array.isArray(ids) || ids.length === 0) return [];
+      if (typeof action !== "string" || action.trim().length === 0) return [];
+
+      const normalizedAction = action.trim();
+      if (normalizedAction === "extractImages") {
+        return extractImagesFromElements(ids);
+      }
+
+      return [];
+    } catch (_) {
+      return [];
+    }
+  }
+
   function interactWithElementCommand(command) {
     try {
       if (!command || typeof command !== "object") return false;
@@ -577,6 +643,21 @@ enum WebViewJavaScripts {
       return interactWithElement(id, action, payload);
     } catch (_) {
       return false;
+    }
+  }
+
+  function interactWithElementsCommand(command) {
+    try {
+      if (!command || typeof command !== "object") return [];
+      const ids = Array.isArray(command.ids) ? command.ids : [];
+      const action = typeof command.action === "string" ? command.action : "";
+      const payload =
+        command.payload && typeof command.payload === "object"
+          ? command.payload
+          : null;
+      return interactWithElements(ids, action, payload);
+    } catch (_) {
+      return [];
     }
   }
 
@@ -657,7 +738,9 @@ enum WebViewJavaScripts {
     extractTree,
     executeShortcut,
     interactWithElement,
-    interactWithElementCommand
+    interactWithElementCommand,
+    interactWithElements,
+    interactWithElementsCommand
   };
 })();
 """#

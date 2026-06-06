@@ -341,7 +341,7 @@ final class WhatsAppChatCrawlingOrchestrator {
 
     private func enrichMessagesWithLocalMedia(
         _ messages: [ChatMessage],
-        mediaElementsByMessageId: [String: WebViewInteractiveElement],
+        mediaElementsByMessageId: [String: [WebViewInteractiveElement]],
         in webView: WKWebView
     ) async throws -> [ChatMessage] {
         guard let chatId = messages.first?.chatId else {
@@ -368,18 +368,19 @@ final class WhatsAppChatCrawlingOrchestrator {
                 continue
             }
 
-            guard let mediaElement = mediaElementsByMessageId[messageId] else {
+            guard let mediaElements = mediaElementsByMessageId[messageId], !mediaElements.isEmpty else {
                 logStore.append(source: "Media", "No media handle available for \(messageId); saving message without local media.")
                 continue
             }
 
             do {
-                guard let resolved = try await imageExtractor.extractImage(from: mediaElement) else {
+                let resolvedImages = try await imageExtractor.extractImages(from: mediaElements)
+                guard !resolvedImages.isEmpty else {
                     logStore.append(source: "Media", "Extraction returned no media for \(messageId); saving message without local media.")
                     continue
                 }
-                let relativePaths = try ChatMediaStorage.savePNGData(
-                    [resolved.pngData],
+                let relativePaths = try ChatMediaStorage.saveImageData(
+                    resolvedImages.map { ChatMediaImageData(data: $0.pngData, mimeType: $0.mimeType) },
                     profileId: profileId,
                     forMessageId: messageId
                 )

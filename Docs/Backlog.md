@@ -1266,3 +1266,35 @@ Criar um padrão visual reutilizável para as telas do app, separando claramente
 
 **Por que isso entra no backlog**  
 Isso melhora bastante a consistência da aplicação inteira, reduz retrabalho visual e cria uma base mais sólida para novas telas e filtros sem cada feature inventar seu próprio padrão.
+
+---
+
+## 62) Padronizar o uso do Application Support por profile e feature
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R3 - Médio`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.57`
+
+**Descrição**  
+Revisar e padronizar toda a forma como o app grava arquivos no `Application Support`, porque hoje cada feature parece salvar em um lugar diferente e com convenções próprias. A ideia é centralizar a regra de path e organização para que os dados fiquem previsíveis, agrupados por `profile`, depois por `profileId`, depois por `feature`, e então pelo recurso específico que aquela feature precisa salvar. Isso deve virar um padrão arquitetural único para o app inteiro, em vez de cada módulo inventar seu próprio formato.
+
+**Dependências**  
+- `Nenhuma`
+
+**Comportamento desejado**  
+- Organizar os arquivos salvos no formato `profile/<id>/<feature>/...`.
+- Garantir que cada feature grave seus dados no seu próprio espaço lógico.
+- Evitar caminhos soltos, dispersos ou difíceis de rastrear dentro do `Application Support`.
+- Tornar previsível onde cada feature lê e grava seus dados persistidos.
+- Permitir que a estrutura seja reaproveitada por novas features sem retrabalho.
+
+**Notas técnicas**  
+- Vale criar uma classe ou um conjunto de funções estáticas gerais para montar paths, nomes de pastas e convenções de persistência.
+- O foco é padronização arquitetural: cada feature deve saber exatamente onde está o seu espaço persistido.
+- Esse review precisa mapear o que já existe hoje e migrar aos poucos sem quebrar os dados atuais.
+- Se houver dados legados em locais diferentes, a regra nova deve prever migração ou compatibilidade temporária.
+- O resultado final precisa facilitar manutenção, debug e onboarding de novas features.
+
+**Por que isso entra no backlog**  
+Isso reduz bagunça de persistência, evita inconsistência entre features e deixa a estrutura de arquivos do app muito mais fácil de manter e entender.

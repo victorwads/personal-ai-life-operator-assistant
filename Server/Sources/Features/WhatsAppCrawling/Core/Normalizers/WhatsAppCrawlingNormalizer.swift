@@ -58,7 +58,7 @@ enum WhatsAppCrawlingNormalizer {
     }
 
     static func detectMessageKind(rawMessage: [String: Any]) -> ChatMessage.Kind {
-        if WebViewInteractiveElementDetector.from(rawMessage["image"] as Any) != nil {
+        if (rawMessage["image"] as? Bool) == true || WebViewInteractiveElementDetector.from(rawMessage["image"] as Any) != nil {
             return .image
         }
         if WebViewInteractiveElementDetector.from(rawMessage["sticker"] as Any) != nil {

@@ -137,8 +137,16 @@ web:
 
           image:
             selector: '[data-testid="image-thumb"] img[src]'
-            type: element
-            interactive: true
+            type: boolean
+
+          images:
+            selector: '[data-testid="media-url-provider"] div'
+            type: elements
+            extract:
+              found:
+                selector: 'img'
+                type: element
+                interactive: true
 
           isAudio:
             selector: '[aria-label~="voz"]'

@@ -8,7 +8,7 @@ struct ParsedCurrentChat: Sendable {
     let chatId: String
     let chatTitle: String
     let messages: [ChatMessage]
-    let mediaElementsByMessageId: [String: WebViewInteractiveElement]
+    let mediaElementsByMessageId: [String: [WebViewInteractiveElement]]
 }
 
 enum WhatsAppCurrentChatParser {
@@ -24,7 +24,7 @@ enum WhatsAppCurrentChatParser {
         let chatId = WhatsAppCrawlingNormalizer.makeWhatsAppChatId(title: title)
         let rawMessages = currentChat["chatMessages"] as? [Any] ?? []
 
-        var mediaElementsByMessageId: [String: WebViewInteractiveElement] = [:]
+        var mediaElementsByMessageId: [String: [WebViewInteractiveElement]] = [:]
         let messages: [ChatMessage] = rawMessages.enumerated().compactMap { index, raw in
             guard let rawObject = raw as? [String: Any] else { return nil }
             guard let messageId = WhatsAppCrawlingNormalizer.makeWhatsAppMessageId(messageId: rawObject["messageId"] as? String) else {
@@ -46,8 +46,9 @@ enum WhatsAppCurrentChatParser {
             )
 
             let kind = WhatsAppCrawlingNormalizer.detectMessageKind(rawMessage: rawObject)
-            if let mediaElement = mediaElement(for: kind, rawObject: rawObject) {
-                mediaElementsByMessageId[messageId] = mediaElement
+            let mediaElements = mediaElements(for: kind, rawObject: rawObject)
+            if !mediaElements.isEmpty {
+                mediaElementsByMessageId[messageId] = mediaElements
             }
 
             return ChatMessage(
@@ -81,17 +82,28 @@ enum WhatsAppCurrentChatParser {
         return .received
     }
 
-    private static func mediaElement(
+    private static func mediaElements(
         for kind: ChatMessage.Kind,
         rawObject: [String: Any]
-    ) -> WebViewInteractiveElement? {
+    ) -> [WebViewInteractiveElement] {
         switch kind {
         case .image:
-            return WebViewInteractiveElementDetector.from(rawObject["image"] as Any)
+            let images = (rawObject["images"] as? [Any]) ?? []
+            let interactiveImages: [WebViewInteractiveElement] = images.compactMap { item in
+                guard let item = item as? [String: Any] else { return nil }
+                return WebViewInteractiveElementDetector.from(item["found"] as Any)
+            }
+            if !interactiveImages.isEmpty {
+                return interactiveImages
+            }
+            if let image = WebViewInteractiveElementDetector.from(rawObject["image"] as Any) {
+                return [image]
+            }
+            return []
         case .sticker:
-            return WebViewInteractiveElementDetector.from(rawObject["sticker"] as Any)
+            return WebViewInteractiveElementDetector.from(rawObject["sticker"] as Any).map { [$0] } ?? []
         case .text, .audio, .unknown:
-            return nil
+            return []
         }
     }
 }

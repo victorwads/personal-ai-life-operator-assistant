@@ -18,66 +18,51 @@ final class WebViewImageExtractor {
         self.webView = webView
     }
 
-    func extractImage(from element: WebViewInteractiveElement) async throws -> WebViewResolvedImage? {
-        let extracted = try await WebViewElementInteractor(webView: webView).extractImage(element)
-        guard let extracted else { return nil }
+    func extractImages(from elements: [WebViewInteractiveElement]) async throws -> [WebViewResolvedImage] {
+        guard !elements.isEmpty else { return [] }
 
-        if let base64 = extracted.base64 {
-            guard let imageData = Data(base64Encoded: base64) else { return nil }
-            return WebViewResolvedImage(
-                pngData: imageData,
-                mimeType: extracted.mimeType,
-                width: extracted.width,
-                height: extracted.height,
-                source: extracted.source
-            )
-        }
+        let extractedItems = try await WebViewElementInteractor(webView: webView).extractImages(elements)
+        var resolvedImages: [WebViewResolvedImage] = []
 
-        if let x = extracted.x, let y = extracted.y, let width = extracted.width, let height = extracted.height {
-            let rect = CGRect(x: x, y: y, width: width, height: height)
-            if let snapshot = try await takeSnapshot(of: webView, rect: rect),
-               let pngData = pngData(from: snapshot) {
-                return WebViewResolvedImage(
-                    pngData: pngData,
-                    mimeType: extracted.mimeType ?? "image/png",
-                    width: extracted.width,
-                    height: extracted.height,
-                    source: extracted.source
-                )
+        for extracted in extractedItems {
+            do {
+                if let base64 = extracted.base64,
+                   let imageData = Data(base64Encoded: base64) {
+                    resolvedImages.append(
+                        WebViewResolvedImage(
+                            pngData: imageData,
+                            mimeType: extracted.mimeType,
+                            width: extracted.width,
+                            height: extracted.height,
+                            source: extracted.source
+                        )
+                    )
+                    continue
+                }
+
+                if let source = extracted.source,
+                   let downloaded = try await loadImageFromHTTPSource(source),
+                   let pngData = pngData(from: downloaded) {
+                    resolvedImages.append(
+                        WebViewResolvedImage(
+                            pngData: pngData,
+                            mimeType: extracted.mimeType ?? "image/png",
+                            width: extracted.width,
+                            height: extracted.height,
+                            source: extracted.source
+                        )
+                    )
+                }
+            } catch {
+                continue
             }
         }
 
-        if let source = extracted.source,
-           let downloaded = try await loadImageFromHTTPSource(source),
-           let pngData = pngData(from: downloaded) {
-            return WebViewResolvedImage(
-                pngData: pngData,
-                mimeType: extracted.mimeType ?? "image/png",
-                width: extracted.width,
-                height: extracted.height,
-                source: extracted.source
-            )
-        }
-
-        return nil
+        return resolvedImages
     }
 
-    private func takeSnapshot(of webView: WKWebView, rect: CGRect) async throws -> NSImage? {
-        let sanitized = rect.standardized.integral
-        guard sanitized.width > 0, sanitized.height > 0 else { return nil }
-
-        let configuration = WKSnapshotConfiguration()
-        configuration.rect = sanitized
-
-        return try await withCheckedThrowingContinuation { continuation in
-            webView.takeSnapshot(with: configuration) { image, error in
-                if let error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-                continuation.resume(returning: image)
-            }
-        }
+    func extractImage(from element: WebViewInteractiveElement) async throws -> WebViewResolvedImage? {
+        try await extractImages(from: [element]).first
     }
 
     private func loadImageFromHTTPSource(_ source: String) async throws -> NSImage? {

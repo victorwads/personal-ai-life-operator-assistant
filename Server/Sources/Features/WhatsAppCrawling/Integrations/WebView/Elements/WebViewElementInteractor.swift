@@ -6,8 +6,6 @@ struct WebViewExtractedImage: Equatable {
     let mimeType: String?
     let width: Double?
     let height: Double?
-    let x: Double?
-    let y: Double?
     let source: String?
 
     static func from(_ value: Any?) -> WebViewExtractedImage? {
@@ -17,21 +15,17 @@ struct WebViewExtractedImage: Equatable {
         let mimeType = object["mimeType"] as? String
         let width = numberValue(from: object["width"])
         let height = numberValue(from: object["height"])
-        let x = numberValue(from: object["x"])
-        let y = numberValue(from: object["y"])
         let source = object["source"] as? String
 
         let hasBase64 = base64 != nil
-        let hasBounds = x != nil && y != nil && width != nil && height != nil
-        guard hasBase64 || hasBounds else { return nil }
+        let hasSource = source != nil
+        guard hasBase64 || hasSource else { return nil }
 
         return WebViewExtractedImage(
             base64: base64,
             mimeType: mimeType,
             width: width,
             height: height,
-            x: x,
-            y: y,
             source: source
         )
     }
@@ -101,8 +95,16 @@ final class WebViewElementInteractor {
     }
 
     func extractImage(_ element: WebViewInteractiveElement) async throws -> WebViewExtractedImage? {
-        let value = try await interactRaw(with: element.id, action: "extractImage", payload: nil)
-        return WebViewExtractedImage.from(value)
+        return try await extractImages([element]).first
+    }
+
+    func extractImages(_ elements: [WebViewInteractiveElement]) async throws -> [WebViewExtractedImage] {
+        let ids = elements.map(\.id).filter { !$0.isEmpty }
+        guard !ids.isEmpty else { return [] }
+
+        let value = try await interactRaw(with: ids, action: "extractImages", payload: nil)
+        let array = value as? [Any] ?? []
+        return array.compactMap { WebViewExtractedImage.from($0) }
     }
 
     private func interact(with id: String, action: String, payload: [String: String]?) async throws -> Bool {
@@ -119,6 +121,26 @@ final class WebViewElementInteractor {
 
         let script = """
         window.AssistantMCP.interactWithElementCommand(\(commandJSON));
+        """
+
+        return try await evaluate(script: script)
+    }
+
+    private struct MultipleInteractionCommand: Encodable {
+        let ids: [String]
+        let action: String
+        let payload: [String: String]?
+    }
+
+    private func interactRaw(with ids: [String], action: String, payload: [String: String]?) async throws -> Any? {
+        let command = MultipleInteractionCommand(ids: ids, action: action, payload: payload)
+        let commandData = try JSONEncoder().encode(command)
+        guard let commandJSON = String(data: commandData, encoding: .utf8) else {
+            return nil
+        }
+
+        let script = """
+        window.AssistantMCP.interactWithElementsCommand(\(commandJSON));
         """
 
         return try await evaluate(script: script)
