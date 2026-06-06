@@ -170,6 +170,7 @@ Feature- and infrastructure-specific architecture rules live close to the code t
 - [Server/Sources/Features/WhatsAppCrawling/Architecture.md](../Server/Sources/Features/WhatsAppCrawling/Architecture.md)
 - [Server/Sources/Features/Chats/Architecture.md](../Server/Sources/Features/Chats/Architecture.md)
 - [Server/Sources/Shared/UI/Architecture.md](../Server/Sources/Shared/UI/Architecture.md)
+- [Server/Sources/Shared/UI/PreviewApp/Architecture.md](../Server/Sources/Shared/UI/PreviewApp/Architecture.md)
 
 Keep this file as the global index and move detailed rules into the nearest local `Architecture.md` instead of replacing them with short summaries.
 

@@ -31,14 +31,6 @@ final class FakeAudioTranscriptionController: DSAudioTranscriptionController {
     }
 
     func start() {
-        if case .failed = status {
-            status = .listening
-            livePartialText = "Retrying transcription..."
-            processingSegments = []
-            processingSegmentCount = 0
-            return
-        }
-
         status = .listening
         if livePartialText.isEmpty {
             livePartialText = "Listening for the next phrase..."
@@ -46,10 +38,7 @@ final class FakeAudioTranscriptionController: DSAudioTranscriptionController {
     }
 
     func stop() {
-        status = processingSegments.isEmpty ? .stopped : .stopping
-        if !processingSegments.isEmpty {
-            status = .processing
-        }
+        status = processingSegments.isEmpty ? .stopped : .processing
         livePartialText = ""
     }
 
@@ -77,15 +66,13 @@ extension FakeAudioTranscriptionController {
             status: .listening,
             livePartialText: "I wanted to confirm the details before I send the update.",
             totalSegmentCount: 1,
-            processingSegmentCount: 1,
-            completedSegmentCount: 0
+            processingSegmentCount: 1
         )
     }
 
     static func processing() -> FakeAudioTranscriptionController {
         FakeAudioTranscriptionController(
             status: .processing,
-            livePartialText: "",
             processingSegments: [
                 DSAudioTranscriptionSegment(
                     id: UUID(),
@@ -110,7 +97,6 @@ extension FakeAudioTranscriptionController {
         FakeAudioTranscriptionController(
             status: .stopped,
             totalSegmentCount: 2,
-            processingSegmentCount: 0,
             completedSegmentCount: 2,
             queuedCompletedTexts: [
                 "This confirmed sentence was waiting to append.",
@@ -131,8 +117,7 @@ extension FakeAudioTranscriptionController {
                 )
             ],
             totalSegmentCount: 1,
-            processingSegmentCount: 1,
-            completedSegmentCount: 0
+            processingSegmentCount: 1
         )
     }
 }
