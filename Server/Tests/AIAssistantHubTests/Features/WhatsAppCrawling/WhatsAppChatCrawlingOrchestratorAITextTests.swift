@@ -28,6 +28,7 @@ final class WhatsAppChatCrawlingOrchestratorAITextTests: XCTestCase {
         await orchestrator.enrichMessageTextWithAI(
             messageIndex: 0,
             messageId: "message-1",
+            mediaKind: .image,
             relativePaths: [relativePath],
             in: &messages
         )
@@ -61,6 +62,7 @@ final class WhatsAppChatCrawlingOrchestratorAITextTests: XCTestCase {
         await orchestrator.enrichMessageTextWithAI(
             messageIndex: 0,
             messageId: "message-2",
+            mediaKind: .sticker,
             relativePaths: [relativePath],
             in: &messages
         )
@@ -112,7 +114,7 @@ private final class StubAIImageExtractor: AIImageExtracting {
         self.behavior = behavior
     }
 
-    func extractTextAndDescription(from imageURLs: [URL]) async throws -> String {
+    func extractTextAndDescription(from imageURLs: [URL], mediaKind _: ChatMessage.Kind) async throws -> String {
         receivedImageURLs = imageURLs
         switch behavior {
         case let .success(text):
@@ -138,6 +140,7 @@ private final class StubChatRepository: ChatRepository {
     func markMessagesUnhandledFrom(chatId _: String, firstChatMessageId _: String) async throws -> Int { 0 }
     func existingMessageIds(chatId _: String) async throws -> Set<String> { [] }
     func deleteMessage(id _: String) async throws {}
+    func deleteChatMessages(chatId _: String) async throws {}
     func deleteChatAndMessages(chatId _: String) async throws {}
     func countUnhandledMessages(chatId _: String) async throws -> Int { 0 }
     func updateUnhandledCount(chatId _: String, count _: Int?) async throws {}

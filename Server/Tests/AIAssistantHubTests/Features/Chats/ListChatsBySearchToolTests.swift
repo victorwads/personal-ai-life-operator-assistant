@@ -114,6 +114,7 @@ private final class ChatRepositorySpy: ChatRepository {
     func markMessagesUnhandledFrom(chatId _: String, firstChatMessageId _: String) async throws -> Int { 0 }
     func existingMessageIds(chatId _: String) async throws -> Set<String> { [] }
     func deleteMessage(id _: String) async throws {}
+    func deleteChatMessages(chatId _: String) async throws {}
     func deleteChatAndMessages(chatId _: String) async throws {}
     func countUnhandledMessages(chatId _: String) async throws -> Int { 0 }
     func updateUnhandledCount(chatId _: String, count _: Int?) async throws {}

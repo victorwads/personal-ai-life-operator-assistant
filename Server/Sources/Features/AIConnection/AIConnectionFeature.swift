@@ -59,7 +59,11 @@ final class AIConnectionFeature: FeatureRuntime {
             }
         )
         self.streamingService = streamingService
+        let imageExtractionCacheRepository = FirestoreAIImageExtractionCacheRepository(
+            profileId: context.profileContext.profileId
+        )
         let imageExtractionService = AIImageExtractionService(
+            profileId: context.profileContext.profileId,
             streamingService: streamingService,
             settingsProvider: {
                 await MainActor.run {
@@ -68,7 +72,8 @@ final class AIConnectionFeature: FeatureRuntime {
             },
             promptProvider: {
                 try AIConnectionPromptLoader.loadBundledPrompt(named: "ImageExtraction")
-            }
+            },
+            cacheRepository: imageExtractionCacheRepository
         )
         self.imageExtractionService = imageExtractionService
         self.runtimeService = AIConnectionRuntimeService(

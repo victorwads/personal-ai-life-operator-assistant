@@ -63,10 +63,8 @@ struct ChatMessageBubbleView: View {
         switch message.kind {
         case .text:
             Text(message.text ?? "(empty text message)")
-        case .image:
-            imageMessageContent
-        case .sticker:
-            mediaPreviewOrPlaceholder(placeholder: "[Sticker]")
+        case .image, .sticker:
+            mediaMessageContent
         case .audio:
             Label(message.text ?? "Audio message", systemImage: "waveform")
         case .unknown:
@@ -108,6 +106,17 @@ struct ChatMessageBubbleView: View {
         return text
     }
 
+    private var mediaPlaceholder: String {
+        switch message.kind {
+        case .sticker:
+            return "[Sticker]"
+        case .image:
+            return "[Image]"
+        default:
+            return "[Media]"
+        }
+    }
+
     private var kindBadge: some View {
         switch message.kind {
         case .text:
@@ -124,9 +133,9 @@ struct ChatMessageBubbleView: View {
     }
 
     @ViewBuilder
-    private var imageMessageContent: some View {
+    private var mediaMessageContent: some View {
         VStack(alignment: .leading, spacing: 8) {
-            mediaPreviewOrPlaceholder(placeholder: "[Image]")
+            mediaContentView
 
             if let trimmedMessageText {
                 Text(trimmedMessageText)
@@ -135,22 +144,28 @@ struct ChatMessageBubbleView: View {
     }
 
     @ViewBuilder
-    private func mediaPreviewOrPlaceholder(placeholder: String) -> some View {
-        if let image = firstLocalMediaImage() {
-            Image(nsImage: image)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(maxWidth: 240, maxHeight: 240)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    private var mediaContentView: some View {
+        let images = localMediaImages()
+        if images.isEmpty {
+            Text(mediaPlaceholder)
         } else {
-            Text(placeholder)
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(Array(images.enumerated()), id: \.offset) { _, image in
+                    Image(nsImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxWidth: 240, maxHeight: 240)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
+            }
         }
     }
 
-    private func firstLocalMediaImage() -> NSImage? {
-        guard let firstPath = message.localMediaPaths.first else { return nil }
-        let absoluteURL = ChatMediaStorage.absoluteURL(forRelativePath: firstPath)
-        return NSImage(contentsOf: absoluteURL)
+    private func localMediaImages() -> [NSImage] {
+        message.localMediaPaths.compactMap { relativePath in
+            let absoluteURL = ChatMediaStorage.absoluteURL(forRelativePath: relativePath)
+            return NSImage(contentsOf: absoluteURL)
+        }
     }
 }
 

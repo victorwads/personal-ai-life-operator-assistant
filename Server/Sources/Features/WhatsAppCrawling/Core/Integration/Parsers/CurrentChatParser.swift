@@ -88,22 +88,22 @@ enum WhatsAppCurrentChatParser {
     ) -> [WebViewInteractiveElement] {
         switch kind {
         case .image:
-            let images = (rawObject["images"] as? [Any]) ?? []
-            let interactiveImages: [WebViewInteractiveElement] = images.compactMap { item in
-                guard let item = item as? [String: Any] else { return nil }
-                return WebViewInteractiveElementDetector.from(item["found"] as Any)
-            }
-            if !interactiveImages.isEmpty {
-                return interactiveImages
-            }
-            if let image = WebViewInteractiveElementDetector.from(rawObject["image"] as Any) {
-                return [image]
-            }
-            return []
+            return interactiveElements(from: rawObject, key: "images")
         case .sticker:
-            return WebViewInteractiveElementDetector.from(rawObject["sticker"] as Any).map { [$0] } ?? []
+            return interactiveElements(from: rawObject, key: "stickers")
         case .text, .audio, .unknown:
             return []
+        }
+    }
+
+    private static func interactiveElements(
+        from rawObject: [String: Any],
+        key: String
+    ) -> [WebViewInteractiveElement] {
+        let items = rawObject[key] as? [Any] ?? []
+        return items.compactMap { item in
+            guard let item = item as? [String: Any] else { return nil }
+            return WebViewInteractiveElementDetector.from(item["found"] as Any)
         }
     }
 }

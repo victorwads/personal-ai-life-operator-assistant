@@ -2,9 +2,46 @@ import XCTest
 @testable import AIAssistantHub
 
 final class CurrentChatParserTests: XCTestCase {
+    func testDetectMessageKindUsesImagesSchemaVersion3() {
+        let kind = WhatsAppCrawlingNormalizer.detectMessageKind(rawMessage: [
+            "images": [
+                [
+                    "found": elementHandle(id: "image-1")
+                ],
+                [
+                    "found": elementHandle(id: "image-2")
+                ]
+            ]
+        ])
+
+        XCTAssertEqual(kind, .image)
+    }
+
+    func testDetectMessageKindUsesStickersSchemaVersion3() {
+        let kind = WhatsAppCrawlingNormalizer.detectMessageKind(rawMessage: [
+            "stickers": [
+                [
+                    "found": elementHandle(id: "sticker-1")
+                ],
+                [
+                    "found": elementHandle(id: "sticker-2")
+                ]
+            ]
+        ])
+
+        XCTAssertEqual(kind, .sticker)
+    }
+
+    func testDetectMessageKindReturnsTextWhenNoMediaSchemaIsPresent() {
+        let kind = WhatsAppCrawlingNormalizer.detectMessageKind(rawMessage: [
+            "messageText": "Hello"
+        ])
+
+        XCTAssertEqual(kind, .text)
+    }
+
     func testParseStoresMultipleImageCandidatesForOneMessage() throws {
         let parsed = try XCTUnwrap(WhatsAppCurrentChatParser.parse(from: fixtureRootWithMessage(imagePayload: [
-            "image": true,
             "images": [
                 [
                     "found": elementHandle(id: "image-1")
@@ -18,27 +55,23 @@ final class CurrentChatParserTests: XCTestCase {
         XCTAssertEqual(parsed.mediaElementsByMessageId["whatsapp-message-1"]?.map(\.id), ["image-1", "image-2"])
     }
 
-    func testParseFallsBackToLegacySingleImageHandle() throws {
-        let parsed = try XCTUnwrap(WhatsAppCurrentChatParser.parse(from: fixtureRootWithMessage(imagePayload: [
-            "image": elementHandle(id: "legacy-image")
-        ])))
-
-        XCTAssertEqual(parsed.mediaElementsByMessageId["whatsapp-message-1"]?.map(\.id), ["legacy-image"])
-    }
-
-    func testParseStoresStickerAsSingleItemArray() throws {
+    func testParseStoresMultipleStickerCandidatesForOneMessage() throws {
         let parsed = try XCTUnwrap(WhatsAppCurrentChatParser.parse(from: fixtureRootWithMessage(stickerPayload: [
-            "sticker": elementHandle(id: "sticker-1")
+            "stickers": [
+                [
+                    "found": elementHandle(id: "sticker-1")
+                ],
+                [
+                    "found": elementHandle(id: "sticker-2")
+                ]
+            ]
         ])))
 
-        XCTAssertEqual(parsed.mediaElementsByMessageId["whatsapp-message-1"]?.map(\.id), ["sticker-1"])
+        XCTAssertEqual(parsed.mediaElementsByMessageId["whatsapp-message-1"]?.map(\.id), ["sticker-1", "sticker-2"])
     }
 
-    func testParseIgnoresEmptyImageCollections() throws {
-        let parsed = try XCTUnwrap(WhatsAppCurrentChatParser.parse(from: fixtureRootWithMessage(imagePayload: [
-            "image": true,
-            "images": []
-        ])))
+    func testParseIgnoresMessagesWithoutMediaArrays() throws {
+        let parsed = try XCTUnwrap(WhatsAppCurrentChatParser.parse(from: fixtureRootWithMessage()))
 
         XCTAssertNil(parsed.mediaElementsByMessageId["whatsapp-message-1"])
     }

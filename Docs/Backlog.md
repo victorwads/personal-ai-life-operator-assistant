@@ -1298,3 +1298,68 @@ Revisar e padronizar toda a forma como o app grava arquivos no `Application Supp
 
 **Por que isso entra no backlog**  
 Isso reduz bagunça de persistência, evita inconsistência entre features e deixa a estrutura de arquivos do app muito mais fácil de manter e entender.
+
+---
+
+## 63) Padronizar repositórios reais substituíveis na target de testes
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R4 - Alto`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.59`
+
+**Descrição**  
+Padronizar a forma como os testes unitários usam repositórios para que a suite pare de reimplementar cada contrato de forma isolada. Hoje, quando um contrato de repositório muda, vários testes quebram porque cada um mantém sua própria implementação paralela. A ideia é permitir que a target de testes substitua os repositórios reais por versões em memória ou de teste, mantendo o mesmo contrato e o mesmo comportamento principal de cadastro, leitura, delete e atualização, sem exigir mocks, spies ou reimplementações manuais em cada teste.
+
+**Dependências**  
+- `62) Padronizar o uso do Application Support por profile e feature`
+
+**Comportamento desejado**  
+- Usar os contratos reais dos repositórios nos testes sempre que possível.
+- Substituir a implementação de produção por uma versão de teste/memória na target de teste.
+- Permitir que operações reais de CRUD funcionem de ponta a ponta no ambiente de teste.
+- Evitar que mudanças de contrato quebrem dezenas de testes por duplicação de implementação.
+- Reduzir o custo de manutenção da suite de testes quando os repositórios evoluírem.
+
+**Notas técnicas**  
+- O ideal é ter uma camada de composição/registro que consiga trocar a implementação do repositório por target.
+- A versão de teste deve respeitar o mesmo contrato público da produção, para os testes continuarem representando o uso real.
+- Se houver repositórios de Firebase/Firestore, a implementação de teste pode ser em memória, mas precisa manter semântica de persistência suficiente para validar o fluxo.
+- Esse item deve cobrir também a infraestrutura necessária para cadastrar, atualizar e deletar dados dentro do ambiente de teste sem depender da nuvem.
+- Vale mapear quais repositórios hoje ainda são reimplementados manualmente para migrá-los para esse padrão unificado.
+
+**Por que isso entra no backlog**  
+Isso deixa a suite de testes muito mais estável e sustentável, reduz retrabalho em cascata e faz os testes usarem contratos mais próximos do comportamento real do app.
+
+---
+
+## 64) Recalcular data/hora e `listOrder` das mensagens no crawl
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R4 - Alto`
+Risco da Feature: `R3 - Médio`
+Score de Execução: `0.45`
+
+**Descrição**  
+Revisar a forma como as mensagens do WhatsApp são ordenadas e persistidas durante o crawl para evitar que mensagens mais antigas acabem sendo cadastradas como se fossem mais recentes só porque chegaram depois no processo de extração. O problema acontece quando o WhatsApp ainda está carregando mensagens antigas de baixo para cima e o crawler encontra essas mensagens fora da ordem temporal ideal. Esse item precisa consolidar a regra correta de data/hora no `ChatMessage`, recalcular `listOrder` com base na ordem real observada e garantir que o reprocessamento das mensagens deixe a timeline coerente.
+
+**Dependências**  
+- `40) Revisar ordenação real da lista de chats com inferência contextual`
+
+**Comportamento desejado**  
+- Trabalhar somente no modelo `ChatMessage`, sem alterar o modelo `Chat`.
+- Recalcular `dateTime` das mensagens com a regra: primeiro `authorDate`, depois mensagens vizinhas mais próximas, e por último o timestamp de crawling como fallback final.
+- Preservar a hora exata observada no crawl quando o dia precisar ser inferido por mensagens vizinhas.
+- Reprocessar as mensagens para que a ordem temporal final fique coerente com o que foi realmente encontrado no chat.
+- Quando o crawl encontrar mensagens fora da sequência ideal, corrigir a posição temporal delas sem depender da ordem em que foram persistidas.
+- Recriar os dados do zero se necessário, sem manter estratégia legacy ou migração de compatibilidade.
+
+**Notas técnicas**  
+- O TODO atual está dentro de `Server/Sources/Features/WhatsAppCrawling/Orchestration/WhatsAppChatCrawlingOrchestrator.swift`, no fluxo de enriquecimento de mensagens já existentes.
+- O bug nasce quando o WhatsApp ainda não carregou tudo e mensagens antigas entram depois, então o crawler precisa usar a ordem de observação + inferência de vizinhança para corrigir o resultado final.
+- Como a hora sempre é capturada com mais confiança, o refactor deve separar claramente a inferência da data do preenchimento da hora.
+- O item deve incluir a revisão do ponto em que `listOrder` e `dateTime` são persistidos para não depender da ordem de chegada do crawl.
+- Não deve haver fallback “compatível com legado”; a ideia é resetar e regravar os dados já com a estrutura corrigida.
+
+**Por que isso entra no backlog**  
+Esse bug distorce a timeline das mensagens e pode fazer o assistente tratar coisa antiga como recente, então ele precisa ser corrigido na base para a ordenação voltar a refletir a realidade do chat.

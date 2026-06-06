@@ -58,10 +58,10 @@ enum WhatsAppCrawlingNormalizer {
     }
 
     static func detectMessageKind(rawMessage: [String: Any]) -> ChatMessage.Kind {
-        if (rawMessage["image"] as? Bool) == true || WebViewInteractiveElementDetector.from(rawMessage["image"] as Any) != nil {
+        if hasInteractiveElements(in: rawMessage, key: "images") {
             return .image
         }
-        if WebViewInteractiveElementDetector.from(rawMessage["sticker"] as Any) != nil {
+        if hasInteractiveElements(in: rawMessage, key: "stickers") {
             return .sticker
         }
         if let isAudio = rawMessage["isAudio"] as? Bool, isAudio {
@@ -71,6 +71,20 @@ enum WhatsAppCrawlingNormalizer {
             return .text
         }
         return .unknown
+    }
+
+    private static func hasInteractiveElements(
+        in rawMessage: [String: Any],
+        key: String
+    ) -> Bool {
+        guard let items = rawMessage[key] as? [Any] else {
+            return false
+        }
+
+        return items.contains { item in
+            guard let item = item as? [String: Any] else { return false }
+            return WebViewInteractiveElementDetector.from(item["found"] as Any) != nil
+        }
     }
 
     private static func parseAuthor(fromDateTimeAndAuthor raw: String?) -> String? {

@@ -342,6 +342,8 @@ final class WhatsAppChatCrawlingOrchestrator {
         return nil
     }
 
+    // TODO: refactor, this function does to much more than the name say it does
+    // TODO: Move message persistence filtering out of media enrichment.
     private func enrichMessagesWithLocalMedia(
         _ messages: [ChatMessage],
         mediaElementsByMessageId: [String: [WebViewInteractiveElement]],
@@ -358,18 +360,14 @@ final class WhatsAppChatCrawlingOrchestrator {
 
         for index in enrichedMessages.indices {
             guard let messageId = enrichedMessages[index].id else { continue }
-            guard !existingIds.contains(messageId) else { continue }
-            guard enrichedMessages[index].kind == .image || enrichedMessages[index].kind == .sticker else { continue }
-
-            if let existingPaths = try? ChatMediaStorage.existingRelativeMediaPaths(
-                profileId: profileId,
-                forMessageId: messageId
-            ),
-               !existingPaths.isEmpty {
-                enrichedMessages[index].localMediaPaths = existingPaths
-                logStore.append(source: "Media", "Reused \(existingPaths.count) local media file(s) for \(messageId).")
+            guard !existingIds.contains(messageId) else {
+                // TODO: check if current `listOrder` is bigger than the saved `listOrder`, update just the `listOrder` as a temporary bug fix
+                // for this, we need to make a separeted commit with also sliting date and time in separeted fields on model and fix all ordering and db indexes (`chatID`, `handled`, `date`, `time`, `listorder`)
+                // date = yyyy-mm-dd  (from authorDate falbacking first to [nearby messages date], after falbacking to crownling date)
+                // time = hh-mm-ss (seconds as extract from the crownling date)
                 continue
             }
+            guard enrichedMessages[index].kind == .image || enrichedMessages[index].kind == .sticker else { continue }
 
             guard let mediaElements = mediaElementsByMessageId[messageId], !mediaElements.isEmpty else {
                 logStore.append(source: "Media", "No media handle available for \(messageId); saving message without local media.")
@@ -392,6 +390,7 @@ final class WhatsAppChatCrawlingOrchestrator {
                 await enrichMessageTextWithAI(
                     messageIndex: index,
                     messageId: messageId,
+                    mediaKind: enrichedMessages[index].kind,
                     relativePaths: relativePaths,
                     in: &enrichedMessages
                 )
@@ -406,11 +405,12 @@ final class WhatsAppChatCrawlingOrchestrator {
     func enrichMessageTextWithAI(
         messageIndex: Int,
         messageId: String,
+        mediaKind: ChatMessage.Kind,
         relativePaths: [String],
         in messages: inout [ChatMessage]
     ) async {
         guard messages.indices.contains(messageIndex) else { return }
-        guard messages[messageIndex].kind == .image || messages[messageIndex].kind == .sticker else { return }
+        guard mediaKind == .image || mediaKind == .sticker else { return }
         guard !relativePaths.isEmpty else { return }
         guard let aiImageExtractor = aiImageExtractorProvider() else {
             logStore.append(source: "Media", "AI image extractor unavailable for \(messageId); keeping local media only.")
@@ -419,7 +419,10 @@ final class WhatsAppChatCrawlingOrchestrator {
 
         do {
             let imageURLs = relativePaths.map(ChatMediaStorage.absoluteURL(forRelativePath:))
-            let extractedText = try await aiImageExtractor.extractTextAndDescription(from: imageURLs)
+            let extractedText = try await aiImageExtractor.extractTextAndDescription(
+                from: imageURLs,
+                mediaKind: mediaKind
+            )
             let trimmedText = extractedText.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmedText.isEmpty else {
                 logStore.append(source: "Media", "AI image extraction returned no text for \(messageId).")

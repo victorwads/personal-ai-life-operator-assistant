@@ -2,39 +2,66 @@ import Foundation
 
 @MainActor
 protocol AIImageExtracting: Sendable {
-    func extractTextAndDescription(from imageURLs: [URL]) async throws -> String
+    func extractTextAndDescription(
+        from imageURLs: [URL],
+        mediaKind: ChatMessage.Kind
+    ) async throws -> String
 }
 
 @MainActor
 final class AIImageExtractionService: AIImageExtracting {
+    private let profileId: String
     private let streamingService: any AIConnectionStreamingServing
     private let settingsProvider: @Sendable () async -> AIConnectionProviderConfiguration
     private let promptProvider: @Sendable () throws -> String
+    private let cacheRepository: any AIImageExtractionCacheRepository
 
     init(
+        profileId: String,
         streamingService: any AIConnectionStreamingServing,
         settingsProvider: @escaping @Sendable () async -> AIConnectionProviderConfiguration,
-        promptProvider: @escaping @Sendable () throws -> String
+        promptProvider: @escaping @Sendable () throws -> String,
+        cacheRepository: any AIImageExtractionCacheRepository
     ) {
+        self.profileId = profileId
         self.streamingService = streamingService
         self.settingsProvider = settingsProvider
         self.promptProvider = promptProvider
+        self.cacheRepository = cacheRepository
     }
 
-    func extractTextAndDescription(from imageURLs: [URL]) async throws -> String {
+    func extractTextAndDescription(
+        from imageURLs: [URL],
+        mediaKind: ChatMessage.Kind
+    ) async throws -> String {
         guard !imageURLs.isEmpty else { return "" }
+
+        if imageURLs.count == 1, let imageURL = imageURLs.first {
+            do {
+                let imageId = imageURL.deletingPathExtension().lastPathComponent
+                if let cachedText = try await cacheRepository.getCachedText(
+                    profileId: profileId,
+                    imageId: imageId
+                ) {
+                    let trimmedCachedText = cachedText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmedCachedText.isEmpty {
+                        return trimmedCachedText
+                    }
+                }
+            } catch {
+                // Cache is best-effort. Continue with live extraction if it is unavailable.
+            }
+        }
 
         let configuration = await settingsProvider()
         let prompt = try promptProvider()
-        let imageParts = try imageURLs.map { url -> AIConversationContentPart in
-            .imageURL(try Self.dataURLString(for: url))
-        }
+        let contentParts = try Self.contentParts(for: imageURLs, mediaKind: mediaKind)
 
         let request = AIProviderRequest(
             model: configuration.model,
             messages: [
                 AIConversationMessage(role: .system, content: prompt),
-                AIConversationMessage(role: .user, contentParts: imageParts)
+                AIConversationMessage(role: .user, contentParts: contentParts)
             ],
             tools: [],
             temperature: 0.0,
@@ -58,7 +85,47 @@ final class AIImageExtractionService: AIImageExtracting {
             }
         }
 
-        return extractedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedText = extractedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if imageURLs.count == 1, !trimmedText.isEmpty, let imageURL = imageURLs.first {
+            do {
+                let imageId = imageURL.deletingPathExtension().lastPathComponent
+                try await cacheRepository.saveCachedText(
+                    profileId: profileId,
+                    imageId: imageId,
+                    text: trimmedText
+                )
+            } catch {
+                // Cache is best-effort. Keep the extracted text even if persistence fails.
+            }
+        }
+
+        return trimmedText
+    }
+
+    private static func contentParts(
+        for imageURLs: [URL],
+        mediaKind: ChatMessage.Kind
+    ) throws -> [AIConversationContentPart] {
+        var parts: [AIConversationContentPart] = []
+        if let textPart = promptTextPart(for: mediaKind) {
+            parts.append(.text(textPart))
+        }
+
+        parts.append(contentsOf: try imageURLs.map { url -> AIConversationContentPart in
+            .imageURL(try Self.dataURLString(for: url))
+        })
+        return parts
+    }
+
+    private static func promptTextPart(for mediaKind: ChatMessage.Kind) -> String? {
+        switch mediaKind {
+        case .sticker:
+            return "sticker"
+        case .image:
+            return "Extract the visible text and describe the image."
+        case .audio, .text, .unknown:
+            return nil
+        }
     }
 
     private static func dataURLString(for url: URL) throws -> String {

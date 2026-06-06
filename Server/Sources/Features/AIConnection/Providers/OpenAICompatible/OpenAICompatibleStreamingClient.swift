@@ -7,11 +7,11 @@ struct OpenAICompatibleStreamingClient {
 
     init(
         configuration: AIConnectionProviderConfiguration,
-        urlSession: URLSession = .shared,
+        urlSession: URLSession? = nil,
         providerExchangeLogger: @escaping @Sendable (AIConnectionErrorLogStore.ProviderExchangeLogPayload) -> Void = { _ in }
     ) {
         self.configuration = configuration
-        self.urlSession = urlSession
+        self.urlSession = urlSession ?? Self.makeURLSession()
         self.providerExchangeLogger = providerExchangeLogger
     }
 
@@ -192,6 +192,14 @@ struct OpenAICompatibleStreamingClient {
         response.allHeaderFields.reduce(into: [String: String]()) { partialResult, entry in
             partialResult[String(describing: entry.key)] = String(describing: entry.value)
         }
+    }
+
+    private static func makeURLSession() -> URLSession {
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = 60 * 60 * 24
+        configuration.timeoutIntervalForResource = 60 * 60 * 24 * 7
+        configuration.waitsForConnectivity = true
+        return URLSession(configuration: configuration)
     }
 
     private static func collectResponseBody(
