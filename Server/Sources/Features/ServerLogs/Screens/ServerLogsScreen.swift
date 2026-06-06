@@ -20,6 +20,23 @@ struct ServerLogsScreen: View {
                     subtitle: "Structured local runtime history with newest-first indexed queries."
                 ) {
                     HStack(spacing: 8) {
+                        Picker("Type", selection: $viewModel.kindFilter) {
+                            Text("All Types").tag(Optional<ServerLogKind>.none)
+                            ForEach(ServerLogKind.allCases, id: \.self) { kind in
+                                Text(kind.displayName).tag(Optional(kind))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: 170)
+
+                        Picker("Result", selection: $viewModel.resultFilter) {
+                            ForEach(ServerLogsScreenViewModel.ResultFilter.allCases) { filter in
+                                Text(filter.displayName).tag(filter)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: 130)
+
                         Button("Clear Logs", role: .destructive) {
                             viewModel.clearLogs()
                         }

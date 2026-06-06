@@ -234,6 +234,29 @@ struct SharedUIPreviews: View {
     }
 
     private var debugInspectorsPreview: some View {
+        return previewSection("Debug Inspectors") {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 12) {
+                    Text("Open JSON popover")
+                        .foregroundStyle(.secondary)
+
+                    DSDebugObjectsInspector(
+                        title: "Sample Debug Objects",
+                        items: sampleDebugItems
+                    )
+                }
+
+                DSDebugObjectsInspector(
+                    title: "Inline Debug Objects",
+                    items: sampleDebugItems,
+                    presentationStyle: .inline
+                )
+            }
+            .previewBounds()
+        }
+    }
+
+    private var sampleDebugItems: [DebugObjectItem] {
         struct SampleValue: Codable {
             let id: UUID
             let name: String
@@ -241,37 +264,26 @@ struct SharedUIPreviews: View {
             let tags: [String]
         }
 
-        return previewSection("Debug Inspectors") {
-            HStack(spacing: 12) {
-                Text("Open JSON popover")
-                    .foregroundStyle(.secondary)
-
-                DSDebugObjectsInspector(
-                    title: "Sample Debug Objects",
-                    items: [
-                        DebugObjectItem(
-                            title: "Model",
-                            value: SampleValue(
-                                id: UUID(),
-                                name: "Example",
-                                createdAt: Date(timeIntervalSince1970: 1_700_000_000),
-                                tags: ["debug", "shared-ui"]
-                            )
-                        ),
-                        DebugObjectItem(
-                            title: "Raw Response",
-                            value: """
-                            {
-                              "id": "resp_123",
-                              "message": "Keep this raw formatting exactly as-is."
-                            }
-                            """
-                        )
-                    ]
+        return [
+            DebugObjectItem(
+                title: "Model",
+                value: SampleValue(
+                    id: UUID(),
+                    name: "Example",
+                    createdAt: Date(timeIntervalSince1970: 1_700_000_000),
+                    tags: ["debug", "shared-ui"]
                 )
-            }
-            .previewBounds()
-        }
+            ),
+            DebugObjectItem(
+                title: "Raw Response",
+                value: """
+                {
+                  "id": "resp_123",
+                  "message": "Keep this raw formatting exactly as-is."
+                }
+                """
+            )
+        ]
     }
 
     private var formFieldsPreview: some View {

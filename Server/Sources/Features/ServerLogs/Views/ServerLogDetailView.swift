@@ -55,7 +55,7 @@ struct ServerLogDetailView: View {
 
                 DSTitledSection(
                     title: "Inspect",
-                    subtitle: "Open structured payloads with the shared debug inspector.",
+                    subtitle: "Structured payloads rendered directly with the shared debug inspector.",
                     systemImage: "curlybraces"
                 ) {
                     if debugItems.isEmpty {
@@ -63,17 +63,16 @@ struct ServerLogDetailView: View {
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     } else {
-                        HStack(spacing: 10) {
-                            Text("Inspect input, output, error, and metadata without rendering them in every row.")
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Inspect input, output, error, and metadata directly in this detail pane.")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
 
                             DSDebugObjectsInspector(
                                 title: "Server Log Details",
-                                items: debugItems
+                                items: debugItems,
+                                presentationStyle: .inline
                             )
-
-                            Spacer(minLength: 0)
                         }
                     }
                 }

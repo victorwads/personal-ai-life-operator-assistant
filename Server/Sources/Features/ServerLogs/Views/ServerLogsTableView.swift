@@ -70,7 +70,7 @@ struct ServerLogsTableView: View {
     }
 }
 
-private extension ServerLogKind {
+extension ServerLogKind {
     var displayName: String {
         switch self {
         case .sessionStarted:
@@ -87,6 +87,19 @@ private extension ServerLogKind {
             return "Session Completed"
         case .sessionFailed:
             return "Session Failed"
+        }
+    }
+}
+
+extension ServerLogsScreenViewModel.ResultFilter {
+    var displayName: String {
+        switch self {
+        case .all:
+            return "All Results"
+        case .success:
+            return "Success"
+        case .failed:
+            return "Failed"
         }
     }
 }

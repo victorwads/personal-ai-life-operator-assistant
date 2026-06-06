@@ -27,7 +27,7 @@ Preferred shared components:
 - Use `DSBadge` for generic simple pills, groups, traits, and lightweight metadata.
 - Use `DSRuntimeStatusBadge` for runtime/service status capsules with state dots, secondary status text, and optional start/stop action icons.
 - Use `DSCodeBlock` for JSON, code, schema, payload, and result displays.
-- Use `DSDebugObjectsInspector` as the shared debug helper for inspecting one or more named values, preserving raw strings and falling back to reflection for arbitrary objects.
+- Use `DSDebugObjectsInspector` as the shared debug helper for inspecting one or more named values, preserving raw strings and falling back to reflection for arbitrary objects. Use its tooltip presentation for compact inline triggers inside feature rows/cards, and its inline presentation when a dedicated debug/detail pane should show the inspector content directly.
 - Use `DSListCardRow` for consistent list-like cards across feature indexes.
 - Use `DSMessageBubbleRow` for chat-like conversation UIs and voice interaction histories.
 

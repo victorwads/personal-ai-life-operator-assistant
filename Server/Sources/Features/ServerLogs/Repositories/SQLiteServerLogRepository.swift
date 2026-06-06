@@ -116,6 +116,9 @@ actor SQLiteServerLogRepository: ServerLogRepository {
         if query.severity != nil {
             clauses.append("severity = ?")
         }
+        if query.success != nil {
+            clauses.append("success = ?")
+        }
         if query.toolName != nil {
             clauses.append("tool_name = ?")
         }
@@ -150,6 +153,10 @@ actor SQLiteServerLogRepository: ServerLogRepository {
         }
         if let severity = query.severity {
             try bind(severity.rawValue, at: parameterIndex, statement: statement)
+            parameterIndex += 1
+        }
+        if let success = query.success {
+            bind(success, at: parameterIndex, statement: statement)
             parameterIndex += 1
         }
         if let toolName = query.toolName {
@@ -369,9 +376,9 @@ actor SQLiteServerLogRepository: ServerLogRepository {
         profileId: String,
         fileManager: FileManager
     ) -> URL {
-        let rootURL = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? fileManager.homeDirectoryForCurrentUser
-                .appendingPathComponent("Library/Application Support", isDirectory: true)
+        guard let rootURL = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            preconditionFailure("Application Support directory is unavailable.")
+        }
 
         return rootURL
             .appendingPathComponent("AIAssistantHub", isDirectory: true)
