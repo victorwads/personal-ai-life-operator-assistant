@@ -1,13 +1,16 @@
 import Foundation
 
 enum ChatMediaStorage {
-    static func mediaDirectoryURL(forMessageId messageId: String) -> URL {
-        applicationSupportMediaRootURL()
+    static func mediaDirectoryURL(profileId: String, forMessageId messageId: String) -> URL {
+        applicationSupportMediaRootURL(profileId: profileId)
             .appendingPathComponent(messageId, isDirectory: true)
     }
 
-    static func existingRelativeMediaPaths(forMessageId messageId: String) throws -> [String] {
-        let directoryURL = mediaDirectoryURL(forMessageId: messageId)
+    static func existingRelativeMediaPaths(
+        profileId: String,
+        forMessageId messageId: String
+    ) throws -> [String] {
+        let directoryURL = mediaDirectoryURL(profileId: profileId, forMessageId: messageId)
         guard FileManager.default.fileExists(atPath: directoryURL.path) else {
             return []
         }
@@ -24,10 +27,14 @@ enum ChatMediaStorage {
         return pngURLs.map(relativePath(for:))
     }
 
-    static func savePNGData(_ dataItems: [Data], forMessageId messageId: String) throws -> [String] {
+    static func savePNGData(
+        _ dataItems: [Data],
+        profileId: String,
+        forMessageId messageId: String
+    ) throws -> [String] {
         guard !dataItems.isEmpty else { return [] }
 
-        let directoryURL = mediaDirectoryURL(forMessageId: messageId)
+        let directoryURL = mediaDirectoryURL(profileId: profileId, forMessageId: messageId)
         try FileManager.default.createDirectory(
             at: directoryURL,
             withIntermediateDirectories: true,
@@ -44,22 +51,32 @@ enum ChatMediaStorage {
     }
 
     static func absoluteURL(forRelativePath relativePath: String) -> URL {
-        applicationSupportURL().appendingPathComponent(relativePath, isDirectory: false)
+        applicationSupportRootURL().appendingPathComponent(relativePath, isDirectory: false)
     }
 
-    private static func applicationSupportMediaRootURL() -> URL {
-        applicationSupportURL().appendingPathComponent("Media", isDirectory: true)
+    private static func applicationSupportMediaRootURL(profileId: String) -> URL {
+        applicationSupportURL(profileId: profileId).appendingPathComponent("Media", isDirectory: true)
     }
 
-    private static func applicationSupportURL() -> URL {
-        guard let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+    private static func applicationSupportURL(profileId: String) -> URL {
+        applicationSupportRootURL()
+            .appendingPathComponent("Profiles", isDirectory: true)
+            .appendingPathComponent(profileId, isDirectory: true)
+    }
+
+    private static func applicationSupportRootURL() -> URL {
+        guard let rootURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
             preconditionFailure("Application Support directory is unavailable.")
         }
-        return url
+        return rootURL
+            .appendingPathComponent("AIAssistantHub", isDirectory: true)
     }
 
     private static func relativePath(for fileURL: URL) -> String {
         let components = fileURL.pathComponents
+        if let profilesIndex = components.lastIndex(of: "Profiles") {
+            return components[profilesIndex...].joined(separator: "/")
+        }
         guard let mediaIndex = components.lastIndex(of: "Media") else {
             return fileURL.lastPathComponent
         }

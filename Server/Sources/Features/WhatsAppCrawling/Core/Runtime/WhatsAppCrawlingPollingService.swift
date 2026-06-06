@@ -46,6 +46,7 @@ final class WhatsAppCrawlingPollingService: ObservableObject, WhatsAppCrawlingSe
 
         let yamlText = try WebYAMLSelectorLoader.loadBundledYAML()
         self.orchestrator = WhatsAppChatCrawlingOrchestrator(
+            profileId: profileId,
             chatRepositoryProvider: chatRepositoryProvider,
             permissionModeProvider: { settings.chatPermissionMode },
             yamlText: yamlText,
