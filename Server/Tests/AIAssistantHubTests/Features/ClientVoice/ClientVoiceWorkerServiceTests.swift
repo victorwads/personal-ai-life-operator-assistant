@@ -250,6 +250,10 @@ private final class ClientVoiceWorkerRepositorySpy: ClientInteractionRequestRepo
         throw ClientInteractionRequestRepositoryError.requestNotFound("unused")
     }
 
+    func deleteRequest(id _: String) async throws {
+        throw ClientInteractionRequestRepositoryError.requestNotFound("unused")
+    }
+
     private func append(_ call: Call) {
         lock.lock()
         recordedCalls.append(call)

@@ -96,6 +96,10 @@ private final class AskToClientRepositorySpy: ClientInteractionRequestRepository
         throw ClientInteractionRequestRepositoryError.requestNotFound(id)
     }
 
+    func deleteRequest(id: String) async throws {
+        throw ClientInteractionRequestRepositoryError.requestNotFound(id)
+    }
+
     func listRequests() async throws -> [ClientInteractionRequest] {
         []
     }

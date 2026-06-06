@@ -73,22 +73,6 @@ struct ClientVoiceScreen: View {
                 } else {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 20) {
-                            if !viewModel.initializedRequests.isEmpty {
-                                requestSection(
-                                    title: "Initialized",
-                                    subtitle: "Requests waiting for a manual client or device action.",
-                                    requests: viewModel.initializedRequests
-                                )
-                            }
-
-                            if !viewModel.waitingAgentRequests.isEmpty {
-                                requestSection(
-                                    title: "Answered / Waiting Agent",
-                                    subtitle: "The client already answered and the agent can now consume the response.",
-                                    requests: viewModel.waitingAgentRequests
-                                )
-                            }
-
                             if !viewModel.waitingUserRequests.isEmpty {
                                 requestSection(
                                     title: "Waiting User",
@@ -97,18 +81,18 @@ struct ClientVoiceScreen: View {
                                 )
                             }
 
-                            if !viewModel.speakingRequests.isEmpty {
+                            if !viewModel.activeRequests.filter({ $0.status != .waitingUser }).isEmpty {
                                 requestSection(
-                                    title: "Speaking",
-                                    subtitle: "Requests currently being spoken to the client.",
-                                    requests: viewModel.speakingRequests
+                                    title: "All Other States",
+                                    subtitle: "Requests that are not waiting for the client and are not completed yet.",
+                                    requests: viewModel.activeRequests.filter { $0.status != .waitingUser }
                                 )
                             }
 
                             if !viewModel.historyRequests.isEmpty {
                                 requestSection(
                                     title: "History",
-                                    subtitle: "Completed, failed, and cancelled interaction records.",
+                                    subtitle: "Completed interaction records.",
                                     requests: viewModel.historyRequests
                                 )
                             }
@@ -150,6 +134,19 @@ struct ClientVoiceScreen: View {
                 HStack(spacing: 8) {
                     DSBadge("Kind", secondaryText: request.kind.rawValue, style: .info)
                     DSBadge("Status", secondaryText: statusText(for: request.status), style: badgeStyle(for: request.status))
+                    Spacer()
+
+                    if viewModel.canDeletePermanently(request) {
+                        Button {
+                            viewModel.deleteRequest(request)
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.red)
+                        .help("Delete permanently")
+                        .disabled(viewModel.isSubmitting(requestID: request.id))
+                    }
                 }
 
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -206,6 +203,11 @@ struct ClientVoiceScreen: View {
                 VStack(alignment: .leading, spacing: 10) {
                     metadataRow("Issue ID", nonEmpty(request.issueId, fallback: "Not recorded"))
                     metadataRow("Source", request.device?.rawValue ?? "Not recorded")
+
+                    if let actionError = viewModel.submissionError(for: request.id) {
+                        Text(actionError)
+                            .foregroundStyle(.red)
+                    }
                 }
             }
         }
@@ -218,11 +220,6 @@ struct ClientVoiceScreen: View {
             }
             .buttonStyle(.borderedProminent)
             .disabled(viewModel.isSubmitting(requestID: request.id))
-
-            if let actionError = viewModel.submissionError(for: request.id) {
-                Text(actionError)
-                    .foregroundStyle(.red)
-            }
         }
     }
 
@@ -243,16 +240,14 @@ struct ClientVoiceScreen: View {
 
     private func sectionIcon(for title: String) -> String {
         switch title {
-        case "Initialized":
-            return "clock.badge.exclamationmark"
-        case "Speaking":
-            return "speaker.wave.2"
         case "Waiting User":
             return "person.crop.circle.badge.questionmark"
-        case "Answered / Waiting Agent":
-            return "bubble.left.and.text.bubble.right"
-        default:
+        case "All Other States":
+            return "square.grid.2x2"
+        case "History":
             return "clock.arrow.circlepath"
+        default:
+            return "bubble.left.and.bubble.right"
         }
     }
 
@@ -314,6 +309,6 @@ struct ClientVoiceScreen: View {
     }
 
     private func canAnswerAsk(_ request: ClientInteractionRequest) -> Bool {
-        request.kind == .ask && [.speaking, .waitingUser].contains(request.status)
+        request.kind == .ask && [.speaking, .waitingUser, .waitingAgent].contains(request.status)
     }
 }

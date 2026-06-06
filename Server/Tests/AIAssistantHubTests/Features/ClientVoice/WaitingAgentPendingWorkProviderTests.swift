@@ -168,4 +168,8 @@ private final class WaitingAgentPendingWorkRepositorySpy: ClientInteractionReque
     func markCancelled(id _: String) async throws -> ClientInteractionRequest {
         throw ClientInteractionRequestRepositoryError.requestNotFound("unused")
     }
+
+    func deleteRequest(id _: String) async throws {
+        throw ClientInteractionRequestRepositoryError.requestNotFound("unused")
+    }
 }

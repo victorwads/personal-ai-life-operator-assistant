@@ -15,6 +15,14 @@ final class ClientVoiceSettingsWrapperTests: XCTestCase {
         XCTAssertEqual(wrapper.speechRecognitionListenConfig.language, "auto")
         XCTAssertEqual(wrapper.speechRecognitionDebounceFinalMs, 1_200)
         XCTAssertEqual(wrapper.speechRecognitionListenConfig.debounceFinalMs, 1_200)
+        XCTAssertFalse(wrapper.whisperPostProcessingEnabled)
+        XCTAssertNil(wrapper.whisperPostProcessingModelPath)
+        XCTAssertNil(wrapper.whisperPostProcessingCoreMLModelPath)
+        XCTAssertEqual(wrapper.whisperPostProcessingLanguage, .auto)
+        XCTAssertEqual(wrapper.speechRecognitionListenConfig.postProcessing?.isEnabled, false)
+        XCTAssertNil(wrapper.speechRecognitionListenConfig.postProcessing?.modelPath)
+        XCTAssertNil(wrapper.speechRecognitionListenConfig.postProcessing?.coreMLModelPath)
+        XCTAssertEqual(wrapper.speechRecognitionListenConfig.postProcessing?.language, "auto")
     }
 
     func testSpeechRecognitionLanguagePersistsSelectedValue() {
@@ -43,6 +51,59 @@ final class ClientVoiceSettingsWrapperTests: XCTestCase {
 
         XCTAssertEqual(wrapper.speechRecognitionDebounceFinalMs, 2_300)
         XCTAssertEqual(wrapper.speechRecognitionListenConfig.debounceFinalMs, 2_300)
+    }
+
+    func testWhisperPostProcessingPersistsSelectedValues() {
+        let wrapper = ClientVoiceSettingsWrapper(
+            settings: SettingsStore(
+                profileId: "profile-1",
+                repository: InMemoryClientVoiceSettingsRepository()
+            )
+        )
+
+        wrapper.whisperPostProcessingEnabled = true
+        wrapper.whisperPostProcessingModelPath = "/tmp/ggml-base.bin"
+        wrapper.whisperPostProcessingCoreMLModelPath = "/tmp/ggml-base-encoder.mlmodelc"
+        wrapper.whisperPostProcessingLanguage = .portuguese
+
+        XCTAssertTrue(wrapper.whisperPostProcessingEnabled)
+        XCTAssertEqual(wrapper.whisperPostProcessingModelPath, "/tmp/ggml-base.bin")
+        XCTAssertEqual(wrapper.whisperPostProcessingCoreMLModelPath, "/tmp/ggml-base-encoder.mlmodelc")
+        XCTAssertEqual(wrapper.whisperPostProcessingLanguage, .portuguese)
+        XCTAssertEqual(wrapper.speechRecognitionListenConfig.postProcessing?.isEnabled, true)
+        XCTAssertEqual(wrapper.speechRecognitionListenConfig.postProcessing?.modelPath, "/tmp/ggml-base.bin")
+        XCTAssertEqual(wrapper.speechRecognitionListenConfig.postProcessing?.coreMLModelPath, "/tmp/ggml-base-encoder.mlmodelc")
+        XCTAssertEqual(wrapper.speechRecognitionListenConfig.postProcessing?.language, "pt")
+    }
+
+    func testWhisperPostProcessingClearsEmptyModelPath() {
+        let wrapper = ClientVoiceSettingsWrapper(
+            settings: SettingsStore(
+                profileId: "profile-1",
+                repository: InMemoryClientVoiceSettingsRepository()
+            )
+        )
+
+        wrapper.whisperPostProcessingModelPath = "/tmp/ggml-base.bin"
+        wrapper.whisperPostProcessingModelPath = "   "
+
+        XCTAssertNil(wrapper.whisperPostProcessingModelPath)
+        XCTAssertNil(wrapper.speechRecognitionListenConfig.postProcessing?.modelPath)
+    }
+
+    func testWhisperPostProcessingClearsEmptyCoreMLModelPath() {
+        let wrapper = ClientVoiceSettingsWrapper(
+            settings: SettingsStore(
+                profileId: "profile-1",
+                repository: InMemoryClientVoiceSettingsRepository()
+            )
+        )
+
+        wrapper.whisperPostProcessingCoreMLModelPath = "/tmp/ggml-base-encoder.mlmodelc"
+        wrapper.whisperPostProcessingCoreMLModelPath = "   "
+
+        XCTAssertNil(wrapper.whisperPostProcessingCoreMLModelPath)
+        XCTAssertNil(wrapper.speechRecognitionListenConfig.postProcessing?.coreMLModelPath)
     }
 }
 

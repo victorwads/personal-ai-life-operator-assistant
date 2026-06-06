@@ -28,6 +28,7 @@ protocol ClientInteractionRequestRepository: AnyObject {
         id: String,
     ) async throws -> ClientInteractionRequest
     func markCancelled(id: String) async throws -> ClientInteractionRequest
+    func deleteRequest(id: String) async throws
 }
 
 final class FirestoreClientInteractionRequestRepository: FirestoreRepository<ClientInteractionRequest>, ClientInteractionRequestRepository {
@@ -125,6 +126,10 @@ final class FirestoreClientInteractionRequestRepository: FirestoreRepository<Cli
             data: makeUpdateData(status: .cancelled)
         )
         return try await existingRequest(id: id)
+    }
+
+    func deleteRequest(id: String) async throws {
+        try await super.delete(id)
     }
 
     private func existingRequest(id: String) async throws -> ClientInteractionRequest {

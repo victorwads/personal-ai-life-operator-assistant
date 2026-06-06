@@ -3,6 +3,14 @@ import Speech
 import AVFoundation
 
 enum SpeechListener {
+    static func makeFinalTextResolver(
+        whisperPostProcessingConfig: WhisperPostProcessingConfig?
+    ) -> (any SpeechFinalTextResolving)? {
+        WhisperPostProcessingFactory.makeFinalTextResolver(
+            whisperPostProcessingConfig: whisperPostProcessingConfig
+        )
+    }
+
     static func listen(
         provider: ListenProvider,
         config: ListenConfig = .init()
@@ -46,7 +54,10 @@ enum SpeechListener {
             let handler = ListenHandler(
                 config: config,
                 recognizer: recognizer,
-                audioEngine: audioEngine
+                audioEngine: audioEngine,
+                finalTextResolver: makeFinalTextResolver(
+                    whisperPostProcessingConfig: config.postProcessing
+                )
             )
 
             // Start recording and recognition immediately.

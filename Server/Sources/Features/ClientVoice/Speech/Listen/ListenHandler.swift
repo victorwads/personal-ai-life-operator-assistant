@@ -1,50 +1,59 @@
+import AVFoundation
 import Foundation
 import Speech
-import AVFoundation
 
 final class ListenHandler: @unchecked Sendable {
     private let lock = NSLock()
 
-    // Callbacks
     private var partialCallback: (@MainActor (String) -> Void)?
     private var finalCallback: (@MainActor (String) -> Void)?
 
-    // State
     private var currentBestText: String = ""
     private var isFinished = false
     private var isEndingForFinalResult = false
     private var continuation: CheckedContinuation<String, Never>?
 
-    // Timing & Debounce
     private let debounceFinalMs: Int
-    private var debounceTask: Task<Void, Never>?
+    private let whisperPostProcessingConfig: WhisperPostProcessingConfig?
+    private let finalTextResolver: (any SpeechFinalTextResolving)?
+    private let whisperCancellationToken = WhisperProcessingCancellationToken()
 
-    // Audio & Recognition Objects
+    private var debounceTask: Task<Void, Never>?
+    private var postProcessingTask: Task<Void, Never>?
+
     private let recognizer: SFSpeechRecognizer
     private let audioEngine: AVAudioEngine
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
+    private var capturedAudioBuffer: CapturedSpeechAudioBuffer?
 
     init(
         config: ListenConfig,
         recognizer: SFSpeechRecognizer,
-        audioEngine: AVAudioEngine
+        audioEngine: AVAudioEngine,
+        finalTextResolver: (any SpeechFinalTextResolving)? = nil
     ) {
         self.debounceFinalMs = config.debounceFinalMs
+        self.whisperPostProcessingConfig = config.postProcessing
+        self.finalTextResolver = finalTextResolver
         self.recognizer = recognizer
         self.audioEngine = audioEngine
+    }
+
+    var usesWhisperPostProcessing: Bool {
+        whisperPostProcessingConfig?.isEnabled == true && finalTextResolver != nil
     }
 
     func onPartial(_ callback: @escaping @MainActor (String) -> Void) {
         lock.lock()
         defer { lock.unlock() }
-        self.partialCallback = callback
+        partialCallback = callback
     }
 
     func onFinal(_ callback: @escaping @MainActor (String) -> Void) {
         lock.lock()
         defer { lock.unlock() }
-        self.finalCallback = callback
+        finalCallback = callback
     }
 
     func await() async -> String {
@@ -56,6 +65,7 @@ final class ListenHandler: @unchecked Sendable {
                 continuation.resume(returning: text)
                 return
             }
+
             self.continuation = continuation
             lock.unlock()
         }
@@ -66,62 +76,82 @@ final class ListenHandler: @unchecked Sendable {
         let shouldResume = !isFinished
         isFinished = true
         isEndingForFinalResult = false
+        currentBestText = ""
+
         let cont = continuation
         continuation = nil
+
         debounceTask?.cancel()
         debounceTask = nil
+
+        let processingTask = postProcessingTask
+        postProcessingTask = nil
+
+        let capturedAudioBuffer = self.capturedAudioBuffer
+        self.capturedAudioBuffer = nil
         lock.unlock()
 
+        whisperCancellationToken.cancel()
+        processingTask?.cancel()
         stopAudioAndRecognition()
+        capturedAudioBuffer?.reset()
 
         if shouldResume {
             cont?.resume(returning: "")
         }
     }
 
-    // Starts the recording and recognition processes. Throws if initial setup fails.
     func start() throws {
         lock.lock()
         defer { lock.unlock() }
 
         let inputNode = audioEngine.inputNode
         let recordingFormat = inputNode.outputFormat(forBus: 0)
+        capturedAudioBuffer = try CapturedSpeechAudioBuffer(inputFormat: recordingFormat)
 
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
-
-        // Enable automatic punctuation inferred from speech/pauses/intonation
         request.addsPunctuation = true
+        recognitionRequest = request
 
-        self.recognitionRequest = request
-
-        // Install tap to feed audio buffers to the speech recognition request
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
-            guard let self = self else { return }
+            guard let self else {
+                return
+            }
+
             self.lock.lock()
             let activeRequest = self.recognitionRequest
+            let capturedAudioBuffer = self.capturedAudioBuffer
             self.lock.unlock()
+
             activeRequest?.append(buffer)
+            capturedAudioBuffer?.append(buffer)
         }
 
-        // Start the SFSpeechRecognitionTask
         let task = recognizer.recognitionTask(with: request) { [weak self] result, error in
             self?.handleRecognitionResult(result: result, error: error)
         }
-        self.recognitionTask = task
+        recognitionTask = task
 
-        // Start the audio engine
         do {
             audioEngine.prepare()
             try audioEngine.start()
         } catch {
-            // Clean up if audio engine fails to start
             inputNode.removeTap(onBus: 0)
             request.endAudio()
             task.cancel()
-            self.recognitionRequest = nil
-            self.recognitionTask = nil
+            recognitionRequest = nil
+            recognitionTask = nil
+            capturedAudioBuffer = nil
             throw error
+        }
+
+        let whisperPostProcessingConfig = self.whisperPostProcessingConfig
+        let finalTextResolver = self.finalTextResolver
+        if whisperPostProcessingConfig?.isEnabled == true, let finalTextResolver {
+            Task(priority: .utility) {
+                await finalTextResolver.warmUp(whisperConfig: whisperPostProcessingConfig)
+            }
         }
     }
 
@@ -129,13 +159,14 @@ final class ListenHandler: @unchecked Sendable {
         if audioEngine.isRunning {
             audioEngine.stop()
         }
+
         audioEngine.inputNode.removeTap(onBus: 0)
         recognitionRequest?.endAudio()
         recognitionTask?.cancel()
     }
 
     private func handleRecognitionResult(result: SFSpeechRecognitionResult?, error: Error?) {
-        if let result = result {
+        if let result {
             let text = result.bestTranscription.formattedString.trimmingCharacters(in: .whitespacesAndNewlines)
             if !text.isEmpty {
                 lock.lock()
@@ -143,12 +174,13 @@ final class ListenHandler: @unchecked Sendable {
                     lock.unlock()
                     return
                 }
+
                 currentBestText = text
                 let partial = partialCallback
                 let shouldDebounce = !isEndingForFinalResult
                 lock.unlock()
 
-                if let partial = partial {
+                if let partial {
                     Task { @MainActor in
                         partial(text)
                     }
@@ -172,7 +204,7 @@ final class ListenHandler: @unchecked Sendable {
             }
         }
 
-        if let error = error {
+        if let error {
             lock.lock()
             let currentFinished = isFinished
             let endingForFinalResult = isEndingForFinalResult
@@ -186,7 +218,7 @@ final class ListenHandler: @unchecked Sendable {
                 } else if isTransientError(nsError) {
                     restartRecognitionTask()
                 } else {
-                    handleFatalError(error)
+                    handleFatalError()
                 }
             }
         } else if isFinalResult {
@@ -196,7 +228,6 @@ final class ListenHandler: @unchecked Sendable {
             lock.unlock()
 
             if !currentFinished && !endingForFinalResult {
-                // If Apple Speech session ends normally (usually 1-minute timeout), restart to continue listening
                 restartRecognitionTask()
             }
         }
@@ -210,15 +241,17 @@ final class ListenHandler: @unchecked Sendable {
         }
 
         debounceTask?.cancel()
-
         let timeoutMs = debounceFinalMs
         debounceTask = Task { [weak self] in
             do {
                 try await Task.sleep(nanoseconds: UInt64(timeoutMs) * 1_000_000)
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled else {
+                    return
+                }
+
                 self?.debounceFired()
             } catch {
-                // Ignore task cancellation sleep errors
+                // Ignore sleep cancellation.
             }
         }
         lock.unlock()
@@ -248,15 +281,16 @@ final class ListenHandler: @unchecked Sendable {
         if audioEngine.isRunning {
             audioEngine.stop()
         }
+
         audioEngine.inputNode.removeTap(onBus: 0)
         recognitionRequest?.endAudio()
     }
 
     private func isTransientError(_ error: NSError) -> Bool {
-        // e.g. silent periods (203), minor connection disruptions, or system-cancelled tasks (4 / 209)
         if error.domain == "kAFAssistantErrorDomain" || error.domain == SFSpeechErrorDomain {
             return error.code == 203 || error.code == 209 || error.code == 4
         }
+
         return false
     }
 
@@ -273,36 +307,90 @@ final class ListenHandler: @unchecked Sendable {
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         request.addsPunctuation = true
-        self.recognitionRequest = request
+        recognitionRequest = request
 
         let task = recognizer.recognitionTask(with: request) { [weak self] result, error in
             self?.handleRecognitionResult(result: result, error: error)
         }
-        self.recognitionTask = task
+        recognitionTask = task
         lock.unlock()
 
         print("[SpeechListener] Restarted speech recognition task due to transient error/timeout.")
     }
 
-    private func handleFatalError(_ error: Error) {
-        lock.lock()
-        guard !isFinished else {
-            lock.unlock()
-            return
-        }
-
-        let text = currentBestText
-        isFinished = true
-        let cont = continuation
-        continuation = nil
-        lock.unlock()
-
-        stopAudioAndRecognition()
-
-        cont?.resume(returning: text)
+    private func handleFatalError() {
+        finishResolvedRecognition(with: snapshotCurrentText())
     }
 
-    private func finishRecognition(with text: String) {
+    private func finishRecognition(with appleSpeechText: String) {
+        stopAudioAndRecognition()
+
+        lock.lock()
+        guard !isFinished else {
+            lock.unlock()
+            return
+        }
+
+        isEndingForFinalResult = false
+        debounceTask?.cancel()
+        debounceTask = nil
+
+        let capturedAudio = capturedAudioBuffer?.takeAllSamples()
+        let capturedSamples = capturedAudio?.samples ?? []
+        if let diagnostics = capturedAudio?.diagnostics {
+            print("[SpeechListener] Whisper captured audio diagnostics: \(diagnostics.summary)")
+        }
+        capturedAudioBuffer = nil
+
+        let cancellationToken = whisperCancellationToken
+        let shouldUsePostProcessing = usesWhisperPostProcessing
+        lock.unlock()
+
+        guard shouldUsePostProcessing else {
+            finishResolvedRecognition(with: appleSpeechText)
+            return
+        }
+
+        postProcessingTask = Task { [weak self] in
+            guard let self else {
+                return
+            }
+
+            if Task.isCancelled || cancellationToken.isCancelled {
+                return
+            }
+
+            let finalText = await self.resolveFinalText(
+                appleSpeechText: appleSpeechText,
+                capturedSamples: capturedSamples
+            )
+
+            guard !Task.isCancelled, !cancellationToken.isCancelled else {
+                return
+            }
+
+            self.finishResolvedRecognition(with: finalText)
+        }
+    }
+
+    func resolveFinalText(
+        appleSpeechText: String,
+        capturedSamples: [Float]
+    ) async -> String {
+        guard let whisperPostProcessingConfig, whisperPostProcessingConfig.isEnabled,
+              let finalTextResolver else {
+            return appleSpeechText
+        }
+
+        return await finalTextResolver.resolveFinalText(
+            appleSpeechText: appleSpeechText,
+            capturedAudioSamples: capturedSamples,
+            whisperConfig: whisperPostProcessingConfig,
+            cancellationToken: whisperCancellationToken
+        )
+    }
+
+    private func finishResolvedRecognition(with text: String) {
         lock.lock()
         guard !isFinished else {
             lock.unlock()
@@ -310,17 +398,20 @@ final class ListenHandler: @unchecked Sendable {
         }
 
         isFinished = true
-        isEndingForFinalResult = false
+        currentBestText = text
+
         let cont = continuation
         continuation = nil
+
         debounceTask?.cancel()
         debounceTask = nil
+
+        postProcessingTask = nil
+
         let finalCb = finalCallback
         lock.unlock()
 
-        stopAudioAndRecognition()
-
-        if let finalCb = finalCb {
+        if let finalCb {
             Task { @MainActor in
                 finalCb(text)
             }
