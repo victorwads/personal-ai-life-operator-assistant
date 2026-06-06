@@ -52,8 +52,8 @@ if [[ ! -d "$APP_PATH" ]]; then
   exit 1
 fi
 
-echo "==> Stopping running app"
-osascript -e "tell application \"$APP_NAME\" to quit" >/dev/null 2>&1 || true
-
-echo "==> Opening built app"
-open "$APP_PATH"
+#echo "==> Stopping running app"
+#osascript -e "tell application \"$APP_NAME\" to quit" >/dev/null 2>&1 || true
+#
+#echo "==> Opening built app"
+#open "$APP_PATH"

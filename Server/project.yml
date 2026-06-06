@@ -4,14 +4,16 @@ options:
   deploymentTarget:
     macOS: "14.0"
 fileGroups:
-  - project.yml
   - ../firestore.indexes.json
   - ../firebase.rules
   - ../firebase.json
+  - ../Docs
+  - ../AGENTS.md
   - AGENTS.md
-  - Docs
-  - Sources
+  - project.yml
   - Scripts
+  - Packages
+  - Sources
   - Tests
 packages:
   MCP:
@@ -90,23 +92,6 @@ schemes:
         AIAssistantHubTests: [test]
     run:
       config: Debug
-    test:
-      config: Debug
-      targets:
-        - AIAssistantHubTests
-  AIAssistantHubEmulators:
-    build:
-      targets:
-        AIAssistantHub: all
-        AIAssistantHubTests: [test]
-    run:
-      config: Debug
-      environmentVariables:
-        FIREBASE_USE_EMULATORS: "1"
-        FIREBASE_EMULATOR_HOST: "localhost"
-        FIRESTORE_EMULATOR_PORT: "8080"
-        FIREBASE_AUTH_EMULATOR_PORT: "9099"
-        FIREBASE_DATABASE_EMULATOR_PORT: "9000"
     test:
       config: Debug
       targets:

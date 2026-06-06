@@ -142,9 +142,11 @@ private final class SpyChatRepository: ChatRepository {
     func updateChatPermission(chatId _: String, permission _: ChatPermission?) async throws {}
     func deleteChat(id _: String) async throws {}
     func deleteAllChatsAndMessages() async throws {}
-    func listUnhandledChats(limit _: Int?) async throws -> [Chat] { [] }
+    func listUnhandledChats(limit _: Int?, permissionMode _: ChatPermissionMode) async throws -> [Chat] { [] }
     func listMessages(chatId _: String, limit _: Int?) async throws -> [ChatMessage] { [] }
     func markMessagesHandled(ids _: [String]) async throws {}
+    func markMessagesHandledThrough(chatId _: String, lastChatMessageId _: String) async throws -> Int { 0 }
+    func markMessagesUnhandledFrom(chatId _: String, firstChatMessageId _: String) async throws -> Int { 0 }
     func existingMessageIds(chatId _: String) async throws -> Set<String> { [] }
     func deleteMessage(id _: String) async throws {}
     func deleteChatAndMessages(chatId _: String) async throws {}

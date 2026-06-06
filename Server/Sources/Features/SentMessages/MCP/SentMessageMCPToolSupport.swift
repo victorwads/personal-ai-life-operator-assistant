@@ -6,12 +6,18 @@ enum SentMessageMCPToolSupport {
         // schema validation supports `items`. Until then, keep this extraction guard
         // to ensure `messages` contains at least one non-empty string.
         guard case .array(let values)? = call.arguments["messages"] else {
-            throw MCPToolExtractionError.missingOrInvalid("messages")
+            throw MCPToolExtractionError.invalidField(
+                "messages",
+                reason: "expected an array containing only non-empty strings."
+            )
         }
 
         let messages = try values.map { value in
             guard let text = value.stringValue?.trimmedNonEmpty else {
-                throw MCPToolExtractionError.missingOrInvalid("messages")
+                throw MCPToolExtractionError.invalidField(
+                    "messages",
+                    reason: "each item must be a non-empty string."
+                )
             }
             return text
         }

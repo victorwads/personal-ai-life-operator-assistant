@@ -17,6 +17,7 @@ struct UpdateIssueTool: MCPToolDefinition {
         "type": .string("object"),
         "properties": .object([
             "id": .object(["type": .string("string")]),
+            "title": .object(["type": .string("string")]),
             "description": .object(["type": .string("string")]),
             "resolutionCondition": .object(["type": .string("string")]),
             "priority": .object(["type": .string("number")]),
@@ -36,7 +37,9 @@ struct UpdateIssueTool: MCPToolDefinition {
     ])
     let exampleParameters: [MCPToolExampleParameter] = [
         .init(name: "id", value: .string("issue-1")),
+        .init(name: "title", value: .string("")),
         .init(name: "description", value: .string("Updated from the preview browser.")),
+        .init(name: "resolutionCondition", value: .string("")),
         .init(name: "priority", value: .integer(4)),
         .init(name: "timelineItems", value: .array([
             .object([
@@ -56,6 +59,9 @@ struct UpdateIssueTool: MCPToolDefinition {
             throw IssueMCPToolError.issueNotFound(id)
         }
 
+        if let title = MCPSupport.optionalString("title", from: call) {
+            issue.title = title
+        }
         if let description = MCPSupport.optionalString("description", from: call) {
             issue.description = description
         }
