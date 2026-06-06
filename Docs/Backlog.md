@@ -226,7 +226,7 @@ Risco da Feature: `R3 - Médio`
 Score de Execução: `0.44`
 
 **Descrição**  
-Alterar o contrato de `speak_to_client`, `send_message` e `ask_to_client` para que o runtime em Swift receba contexto adicional de forma explícita antes de humanizar a saída. O agente principal continua decidindo normalmente, mas passa mais dados na requisição MCP, como motivo, contexto, memórias relevantes e preferências de comunicação. Depois disso, o runtime encaminha a mensagem para um modelo separado de humanização, sem reasoning, que apenas reescreve o texto final.
+Alterar o contrato de `announce_to_client`, `send_message` e `ask_to_client` para que o runtime em Swift receba contexto adicional de forma explícita antes de humanizar a saída. O agente principal continua decidindo normalmente, mas passa mais dados na requisição MCP, como motivo, contexto, memórias relevantes e preferências de comunicação. Depois disso, o runtime encaminha a mensagem para um modelo separado de humanização, sem reasoning, que apenas reescreve o texto final.
 
 Hoje a comunicação já existe, mas ainda mistura decisão operacional com linguagem final. Essa camada nova serve para separar melhor as responsabilidades e permitir que o sistema seja mais humano sem exigir que o agente principal carregue toda a estratégia de estilo no mesmo prompt.
 
@@ -239,7 +239,7 @@ Hoje a comunicação já existe, mas ainda mistura decisão operacional com ling
 - O runtime deve separar o fluxo operacional do fluxo social, tratando a humanização como uma etapa stateless.
 - O modelo de humanização deve receber apenas o contexto necessário para ajustar tom e naturalidade.
 - O `system prompt` principal do projeto vai precisar ser ajustado para refletir esse novo fluxo em duas camadas.
-- `speak_to_client`, `send_message` e `ask_to_client` vão precisar de mais campos obrigatórios para alimentar a etapa de humanização com contexto suficiente.
+- `announce_to_client`, `send_message` e `ask_to_client` vão precisar de mais campos obrigatórios para alimentar a etapa de humanização com contexto suficiente.
 
 **Por que isso entra no backlog**  
 Isso diminui o acoplamento entre decisão operacional e linguagem social, deixando o sistema mais modular e permitindo que o assistente fale de forma mais natural sem misturar decisão com estilo.
@@ -316,7 +316,7 @@ Risco da Feature: `R3 - Médio`
 Score de Execução: `0.67`
 
 **Descrição**  
-Definir e implementar o primeiro recorte real do app Android como uma Home centrada em voz. O MVP deve priorizar `ask_to_client` e `speak_to_client`, com STT/TTS nativos, lista de solicitações de voz pendentes e histórico recente de itens resolvidos. O app base já existe em `Apps/Android` e já mostra partes de memórias e voz, mas ainda está cru o suficiente para que esse item continue sendo o fechamento do MVP real.
+Definir e implementar o primeiro recorte real do app Android como uma Home centrada em voz. O MVP deve priorizar `ask_to_client` e `announce_to_client`, com STT/TTS nativos, lista de solicitações de voz pendentes e histórico recente de itens resolvidos. O app base já existe em `Apps/Android` e já mostra partes de memórias e voz, mas ainda está cru o suficiente para que esse item continue sendo o fechamento do MVP real.
 
 **Dependências**  
 - `41) Firebase observável com cache local sempre atualizado`
@@ -325,7 +325,7 @@ Definir e implementar o primeiro recorte real do app Android como uma Home centr
 - A Home deve ser a tela principal e responder imediatamente se existe algo pendente para o usuário.
 - A navegação do MVP deve ser mínima e não incluir áreas administrativas que só poluem a experiência.
 - O fluxo de `ask_to_client` precisa guardar a pendência e o momento de resolução de forma imutável, incluindo a data em que o item foi marcado como handled.
-- O `speak_to_client` deve ser apresentado como feedback de voz direto, sem exigir que o usuário navegue em submenus.
+- O `announce_to_client` deve ser apresentado como feedback de voz direto, sem exigir que o usuário navegue em submenus.
 - O app deve manter suporte a STT e TTS como parte central da experiência.
 - A lista de itens concluídos deve existir para futuro acompanhamento, mas sem competir visualmente com a pendência principal da Home.
 
@@ -414,7 +414,7 @@ Integrar oficialmente o MCP server de Gmail e Calendar ao prompt operacional do 
 - Criar alarmes vinculados a subjects.
 - Tratar alarmes como eventos que acordam o assistente quando chegam ao horário ou a um tempo antes do compromisso.
 - Permitir `resolve`, `snooze` ou manutenção aberta do alarme até ele ser realmente tratado.
-- Avisar com antecedência quando houver compromisso próximo, por exemplo com `speak_to_client(...)` ou alerta equivalente.
+- Avisar com antecedência quando houver compromisso próximo, por exemplo com `announce_to_client(...)` ou alerta equivalente.
 
 **Notas técnicas**  
 - O prompt operacional precisa documentar a rotina de Gmail e Calendar, não só as tools isoladas.
@@ -1087,3 +1087,133 @@ Adicionar suporte real para que mensagens com imagem entrem no contexto do model
 
 **Por que isso entra no backlog**  
 Isso habilita o assistente a realmente “ver” o que chegou no WhatsApp, o que é uma base importante para responder melhor a mensagens que dependem de mídia e não só de texto.
+
+---
+
+## 57) Fechar o servidor HTTP do user agent só depois da resposta HTML
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R2 - Baixo`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.57`
+
+**Descrição**  
+Corrigir o fluxo da captura automática de `user agent` pela WebView para que o servidor HTTP não seja encerrado antes de devolver a resposta HTML com o `window.close()`. Hoje o navegador já envia o `user agent`, o backend já consegue capturá-lo, mas o servidor é fechado cedo demais e a requisição termina com erro na aba. O comportamento correto é concluir a resposta HTML primeiro e só depois encerrar o servidor HTTP responsável pela captura.
+
+**Dependências**  
+- `21) Captura automática de user agent do navegador`
+
+**Comportamento desejado**  
+- Capturar o `user agent` assim que a requisição chegar, como já acontece hoje.
+- Continuar salvando o `user agent` no momento em que ele é recebido.
+- Só encerrar o servidor HTTP depois de responder o HTML final para o navegador.
+- Evitar que a aba fique aberta com erro de requisição incompleta.
+- Manter o fluxo automático funcionando tanto no modo manual quanto no modo de disparo automático.
+
+**Notas técnicas**  
+- O bug está no timing entre capturar o header da request e encerrar o listener/servidor antes do `response body` terminar de ser escrito.
+- A correção deve separar claramente “capturar e persistir o `user agent`” de “finalizar o ciclo HTTP com resposta válida”.
+- Vale revisar o handler da rota de captura para garantir que o `window.close()` só seja devolvido depois que o body tiver sido enviado com sucesso.
+- Essa mudança deve ser pequena, mas precisa ser testada no navegador real para evitar regressão de fechamento prematuro.
+
+**Por que isso entra no backlog**  
+Esse bug quebra uma etapa importante da captura automática do `user agent` e deixa a aba em estado de erro, então vale corrigir para o fluxo ficar limpo e confiável.
+
+---
+
+## 58) Suspensão de issues por tempo ou por chat
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R4 - Alto`
+Risco da Feature: `R4 - Alto`
+Score de Execução: `0.45`
+
+**Descrição**  
+Melhorar a feature de `Issues` para que o estado `suspended` possa ser definido por vários gatilhos e motivos, não apenas por um intervalo de tempo. A suspensão pode acontecer, por exemplo, porque existe um `ask_to_client` pendente, porque um chat vinculado ainda não foi respondido, porque o cliente ficou ausente, porque precisa aguardar uma mensagem específica do WhatsApp ou porque um prazo temporal precisa expirar. Em todos os casos, a issue deve sair da suspensão automaticamente quando o gatilho correspondente acontecer, e a timeline precisa registrar claramente por que ela foi suspensa e por que voltou a ficar ativa.
+
+**Dependências**  
+- `45) Ações manuais de status na tela de Issues`
+- `39) Desativar extração de imagem e sticker por chat` 
+
+**Comportamento desejado**  
+- Permitir suspender uma issue por data, por chat, por `ask_to_client` pendente ou por outro gatilho operacional relevante.
+- Registrar explicitamente a razão da suspensão, não só o estado final.
+- Destravar a issue automaticamente quando a data expirar.
+- Destravar a issue automaticamente quando chegar mensagem em qualquer `chatId` vinculado.
+- Destravar a issue automaticamente quando um `client request interaction` for respondido ou alterado.
+- Destravar a issue automaticamente quando o `ask_to_client` pendente for resolvido.
+- Registrar na timeline o motivo da suspensão e também o motivo da saída da suspensão.
+- Fazer a tooling de suspensão sempre criar o evento de timeline correspondente no momento em que a issue for suspensa.
+
+**Notas técnicas**  
+- O modelo de issue precisa armazenar não só `suspendUntil`, mas também uma lista estruturada de gatilhos de suspensão e desbloqueio.
+- Cada gatilho deve poder apontar para `chatId`, `client request interaction`, `ask_to_client` ou um timer, conforme o caso.
+- A suspensão por chat precisa conversar com o fluxo de eventos/mensagens já existente, para disparar o desbloqueio quando houver nova atividade relevante.
+- A timeline deve registrar o `why suspended` e o `why unsuspended`, para manter rastreabilidade operacional.
+- O desbloqueio automático não deve depender de ação manual quando o gatilho temporal ou por mensagem acontecer.
+- Vale tratar esse item como uma das regras centrais do runtime, porque ele impacta diretamente como o assistente decide o que pode continuar rodando e o que precisa esperar.
+
+**Por que isso entra no backlog**  
+Isso deixa `Issues` mais útil para operação real, porque pausa trabalhos até a hora certa ou até o chat voltar a ter sinal de vida, sem perder rastreabilidade do que aconteceu.
+
+---
+
+## 59) Corrigir compressão do header quando os badges ocupam muito espaço
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R2 - Baixo`
+Risco da Feature: `R1 - Baixíssimo`
+Score de Execução: `0.57`
+
+**Descrição**  
+Corrigir o layout do header do `Command Center` para que o título do profile não seja esmagado verticalmente quando a fileira de badges de runtime ocupa muito espaço horizontal. Hoje, quando há vários badges ativos na mesma linha, o texto do título e subtítulo fica comprimido e quebra em colunas estreitas, enquanto os badges continuam com comportamento rígido. A UI precisa ajustar melhor o espaço entre título e status badges, permitindo que o header responda com mais flexibilidade ao tamanho disponível.
+
+**Dependências**  
+- `44) Padronização visual das listas e master-detail no app`
+
+**Comportamento desejado**  
+- Manter o título do profile legível mesmo com vários badges de runtime.
+- Evitar que o texto do header seja reduzido a uma coluna estreita.
+- Fazer os badges cederem espaço ou quebrarem de forma mais natural quando o header ficar apertado.
+- Preservar a leitura da barra de status sem comprometer o nome do profile.
+
+**Notas técnicas**  
+- O ponto principal está em `Server/Sources/Features/CommandCenter/Views/CommandCenterHeaderView.swift`, onde a `HStack` do header concentra o título e a fileira de badges.
+- O comportamento rígido dos badges vem de `Server/Sources/Shared/UI/Badges/DSRuntimeStatusBadge.swift`, especialmente do `fixedSize(horizontal: true, vertical: false)`.
+- Vale revisar se o header deve priorizar o bloco do título ou permitir wrapping/scroll/compactação controlada nos badges.
+- A correção deve atacar a composição do layout, não só ajustar espaçamento visual, para evitar regressão em telas menores.
+
+**Por que isso entra no backlog**  
+Esse bug degrada muito a leitura do workspace principal quando há muitos estados exibidos ao mesmo tempo, então vale corrigir para o header continuar legível e estável.
+
+---
+
+## 60) Persistir hash da imagem para deduplicar extração de texto
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R3 - Médio`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.57`
+
+**Descrição**  
+Atualizar o fluxo de extração de imagem para salvar também um identificador estável da mídia, como um hash `MD5` do arquivo/imagem persistida. A motivação é evitar retrabalho quando a mesma imagem aparecer várias vezes no WhatsApp: se a mídia já foi extraída e processada, o sistema pode reaproveitar o resultado em vez de executar OCR ou qualquer extração textual de novo. Isso também ajuda a manter consistência quando a mesma imagem circula em mais de uma mensagem.
+
+**Dependências**  
+- `55) Extrair imagem em alta resolução na mensagem`
+- `56) Incluir imagens no contexto de IA durante o tool calling`
+
+**Comportamento desejado**  
+- Gerar e persistir um hash estável da imagem salva.
+- Reusar o resultado de extração textual quando a mesma imagem reaparecer.
+- Evitar OCR duplicado em mídias idênticas.
+- Permitir que o hash seja usado como chave de cache para futuras integrações de visão/OCR.
+- Manter o vínculo entre a imagem original, seu hash e o texto derivado.
+
+**Notas técnicas**  
+- O hash pode ser `MD5` ou outro identificador estável equivalente, desde que seja consistente para deduplicação.
+- O ideal é calcular o hash sobre o conteúdo final persistido da mídia, não sobre metadados frágeis do DOM.
+- Essa camada pode virar base para cache de OCR, cache de descrição visual e até histórico de mídias já processadas.
+- Vale revisar o modelo de armazenamento de mensagens para guardar o hash junto com os assets extraídos.
+
+**Por que isso entra no backlog**  
+Isso reduz custo, evita processamento repetido e prepara o sistema para tratar imagens repetidas sem refazer trabalho inútil toda vez.

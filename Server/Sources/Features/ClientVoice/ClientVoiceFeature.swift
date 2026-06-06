@@ -57,7 +57,7 @@ final class ClientVoiceFeature: FeatureRuntime {
         )
 
         context.mcp.toolRegistry.register([
-            SpeakToClientTool(
+            AnnounceToClientTool(
                 repository: repository,
                 sharedLocks: context.sharedLocks,
                 isClientPresentProvider: { [presenceService] in presenceService.isPresent }

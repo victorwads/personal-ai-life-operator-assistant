@@ -125,7 +125,7 @@ The current tool groups are:
 
 ### Client voice tools
 
-- `speak_to_client`
+- `announce_to_client`
 - `ask_to_client`
 
 ### Memory tools
