@@ -19,9 +19,7 @@ enum AIConnectionRuntimeDefaults {
     }
 
     private static func loadSystemPrompt() -> String {
-        if let url = Bundle.main.url(forResource: "AssistantSystemPrompt", withExtension: "md"),
-           let contents = try? String(contentsOf: url, encoding: .utf8),
-           !contents.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if let contents = try? AIConnectionPromptLoader.loadBundledPrompt(named: "AssistantSystemPrompt") {
             return contents
         }
 

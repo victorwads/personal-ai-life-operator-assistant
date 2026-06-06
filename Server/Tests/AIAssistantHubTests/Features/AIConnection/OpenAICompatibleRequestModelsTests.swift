@@ -3,6 +3,53 @@ import XCTest
 @testable import AIAssistantHub
 
 final class OpenAICompatibleRequestModelsTests: XCTestCase {
+    func testPlainTextMessageEncodesContentAsString() throws {
+        let request = OpenAICompatibleChatCompletionsRequest(
+            request: AIProviderRequest(
+                model: "model-1",
+                messages: [
+                    AIConversationMessage(role: .user, content: "hello")
+                ]
+            )
+        )
+
+        let jsonObject = try encodedJSONObject(for: request)
+        let messages = try XCTUnwrap(jsonObject["messages"] as? [[String: Any]])
+        let userMessage = try XCTUnwrap(messages.first)
+
+        XCTAssertEqual(userMessage["role"] as? String, "user")
+        XCTAssertEqual(userMessage["content"] as? String, "hello")
+    }
+
+    func testMultimodalUserMessageEncodesAsOpenAIContentParts() throws {
+        let request = OpenAICompatibleChatCompletionsRequest(
+            request: AIProviderRequest(
+                model: "model-1",
+                messages: [
+                    AIConversationMessage(
+                        role: .user,
+                        contentParts: [
+                            .text("Extract the image."),
+                            .imageURL("data:image/png;base64,aGVsbG8=")
+                        ]
+                    )
+                ]
+            )
+        )
+
+        let jsonObject = try encodedJSONObject(for: request)
+        let messages = try XCTUnwrap(jsonObject["messages"] as? [[String: Any]])
+        let userMessage = try XCTUnwrap(messages.first)
+        let contentParts = try XCTUnwrap(userMessage["content"] as? [[String: Any]])
+
+        XCTAssertEqual(contentParts.count, 2)
+        XCTAssertEqual(contentParts[0]["type"] as? String, "text")
+        XCTAssertEqual(contentParts[0]["text"] as? String, "Extract the image.")
+        XCTAssertEqual(contentParts[1]["type"] as? String, "image_url")
+        let imageURL = try XCTUnwrap(contentParts[1]["image_url"] as? [String: Any])
+        XCTAssertEqual(imageURL["url"] as? String, "data:image/png;base64,aGVsbG8=")
+    }
+
     func testAssistantToolCallMessageOmitsWhitespaceOnlyContent() throws {
         let request = OpenAICompatibleChatCompletionsRequest(
             request: AIProviderRequest(

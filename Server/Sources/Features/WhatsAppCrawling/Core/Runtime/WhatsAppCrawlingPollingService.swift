@@ -31,6 +31,7 @@ final class WhatsAppCrawlingPollingService: ObservableObject, WhatsAppCrawlingSe
         settings: WhatsAppCrawlingSettingsWrapper,
         webViewService: WebViewWhatsAppCrawlingService,
         chatRepositoryProvider: @escaping @MainActor () -> any ChatRepository,
+        aiImageExtractorProvider: @escaping @MainActor () -> (any AIImageExtracting)?,
         logStore: WhatsAppCrawlingLogStore,
         sharedLocks: SharedLockRegistry
     ) throws {
@@ -49,6 +50,7 @@ final class WhatsAppCrawlingPollingService: ObservableObject, WhatsAppCrawlingSe
             profileId: profileId,
             chatRepositoryProvider: chatRepositoryProvider,
             permissionModeProvider: { settings.chatPermissionMode },
+            aiImageExtractorProvider: aiImageExtractorProvider,
             yamlText: yamlText,
             logStore: logStore,
             sharedLocks: sharedLocks

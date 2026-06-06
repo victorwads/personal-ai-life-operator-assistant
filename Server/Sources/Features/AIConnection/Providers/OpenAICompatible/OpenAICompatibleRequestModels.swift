@@ -71,7 +71,7 @@ struct OpenAICompatibleChatTemplateKwargs: Encodable {
 
 struct OpenAICompatibleChatMessage: Encodable {
     let role: String
-    let content: String?
+    let contentValue: AIConversationContent?
     let name: String?
     let toolCallID: String?
     let toolCalls: [OpenAICompatibleToolCall]?
@@ -86,8 +86,8 @@ struct OpenAICompatibleChatMessage: Encodable {
 
     init(message: AIConversationMessage) {
         self.role = message.role.rawValue
-        self.content = Self.normalizedContent(
-            message.content,
+        self.contentValue = Self.normalizedContent(
+            message.contentValue,
             hasToolCalls: !message.toolCalls.isEmpty
         )
         self.name = message.name
@@ -95,13 +95,68 @@ struct OpenAICompatibleChatMessage: Encodable {
         self.toolCalls = message.toolCalls.isEmpty ? nil : message.toolCalls.map { OpenAICompatibleToolCall(toolCall: $0) }
     }
 
-    private static func normalizedContent(_ content: String?, hasToolCalls: Bool) -> String? {
-        guard let content else { return nil }
-        if hasToolCalls && content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return nil
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(role, forKey: .role)
+
+        switch contentValue {
+        case let .text(content):
+            try container.encode(content, forKey: .content)
+        case let .parts(parts):
+            try container.encode(parts.map(OpenAICompatibleChatMessageContentPart.init), forKey: .content)
+        case nil:
+            break
         }
-        return content
+
+        try container.encodeIfPresent(name, forKey: .name)
+        try container.encodeIfPresent(toolCallID, forKey: .toolCallID)
+        try container.encodeIfPresent(toolCalls, forKey: .toolCalls)
     }
+
+    private static func normalizedContent(
+        _ content: AIConversationContent?,
+        hasToolCalls: Bool
+    ) -> AIConversationContent? {
+        guard let content else { return nil }
+        switch content {
+        case let .text(text):
+            if hasToolCalls && text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return nil
+            }
+            return .text(text)
+        case let .parts(parts):
+            return parts.isEmpty ? nil : .parts(parts)
+        }
+    }
+}
+
+private struct OpenAICompatibleChatMessageContentPart: Encodable {
+    let type: String
+    let text: String?
+    let imageURL: OpenAICompatibleChatMessageImageURL?
+
+    enum CodingKeys: String, CodingKey {
+        case type
+        case text
+        case imageURL = "image_url"
+    }
+
+    init(_ part: AIConversationContentPart) {
+        switch part {
+        case let .text(text):
+            self.type = "text"
+            self.text = text
+            self.imageURL = nil
+        case let .imageURL(url):
+            self.type = "image_url"
+            self.text = nil
+            self.imageURL = OpenAICompatibleChatMessageImageURL(url: url)
+        }
+    }
+}
+
+private struct OpenAICompatibleChatMessageImageURL: Encodable {
+    let url: String
 }
 
 struct OpenAICompatibleTool: Encodable {

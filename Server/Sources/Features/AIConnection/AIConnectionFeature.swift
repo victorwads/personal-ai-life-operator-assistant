@@ -9,6 +9,7 @@ final class AIConnectionFeature: FeatureRuntime {
     private(set) var errorLogStore: AIConnectionErrorLogStore
     private(set) var settings: AIConnectionSettingsWrapper
     private(set) var streamingService: AIConnectionStreamingService
+    private(set) var imageExtractionService: AIImageExtractionService
     private(set) var runtimeService: AIConnectionRuntimeService
     private let serverLogsProvider: @MainActor () -> ServerLogsService
 
@@ -58,6 +59,18 @@ final class AIConnectionFeature: FeatureRuntime {
             }
         )
         self.streamingService = streamingService
+        let imageExtractionService = AIImageExtractionService(
+            streamingService: streamingService,
+            settingsProvider: {
+                await MainActor.run {
+                    settings.providerConfiguration
+                }
+            },
+            promptProvider: {
+                try AIConnectionPromptLoader.loadBundledPrompt(named: "ImageExtraction")
+            }
+        )
+        self.imageExtractionService = imageExtractionService
         self.runtimeService = AIConnectionRuntimeService(
             streamingService: streamingService,
             memoryBootstrapProvider: {

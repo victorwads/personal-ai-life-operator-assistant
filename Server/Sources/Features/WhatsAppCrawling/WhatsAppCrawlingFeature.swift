@@ -64,6 +64,9 @@ final class WhatsAppCrawlingFeature: FeatureRuntime {
                 settings: crawlingSettings,
                 webViewService: webViewService,
                 chatRepositoryProvider: { context.feature(ChatsFeature.self).repository },
+                aiImageExtractorProvider: {
+                    context.feature(AIConnectionFeature.self).imageExtractionService
+                },
                 logStore: logStore,
                 sharedLocks: context.sharedLocks
             )

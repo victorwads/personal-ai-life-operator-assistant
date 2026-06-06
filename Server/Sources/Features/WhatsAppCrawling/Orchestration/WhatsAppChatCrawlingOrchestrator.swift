@@ -6,6 +6,7 @@ final class WhatsAppChatCrawlingOrchestrator {
     private let profileId: String
     private let chatRepositoryProvider: @MainActor () -> any ChatRepository
     private let permissionModeProvider: @MainActor () -> ChatPermissionMode
+    private let aiImageExtractorProvider: @MainActor () -> (any AIImageExtracting)?
     private let yamlText: String
     private let logStore: WhatsAppCrawlingLogStore
     private let sharedLocks: SharedLockRegistry
@@ -17,6 +18,7 @@ final class WhatsAppChatCrawlingOrchestrator {
         profileId: String,
         chatRepositoryProvider: @escaping @MainActor () -> any ChatRepository,
         permissionModeProvider: @escaping @MainActor () -> ChatPermissionMode,
+        aiImageExtractorProvider: @escaping @MainActor () -> (any AIImageExtracting)?,
         yamlText: String,
         logStore: WhatsAppCrawlingLogStore,
         sharedLocks: SharedLockRegistry,
@@ -25,6 +27,7 @@ final class WhatsAppChatCrawlingOrchestrator {
         self.profileId = profileId
         self.chatRepositoryProvider = chatRepositoryProvider
         self.permissionModeProvider = permissionModeProvider
+        self.aiImageExtractorProvider = aiImageExtractorProvider
         self.yamlText = yamlText
         self.logStore = logStore
         self.sharedLocks = sharedLocks
@@ -386,12 +389,48 @@ final class WhatsAppChatCrawlingOrchestrator {
                 )
                 enrichedMessages[index].localMediaPaths = relativePaths
                 logStore.append(source: "Media", "Saved \(relativePaths.count) local media file(s) for \(messageId).")
+                await enrichMessageTextWithAI(
+                    messageIndex: index,
+                    messageId: messageId,
+                    relativePaths: relativePaths,
+                    in: &enrichedMessages
+                )
             } catch {
                 logStore.append(source: "Media", "Failed extracting media for \(messageId): \(error.localizedDescription)")
             }
         }
 
         return enrichedMessages
+    }
+
+    func enrichMessageTextWithAI(
+        messageIndex: Int,
+        messageId: String,
+        relativePaths: [String],
+        in messages: inout [ChatMessage]
+    ) async {
+        guard messages.indices.contains(messageIndex) else { return }
+        guard messages[messageIndex].kind == .image || messages[messageIndex].kind == .sticker else { return }
+        guard !relativePaths.isEmpty else { return }
+        guard let aiImageExtractor = aiImageExtractorProvider() else {
+            logStore.append(source: "Media", "AI image extractor unavailable for \(messageId); keeping local media only.")
+            return
+        }
+
+        do {
+            let imageURLs = relativePaths.map(ChatMediaStorage.absoluteURL(forRelativePath:))
+            let extractedText = try await aiImageExtractor.extractTextAndDescription(from: imageURLs)
+            let trimmedText = extractedText.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedText.isEmpty else {
+                logStore.append(source: "Media", "AI image extraction returned no text for \(messageId).")
+                return
+            }
+
+            messages[messageIndex].text = trimmedText
+            logStore.append(source: "Media", "Saved AI image text for \(messageId).")
+        } catch {
+            logStore.append(source: "Media", "AI image extraction failed for \(messageId): \(error.localizedDescription)")
+        }
     }
 
     private func latestMessage(in messages: [ChatMessage]) -> ChatMessage? {

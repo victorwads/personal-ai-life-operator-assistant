@@ -32,11 +32,12 @@ final class AIConnectionStreamingService: AIConnectionStreamingServing {
                     let normalizedRequest = AIProviderRequest(
                         model: request.model.isEmpty ? configuration.model : request.model,
                         messages: request.messages,
-                        tools: request.tools.isEmpty ? await availableTools() : request.tools,
+                        tools: request.loadAvailableTools && request.tools.isEmpty ? await availableTools() : request.tools,
                         temperature: request.temperature,
                         reasoningEffort: request.reasoningEffort,
                         maxOutputTokens: request.maxOutputTokens,
-                        cacheMode: request.cacheMode
+                        cacheMode: request.cacheMode,
+                        loadAvailableTools: request.loadAvailableTools
                     )
 
                     let client = OpenAICompatibleStreamingClient(
