@@ -31,7 +31,8 @@ struct ChatsScreen: View {
                 isLoading: isLoadingMessages || isDeletingSelectedChat,
                 errorMessage: errorMessage,
                 onRefresh: refreshSelection,
-                onDelete: beginDeleteSelectedChatAndMessages,
+                onDeleteMessages: beginDeleteSelectedChatMessages,
+                onDeleteChat: beginDeleteSelectedChatAndMessages,
                 onPermissionChange: beginSetSelectedChatPermission
             )
             .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
@@ -84,6 +85,10 @@ struct ChatsScreen: View {
 
     private func beginDeleteSelectedChatAndMessages() {
         Task { await deleteSelectedChatAndMessages() }
+    }
+
+    private func beginDeleteSelectedChatMessages() {
+        Task { await deleteSelectedChatMessages() }
     }
 
     private func beginSetSelectedChatPermission(_ permission: ChatPermission?) {
@@ -154,6 +159,40 @@ struct ChatsScreen: View {
             await loadChats(autoSelect: false)
         } catch {
             let message = "Failed to delete chat \(chatId) and messages: \(error.localizedDescription)"
+            print(message)
+            errorMessage = message
+        }
+    }
+
+    private func deleteSelectedChatMessages() async {
+        guard let chatId = selectedChatId else {
+            return
+        }
+
+        deletingChatId = chatId
+        errorMessage = nil
+        defer {
+            if deletingChatId == chatId {
+                deletingChatId = nil
+            }
+        }
+
+        do {
+            try await feature.repository.deleteChatMessages(chatId: chatId)
+            messagesByChatId[chatId] = []
+
+            if let chatIndex = chats.firstIndex(where: { $0.id == chatId }) {
+                chats[chatIndex].stateHash = ""
+                chats[chatIndex].unhandledCount = 0
+                chats[chatIndex].unreadCount = 0
+                chats[chatIndex].lastMessagePreview = nil
+                chats[chatIndex].lastMessageTimeText = nil
+            }
+
+            await loadChats(autoSelect: false)
+            await loadMessages(chatId: chatId, force: true)
+        } catch {
+            let message = "Failed to delete messages for chat \(chatId): \(error.localizedDescription)"
             print(message)
             errorMessage = message
         }

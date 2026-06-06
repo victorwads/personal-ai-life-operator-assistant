@@ -6,10 +6,12 @@ struct ChatConversationView: View {
     let isLoading: Bool
     let errorMessage: String?
     let onRefresh: () -> Void
-    let onDelete: () -> Void
+    let onDeleteMessages: () -> Void
+    let onDeleteChat: () -> Void
     let onPermissionChange: (ChatPermission?) -> Void
 
-    @State private var isConfirmingDelete = false
+    @State private var isConfirmingDeleteMessages = false
+    @State private var isConfirmingDeleteChat = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -21,20 +23,39 @@ struct ChatConversationView: View {
                 DSRefreshButton(isLoading: isLoading, action: onRefresh)
 
                 Button(role: .destructive) {
-                    isConfirmingDelete = true
+                    isConfirmingDeleteMessages = true
                 } label: {
-                    Label("Delete Chat", systemImage: "trash")
+                    Label("Delete Messages", systemImage: "trash")
                 }
                 .disabled(isLoading || chat == nil)
                 .foregroundStyle(.red)
-                .help("Delete the selected chat and messages")
+                .help("Delete only the selected chat messages and reset the chat state hash")
+
+                Button(role: .destructive) {
+                    isConfirmingDeleteChat = true
+                } label: {
+                    Label("Delete Chat", systemImage: "trash.slash")
+                }
+                .disabled(isLoading || chat == nil)
+                .foregroundStyle(.red)
+                .help("Delete the selected chat and all of its messages")
+            }
+            .confirmationDialog(
+                "Delete chat messages?",
+                isPresented: $isConfirmingDeleteMessages,
+                titleVisibility: .visible
+            ) {
+                Button("Delete Chat Messages", role: .destructive, action: onDeleteMessages)
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This deletes only the selected chat messages from the local database and clears the chat state hash so crawling can rebuild it.")
             }
             .confirmationDialog(
                 "Delete this chat?",
-                isPresented: $isConfirmingDelete,
+                isPresented: $isConfirmingDeleteChat,
                 titleVisibility: .visible
             ) {
-                Button("Delete Chat", role: .destructive, action: onDelete)
+                Button("Delete Chat", role: .destructive, action: onDeleteChat)
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("This deletes the selected chat and all of its messages from the local database.")

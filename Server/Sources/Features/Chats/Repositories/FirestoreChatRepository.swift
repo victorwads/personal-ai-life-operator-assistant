@@ -15,6 +15,9 @@ private enum ChatField {
     static let permission = "permission"
     static let stateHash = "stateHash"
     static let unhandledCount = "unhandledCount"
+    static let unreadCount = "unreadCount"
+    static let lastMessagePreview = "lastMessagePreview"
+    static let lastMessageTimeText = "lastMessageTimeText"
 }
 
 final class FirestoreChatRepository: ChatRepository {
@@ -220,11 +223,25 @@ final class FirestoreChatRepository: ChatRepository {
         try await messageStore.delete(id)
     }
 
-    func deleteChatAndMessages(chatId: String) async throws {
+    func deleteChatMessages(chatId: String) async throws {
         let messageIds = try await messageStore.existingIds(
             matching: [ChatMessageField.chatId: chatId]
         )
         try await messageStore.deleteAll(ids: Array(messageIds))
+        try await chatStore.update(
+            id: chatId,
+            data: [
+                ChatField.stateHash: "",
+                ChatField.unhandledCount: 0,
+                ChatField.unreadCount: 0,
+                ChatField.lastMessagePreview: NSNull(),
+                ChatField.lastMessageTimeText: NSNull()
+            ]
+        )
+    }
+
+    func deleteChatAndMessages(chatId: String) async throws {
+        try await deleteChatMessages(chatId: chatId)
         try await chatStore.delete(chatId)
     }
 

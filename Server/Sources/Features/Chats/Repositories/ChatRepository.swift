@@ -16,6 +16,7 @@ protocol ChatRepository {
     func markMessagesUnhandledFrom(chatId: String, firstChatMessageId: String) async throws -> Int
     func existingMessageIds(chatId: String) async throws -> Set<String>
     func deleteMessage(id: String) async throws
+    func deleteChatMessages(chatId: String) async throws
     func deleteChatAndMessages(chatId: String) async throws
 
     func countUnhandledMessages(chatId: String) async throws -> Int
