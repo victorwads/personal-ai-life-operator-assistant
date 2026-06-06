@@ -49,7 +49,11 @@ final class FirestoreClientInteractionRequestRepository: FirestoreRepository<Cli
     }
 
     func observeRequests(_ listener: @escaping ([ClientInteractionRequest]) -> Void) -> FirestoreListenerToken {
-        super.observe(listener)
+        super.observe({
+            Task {
+                listener(try await self.listRequests())
+            }
+        })
     }
 
     func getRequest(id: String) async throws -> ClientInteractionRequest {

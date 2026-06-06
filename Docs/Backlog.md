@@ -1217,3 +1217,52 @@ Atualizar o fluxo de extração de imagem para salvar também um identificador e
 
 **Por que isso entra no backlog**  
 Isso reduz custo, evita processamento repetido e prepara o sistema para tratar imagens repetidas sem refazer trabalho inútil toda vez.
+
+---
+
+## 61) Padronizar header, filtros e cards de lista nas telas
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R4 - Alto`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.64`
+
+**Descrição**  
+Criar um padrão visual reutilizável para as telas do app, separando claramente o que é `screen header`, `list header`, `list filter` e `list card/row`. Hoje algumas telas usam um header completo e bem estruturado, outras usam filtros diferentes entre si, e outras ainda montam a lista de formas muito distintas, o que faz a interface parecer inconsistente e difícil de manter. A padronização precisa cobrir tanto o layout quanto a forma de compor os elementos, para que `Chats`, `Issues`, `Memories`, `Client Voice`, `Server Logs`, `Tool Browser` e outras telas compartilhem a mesma linguagem visual.
+
+**Dependências**  
+- `44) Padronização visual das listas e master-detail no app`
+- `59) Corrigir compressão do header quando os badges ocupam muito espaço`
+
+**Comportamento desejado**  
+- Separar um `screen header` comum, com título, subtítulo e ações globais da tela.
+- Separar um `list header` para a área de filtros, contadores e controles da listagem.
+- Separar um `list filter` reutilizável para filtros segmentados, selects e combos quando fizer sentido.
+- Separar um `list card/row` com estrutura previsível para ícone, título, conteúdo, badges e ações.
+- Reduzir o uso de componentes SwiftUI soltos diretamente dentro das telas principais, preferindo Views do Design System ou wrappers específicos da feature.
+- Uniformizar o visual entre `Chats`, `Issues`, `Memories`, `Client Voice`, `Server Logs` e `Tool Browser` sem forçar todas as telas a terem exatamente o mesmo comportamento.
+
+**Notas técnicas**  
+- O ponto de entrada mais visível hoje está em `Server/Sources/Features/CommandCenter/Views/CommandCenterHeaderView.swift`, que precisa continuar como referência de `screen header`, mas sem esmagar o conteúdo quando os badges ocupam espaço.
+- O comportamento rígido de alguns badges vem de `Server/Sources/Shared/UI/Badges/DSRuntimeStatusBadge.swift`; ele precisa ser flexível o suficiente para caber dentro do novo padrão.
+- `Server/Sources/Features/Issues/Screens/IssuesScreen.swift` já mostra um `Picker` segmentado que pode servir como referência de `list filter`.
+- `Server/Sources/Features/CommandCenter/Views/CommandCenterSidebar.swift` e `Server/Sources/Features/ToolsBrowser/Views/MCPToolsSidebar.swift` indicam que a navegação e o header ainda não estão completamente padronizados.
+- O ideal é criar componentes base no Design System ou em uma camada shared, e depois migrar as telas para esses blocos aos poucos.
+
+**Regra de lint desejada**  
+- Adicionar um linter/regra de revisão para bloquear `import SwiftUI` fora de arquivos permitidos.
+- Permitir `SwiftUI` apenas em arquivos com sufixo `View` ou dentro de `screens/Components`.
+- Forçar cada feature visual a ter uma pasta `screens/Components` para seus blocos visuais reutilizáveis.
+- Quando uma tela precisar de composição especial, ela deve declarar uma View própria da feature, em vez de montar tudo inline na `Screen`.
+- Se a feature estiver reutilizando algo que já existe em outra feature ou que é genérico, ela deve procurar primeiro no Design System.
+- A regra deve ajudar a impedir novos layouts inconsistentes antes que eles cheguem à UI.
+
+**Arquitetura desejada**  
+- Toda feature visual deve documentar seu padrão em um `Architecture.md` próprio quando houver composição relevante.
+- Toda `Screen` deve usar componentes da pasta `screens/Components` ou componentes compartilhados do Design System.
+- Cada linha de listagem deve virar um componente explícito, mesmo quando a lista for simples.
+- Os cabeçalhos, filtros e botões também devem viver em componentes próprios quando houver repetição ou risco de divergência.
+- `Screen` deve orquestrar a tela; `Components` deve carregar o visual; `Architecture.md` deve registrar essa divisão para a feature.
+
+**Por que isso entra no backlog**  
+Isso melhora bastante a consistência da aplicação inteira, reduz retrabalho visual e cria uma base mais sólida para novas telas e filtros sem cada feature inventar seu próprio padrão.

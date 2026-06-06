@@ -297,27 +297,10 @@ open class FirestoreRepository<Model: PersistableModel> {
         }
     }
 
-    open func observe(_ listener: @escaping ([Model]) -> Void) -> FirestoreListenerToken {
+    open func observe(_ listener: @escaping () -> Void) -> FirestoreListenerToken {
         let registration = collection.addSnapshotListener { [weak self] snapshot, error in
             guard let self else { return }
-
-            guard let snapshot else {
-                if let error {
-                    print("Failed to observe \(self.entityName): \(error.localizedDescription)")
-                }
-                listener([])
-                return
-            }
-
-            do {
-                let records = try snapshot.documents.map { document in
-                    try self.decode(document: document)
-                }
-                listener(records.filter { !$0.isDeleted }.map(\.model))
-            } catch {
-                print("Failed to decode \(self.entityName) snapshot: \(error.localizedDescription)")
-                listener([])
-            }
+            listener()
         }
 
         return FirestoreListenerToken {
