@@ -37,25 +37,77 @@ final class AIImageExtractionService: AIImageExtracting {
         guard !imageURLs.isEmpty else { return "" }
 
         if imageURLs.count == 1, let imageURL = imageURLs.first {
-            do {
-                let imageId = imageURL.deletingPathExtension().lastPathComponent
-                if let cachedText = try await cacheRepository.getCachedText(
-                    profileId: profileId,
-                    imageId: imageId
-                ) {
-                    let trimmedCachedText = cachedText.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !trimmedCachedText.isEmpty {
-                        return trimmedCachedText
-                    }
-                }
-            } catch {
-                // Cache is best-effort. Continue with live extraction if it is unavailable.
-            }
+            return try await extractSingleImageText(
+                from: imageURL,
+                mediaKind: mediaKind,
+                imageIndex: 0,
+                totalImages: 1
+            ).trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
+        var extractedTexts: [String] = []
+        for (index, imageURL) in imageURLs.enumerated() {
+            let text = try await extractSingleImageText(
+                from: imageURL,
+                mediaKind: mediaKind,
+                imageIndex: index,
+                totalImages: imageURLs.count
+            )
+            let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedText.isEmpty else { continue }
+            extractedTexts.append(trimmedText)
+        }
+        return extractedTexts.joined(separator: "\n\n")
+    }
+
+    private func extractSingleImageText(
+        from imageURL: URL,
+        mediaKind: ChatMessage.Kind,
+        imageIndex: Int,
+        totalImages: Int
+    ) async throws -> String {
+        guard imageIndex >= 0, totalImages >= 1 else { return "" }
+        let imageId = imageURL.deletingPathExtension().lastPathComponent
+        do {
+            if let cachedText = try await cacheRepository.getCachedText(
+                profileId: profileId,
+                imageId: imageId
+            ) {
+                let trimmedCachedText = cachedText.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmedCachedText.isEmpty {
+                    return trimmedCachedText
+                }
+            }
+        } catch {
+            // Cache is best-effort. Continue with live extraction if it is unavailable.
+        }
+
+        let extractedText = try await extractSingleImageTextFromAI(
+            imageURL: imageURL,
+            mediaKind: mediaKind
+        )
+        let trimmedText = extractedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedText.isEmpty else { return "" }
+
+        do {
+            try await cacheRepository.saveCachedText(
+                profileId: profileId,
+                imageId: imageId,
+                text: trimmedText
+            )
+        } catch {
+            // Cache is best-effort. Keep the extracted text even if persistence fails.
+        }
+        return trimmedText
+    }
+
+    private func extractSingleImageTextFromAI(
+        imageURL: URL,
+        mediaKind: ChatMessage.Kind
+    ) async throws -> String {
         let configuration = await settingsProvider()
         let prompt = try promptProvider()
-        let contentParts = try Self.contentParts(for: imageURLs, mediaKind: mediaKind)
+        let contentParts = try Self.contentParts(for: imageURL, mediaKind: mediaKind)
 
         let request = AIProviderRequest(
             model: configuration.model,
@@ -84,26 +136,11 @@ final class AIImageExtractionService: AIImageExtracting {
                 break
             }
         }
-
-        let trimmedText = extractedText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if imageURLs.count == 1, !trimmedText.isEmpty, let imageURL = imageURLs.first {
-            do {
-                let imageId = imageURL.deletingPathExtension().lastPathComponent
-                try await cacheRepository.saveCachedText(
-                    profileId: profileId,
-                    imageId: imageId,
-                    text: trimmedText
-                )
-            } catch {
-                // Cache is best-effort. Keep the extracted text even if persistence fails.
-            }
-        }
-
-        return trimmedText
+        return extractedText
     }
 
     private static func contentParts(
-        for imageURLs: [URL],
+        for imageURL: URL,
         mediaKind: ChatMessage.Kind
     ) throws -> [AIConversationContentPart] {
         var parts: [AIConversationContentPart] = []
@@ -111,9 +148,7 @@ final class AIImageExtractionService: AIImageExtracting {
             parts.append(.text(textPart))
         }
 
-        parts.append(contentsOf: try imageURLs.map { url -> AIConversationContentPart in
-            .imageURL(try Self.dataURLString(for: url))
-        })
+        parts.append(.imageURL(try Self.dataURLString(for: imageURL)))
         return parts
     }
 

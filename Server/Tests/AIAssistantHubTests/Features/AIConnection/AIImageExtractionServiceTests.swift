@@ -77,21 +77,24 @@ final class AIImageExtractionServiceTests: XCTestCase {
         XCTAssertEqual(cacheRepository.saveRequests.first?.2, "Visible text")
     }
 
-    func testMultiImageRequestBypassesCacheReadWrite() async throws {
+    func testMultiImageExtractionUsesCachePerImageAndPreservesOrder() async throws {
         let prompt = "Prompt from bundle"
         let image1 = try makeTempImageURL(fileName: "image-one.png", contents: Data("image-one".utf8))
         let image2 = try makeTempImageURL(fileName: "image-two.webp", contents: Data("image-two".utf8))
+        let image3 = try makeTempImageURL(fileName: "image-three.jpg", contents: Data("image-three".utf8))
         let cacheRepository = FakeAIImageExtractionCacheRepository()
+        cacheRepository.cachedTextByKey["profile-1|image-one"] = "cached one"
+        cacheRepository.cachedTextByKey["profile-1|image-three"] = "cached three"
         let streamingService = FakeAIImageExtractionStreamingService(
             responseEvents: [
-                .textDelta("Combined text"),
+                .textDelta("  live two  "),
                 .completed(
                     AIProviderResponse(
                         id: "response-1",
                         model: "image-model",
                         provider: .openRouter,
                         finishReason: "stop",
-                        text: "Combined text",
+                        text: "live two",
                         reasoning: "",
                         toolCalls: [],
                         usage: nil
@@ -107,15 +110,33 @@ final class AIImageExtractionServiceTests: XCTestCase {
         )
 
         let extractedText = try await service.extractTextAndDescription(
-            from: [image1, image2],
+            from: [image1, image2, image3],
             mediaKind: .image
         )
 
-        XCTAssertEqual(extractedText, "Combined text")
+        XCTAssertEqual(
+            extractedText,
+            """
+            <image1>
+            cached one
+            </image1>
+
+            <image2>
+            live two
+            </image2>
+
+            <image3>
+            cached three
+            </image3>
+            """
+        )
         XCTAssertEqual(streamingService.recordedRequests.count, 1)
         XCTAssertFalse(try XCTUnwrap(streamingService.recordedRequests.first).loadAvailableTools)
-        XCTAssertTrue(cacheRepository.getRequests.isEmpty)
-        XCTAssertTrue(cacheRepository.saveRequests.isEmpty)
+        XCTAssertEqual(cacheRepository.getRequests.count, 3)
+        XCTAssertEqual(cacheRepository.getRequests.map { $0.1 }, ["image-one", "image-two", "image-three"])
+        XCTAssertEqual(cacheRepository.saveRequests.count, 1)
+        XCTAssertEqual(cacheRepository.saveRequests.first?.1, "image-two")
+        XCTAssertEqual(cacheRepository.saveRequests.first?.2, "live two")
     }
 
     func testStickerRequestIncludesStickerTextPart() async throws {
