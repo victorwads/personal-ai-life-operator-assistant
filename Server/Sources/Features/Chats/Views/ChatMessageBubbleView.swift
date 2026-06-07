@@ -67,6 +67,8 @@ struct ChatMessageBubbleView: View {
             mediaMessageContent
         case .audio:
             Label(message.text ?? "Audio message", systemImage: "waveform")
+        case .video:
+            Label(message.text ?? "Video message", systemImage: "video")
         case .unknown:
             Label(message.text ?? "Unsupported message payload", systemImage: "questionmark.circle")
         }
@@ -127,6 +129,8 @@ struct ChatMessageBubbleView: View {
             return DSBadge("Sticker", systemImage: "face.smiling", style: .info)
         case .audio:
             return DSBadge("Audio", systemImage: "waveform", style: .info)
+        case .video:
+            return DSBadge("Video", systemImage: "video", style: .info)
         case .unknown:
             return DSBadge("Unknown", systemImage: "questionmark.circle", style: .warning)
         }

@@ -453,8 +453,8 @@ final class WhatsAppChatCrawlingOrchestrator {
             return "[Image]"
         case .sticker:
             return "[Sticker]"
-        case .text, .audio, .unknown:
-            return fallback
+        default:
+            return "[\(message.kind.rawValue)]"
         }
     }
 }

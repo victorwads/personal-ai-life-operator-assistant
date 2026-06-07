@@ -65,7 +65,7 @@ struct ListChatMessagesTool: MCPToolDefinition {
         //     try await repository.updateUnhandledCount(chatId: chatId, count: nil)
         // }
 
-        let renderedMessages = renderMessages(messages, assistantName: assistantName)
+        let renderedMessages = renderMessages(messages.reversed(), assistantName: assistantName)
         guard !messages.isEmpty else {
             return .string(renderedMessages)
         }
@@ -88,7 +88,7 @@ struct ListChatMessagesTool: MCPToolDefinition {
         return .string(responseText)
     }
 
-    private static let readReceiptInstruction = "To mark these messages as handled, call MarkChatMessagesAsHandledTool with this readReceipt and an issueId."
+    private static let readReceiptInstruction = "To mark these messages as handled, call mark_chat_messages_as_handled with this readReceipt and an issueId."
 
     private func minLimit(for chat: Chat) -> Int {
         max(0, chat.unhandledCount) + 5
@@ -169,9 +169,9 @@ struct ListChatMessagesTool: MCPToolDefinition {
 
     private func isSupportedMessage(_ message: ChatMessage) -> Bool {
         switch message.kind {
-        case .text, .image, .sticker:
+        case .text, .image, .sticker, .audio, .video:
             return true
-        case .audio, .unknown:
+        default:
             return false
         }
     }
@@ -181,19 +181,24 @@ struct ListChatMessagesTool: MCPToolDefinition {
 
         switch message.kind {
         case .text:
-            return text ?? ""
+            return text ?? "empty"
         case .image:
             if let text, !text.isEmpty {
                 return "Image: \(text)"
             }
             return "Image without description"
+        case .audio:
+            if let text, !text.isEmpty {
+                return "Transcribed audio: \(text)"
+            }
+            return "Audio Message"
         case .sticker:
             if let text, !text.isEmpty {
                 return "Sticker: \(text)"
             }
-            return "Sticker"
-        case .audio, .unknown:
-            return ""
+            return "Sticker without description"
+        default:
+            return message.kind.rawValue
         }
     }
 }

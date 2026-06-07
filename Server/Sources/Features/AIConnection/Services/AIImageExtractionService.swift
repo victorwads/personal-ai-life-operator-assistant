@@ -121,9 +121,7 @@ final class AIImageExtractionService: AIImageExtracting {
         switch mediaKind {
         case .sticker:
             return "sticker"
-        case .image:
-            return "Extract the visible text and describe the image."
-        case .audio, .text, .unknown:
+        default:
             return nil
         }
     }

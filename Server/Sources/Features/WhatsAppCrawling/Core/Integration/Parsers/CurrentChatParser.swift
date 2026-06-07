@@ -91,7 +91,7 @@ enum WhatsAppCurrentChatParser {
             return interactiveElements(from: rawObject, key: "images")
         case .sticker:
             return interactiveElements(from: rawObject, key: "stickers")
-        case .text, .audio, .unknown:
+        default:
             return []
         }
     }

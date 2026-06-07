@@ -5,6 +5,7 @@ struct ChatMessage: PersistableModel, Equatable, Sendable {
         case text
         case image
         case sticker
+        case video
         case audio
         case unknown
     }
