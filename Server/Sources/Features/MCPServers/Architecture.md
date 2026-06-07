@@ -10,6 +10,8 @@ Each concrete tool lives under `Sources/Features/**/MCP/`.
 Those Swift files are the source of truth for tool names, schemas, descriptions, and execution behavior.
 Tool grouping is a plain string owned by the feature that instantiates the tool.
 
+Tool results are model-facing text envelopes unless the tool intentionally returns machine-shaped data. The preferred narrative format is human-readable plain text wrapped with XML-like blocks, not strict XML and not bare plain text. Tool docs and feature architecture docs should describe that mixed format explicitly so callers do not assume a JSON-only or XML-only contract.
+
 ## Tools Browser integration
 
 The Tools Browser UI lives in `Sources/Features/ToolsBrowser/` and consumes MCP Servers through public `MCPServersFeature` APIs.

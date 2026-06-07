@@ -120,30 +120,27 @@ final class ListChatMessagesToolTests: XCTestCase {
                 """
                 readReceipt: \(readReceipt)
 
-                Jarvis (sent by assistant):
-                11
+                <message received>
+                <sticker>without description</sticker>
+                </message>
 
-                ---
+                <message received by="Other">
+                Cardapio de hoje
+                </message>
 
-                Client (sent manually by client):
-                10
-
-                ---
-
-                Other (received):
+                <message received by="Other">
                 9
+                </message>
 
-                ---
+                <message sent by="Client">
+                10
+                </message>
 
-                Other (received):
-                Image: Cardapio de hoje
+                <message sent by="Jarvis">
+                11
+                </message>
 
-                ---
-
-                Client (received):
-                Sticker
-
-                To mark these messages as handled, call MarkChatMessagesAsHandledTool with this readReceipt and an issueId.
+                To mark these messages as handled, call mark_chat_messages_as_handled with this readReceipt and an issueId.
                 """
             )
         )
@@ -263,11 +260,11 @@ final class ListChatMessagesToolTests: XCTestCase {
                 """
                 readReceipt: \(readReceipt)
 
-                [22:31, 04/06/2026] Client (received):
-                In reply to DRAKE PIZZAS: Mensagem anterior
+                <message received when="22:31, 04/06/2026">
                 Olá boa noite
+                </message>
 
-                To mark these messages as handled, call MarkChatMessagesAsHandledTool with this readReceipt and an issueId.
+                To mark these messages as handled, call mark_chat_messages_as_handled with this readReceipt and an issueId.
                 """
             )
         )
@@ -321,7 +318,7 @@ final class ListChatMessagesToolTests: XCTestCase {
 
                 No supported messages found.
 
-                To mark these messages as handled, call MarkChatMessagesAsHandledTool with this readReceipt and an issueId.
+                To mark these messages as handled, call mark_chat_messages_as_handled with this readReceipt and an issueId.
                 """
             )
         )
@@ -399,10 +396,11 @@ final class ListChatMessagesToolTests: XCTestCase {
                 """
                 readReceipt: \(readReceipt)
 
-                Drake Assistant (sent by assistant):
+                <message sent by="Drake Assistant">
                 Posso te ajudar em algo mais?
+                </message>
 
-                To mark these messages as handled, call MarkChatMessagesAsHandledTool with this readReceipt and an issueId.
+                To mark these messages as handled, call mark_chat_messages_as_handled with this readReceipt and an issueId.
                 """
             )
         )
@@ -469,15 +467,15 @@ final class ListChatMessagesToolTests: XCTestCase {
                 """
                 readReceipt: \(readReceipt)
 
-                Client (sent manually by client):
-                Image without description
+                <message sent by="Drake Assistant">
+                Bom dia
+                </message>
 
-                ---
+                <message sent by="Client">
+                <image>without description</image>
+                </message>
 
-                Drake Assistant (sent by assistant):
-                Sticker: Bom dia
-
-                To mark these messages as handled, call MarkChatMessagesAsHandledTool with this readReceipt and an issueId.
+                To mark these messages as handled, call mark_chat_messages_as_handled with this readReceipt and an issueId.
                 """
             )
         )

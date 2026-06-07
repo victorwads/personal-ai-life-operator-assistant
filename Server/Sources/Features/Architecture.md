@@ -8,6 +8,8 @@ Feature UI may use generic presentation helpers from Shared. Feature-specific UI
 
 Feature code must not depend on App shell concerns such as AppKit windows, tray ownership, Dock policy, app bootstrapping, or generated project configuration.
 
+When a feature owns MCP tools, the tool definition and the feature's architecture doc should describe the tool result format. The default model-facing response style is a hybrid of human-readable plain text with XML-like blocks. It is not strict XML and it is not raw plain text; it is a mixed, model-friendly text envelope. Use a structured JSON object only when the tool is intentionally returning machine-shaped data instead of narrative content.
+
 Each feature folder should expose its root entrypoint as `<FeatureName>Feature.swift`, and the concrete feature class should be named `<FeatureName>Feature`.
 
 Concrete feature classes inherit from `FeatureRuntime`; they should not include `Runtime` in the class name.

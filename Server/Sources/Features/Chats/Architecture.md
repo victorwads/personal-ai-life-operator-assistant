@@ -32,6 +32,7 @@ This document owns chat/message domain model and repository rules.
 
 - Chats owns chat listing tools such as `list_chats`, `list_chat_messages`, and `list_unhandled_chats`, plus the explicit handled-marking tool `mark_chat_messages_as_handled`.
 - `list_chat_messages` returns a read receipt token for the last returned message and does not mutate handled state.
+- Chat-listing tools that surface message content should use the shared MCP hybrid response style: human-readable plain text with XML-like blocks. The result should stay readable to the model without pretending to be strict XML or bare text.
 - `send_message` does not belong to Chats. Outbound audit and tool ownership belong to SentMessages.
 - `list_chats_by_search` performs a simple similarity search over `Chat.title` and `Chat.lastMessagePreview`; when no chats match, it returns a textual fallback with the latest 10 allowed chats showing only title and ID.
 - `wait_for_event` belongs to runtime/orchestration and is intentionally deferred until late-stage integration across Issues, Chats, SentMessages, SensitiveData, ClientVoice, and event queues.

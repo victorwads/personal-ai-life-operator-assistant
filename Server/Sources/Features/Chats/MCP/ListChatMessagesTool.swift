@@ -53,18 +53,6 @@ struct ListChatMessagesTool: MCPToolDefinition {
         let resolvedLimit = max(limit, minLimit(for: chat))
         let messages = try await repository.listMessages(chatId: chatId, limit: resolvedLimit)
 
-        // TODO: Disabled for now.
-        // Listing messages should not automatically mark them as handled.
-        // Handled state must be changed explicitly by a dedicated MCP tool/action.
-        // Keep this code here as reference for future behavior.
-        // let unhandledIds: [String] = messages
-        //     .filter { !$0.handled }
-        //     .compactMap { $0.id }
-        // if !unhandledIds.isEmpty {
-        //     try await repository.markMessagesHandled(ids: unhandledIds)
-        //     try await repository.updateUnhandledCount(chatId: chatId, count: nil)
-        // }
-
         let renderedMessages = renderMessages(messages.reversed(), assistantName: assistantName)
         guard !messages.isEmpty else {
             return .string(renderedMessages)
@@ -106,56 +94,72 @@ struct ListChatMessagesTool: MCPToolDefinition {
             return Self.emptyResponse
         }
 
-        return rendered.joined(separator: "\n\n---\n\n")
+        return rendered.joined(separator: "\n\n")
     }
 
     private func renderMessage(
         _ message: ChatMessage,
         assistantName: String
     ) -> String {
-        let header = "\(formattedDateTime(message.dateTime))\(displayAuthor(for: message, assistantName: assistantName)):"
-        let replyContext = formattedReplyContext(for: message)
+        let attributes = renderMessageAttributes(for: message, assistantName: assistantName)
         let body = formattedBody(for: message)
 
-        if let replyContext {
-            return "\(header)\n\(replyContext)\n\(body)"
-        }
-
-        return "\(header)\n\(body)"
+        return [
+            "<message\(attributes)>",
+            body,
+            "</message>"
+        ]
+        .joined(separator: "\n")
     }
 
-    private func formattedDateTime(_ date: Date?) -> String {
-        guard let date else { return "" }
+    private func renderMessageAttributes(
+        for message: ChatMessage,
+        assistantName: String
+    ) -> String {
+        var attributes: [String] = []
+
+        if let authorAttribute = messageAuthorAttribute(for: message, assistantName: assistantName) {
+            attributes.append(authorAttribute)
+        }
+
+        if let date = message.dateTime {
+            attributes.append("when=\"\(formattedDateTime(date))\"")
+        }
+
+        return " " + attributes.joined(separator: " ")
+    }
+
+    private func formattedDateTime(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "pt_BR")
         formatter.timeZone = TimeZone(identifier: "America/Sao_Paulo")
         formatter.dateFormat = "HH:mm, dd/MM/yyyy"
-        return "[\(formatter.string(from: date))] "
+        return formatter.string(from: date)
     }
 
-    private func displayAuthor(
+    private func messageAuthorAttribute(
         for message: ChatMessage,
         assistantName: String
-    ) -> String {
+    ) -> String? {
         if message.direction == .sent {
             if message.sentByAssistant == true {
-                return "\(assistantName) (sent by assistant)"
+                return "sent by=\"\(assistantName)\""
             }
 
-            return "Client (sent manually by client)"
+            return "sent by=\"Client\""
         }
 
-        let author = message.author?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let author = message.author
         if let author, !author.isEmpty {
-            return "\(author) (received)"
+            return "received by=\"\(author)\""
         }
 
-        return "Client (received)"
+        return "received"
     }
 
     private func formattedReplyContext(for message: ChatMessage) -> String? {
-        let author = message.quotedMessageAuthor?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let text = message.quotedMessageText?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let author = message.quotedMessageAuthor
+        let text = message.quotedMessageText
 
         guard
             let author, !author.isEmpty,
@@ -182,23 +186,10 @@ struct ListChatMessagesTool: MCPToolDefinition {
         switch message.kind {
         case .text:
             return text ?? "empty"
-        case .image:
-            if let text, !text.isEmpty {
-                return "Image: \(text)"
-            }
-            return "Image without description"
-        case .audio:
-            if let text, !text.isEmpty {
-                return "Transcribed audio: \(text)"
-            }
-            return "Audio Message"
-        case .sticker:
-            if let text, !text.isEmpty {
-                return "Sticker: \(text)"
-            }
-            return "Sticker without description"
+        case .image, .sticker:
+            return text ?? "<\(message.kind.rawValue)>\(text ?? "without description")</\(message.kind.rawValue)>"
         default:
-            return message.kind.rawValue
+            return "<\(message.kind.rawValue)>\(text ?? "without description")</\(message.kind.rawValue)>"
         }
     }
 }

@@ -1,5 +1,11 @@
 import Foundation
 
+/// Base contract for MCP tools.
+///
+/// Tool results that carry narrative or model-facing content should use the
+/// shared hybrid format: human-readable plain text with XML-like blocks. This
+/// is intentionally not strict XML and not bare plain text. Use a structured
+/// object only when the tool is intentionally returning machine-shaped data.
 protocol MCPToolDefinition {
     var name: String { get }
     var icon: String { get }

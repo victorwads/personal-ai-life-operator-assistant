@@ -49,6 +49,8 @@ External send actions should eventually validate `issueId` through `IssuesFeatur
 
 This feature is transport-agnostic. `send_message` now composes outbound content, records pending audit, calls channel-specific send APIs, and records the resulting status.
 
+Any user-facing or model-facing tool response that belongs to SentMessages should stay readable as plain language and only introduce XML-like blocks when that makes the payload easier for the model to interpret. Do not assume a strict XML parser on the receiving side.
+
 ## Planned integrations
 
 Future integrations include:
