@@ -58,9 +58,10 @@ final class FirestoreIssueRepository: FirestoreRepository<Issue> {
             throw IssueRepositoryError.issueNotFound(issueId)
         }
 
-        guard !issue.finished else {
-            throw IssueRepositoryError.issueFinished(issueId)
-        }
+// Causing too much problems, melhor ter um "prazo" de quanto tempo usar um issue finalizado do que bloquear
+//        guard !issue.finished else {
+//            throw IssueRepositoryError.issueFinished(issueId)
+//        }
 
         return issue
     }

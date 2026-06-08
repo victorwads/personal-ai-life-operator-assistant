@@ -12,11 +12,16 @@ enum SentMessageMCPToolSupport {
             )
         }
 
-        let messages = try values.map { value in
+        let messages = try values
+            // ignore empty strings
+            .filter({ message in
+                message.stringValue?.trimmedNonEmpty != nil
+            })
+            .map { value in
             guard let text = value.stringValue?.trimmedNonEmpty else {
                 throw MCPToolExtractionError.invalidField(
                     "messages",
-                    reason: "each item must be a non-empty string."
+                    reason: "each item must be a non-empty string. just remove ONLY the empty items."
                 )
             }
             return text
