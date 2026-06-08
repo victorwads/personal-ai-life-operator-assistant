@@ -9,6 +9,7 @@ struct ChatMessageBubbleView: View {
     let onMarkThisAndOlderHandled: (ChatMessage) -> Void
     let onMarkThisAndNewerUnhandled: (ChatMessage) -> Void
     let onSelectionChange: (ChatMessage, Bool) -> Void
+    let onToggleSentByAssistant: (ChatMessage) -> Void
 
     var body: some View {
         DSMessageBubbleRow(
@@ -72,6 +73,12 @@ struct ChatMessageBubbleView: View {
 
             Button("Mark this and newer as unhandled") {
                 onMarkThisAndNewerUnhandled(message)
+            }
+
+            Divider()
+
+            Button(message.sentByAssistant == true ? "Remove assistant mark" : "Mark as assistant message") {
+                onToggleSentByAssistant(message)
             }
         }
     }

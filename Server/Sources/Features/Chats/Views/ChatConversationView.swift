@@ -13,6 +13,7 @@ struct ChatConversationView: View {
     let onMarkMessageAndNewerUnhandled: (ChatMessage) -> Void
     let onMarkSelectedMessagesHandled: ([String], Bool) -> Void
     let onMarkAllHandled: () -> Void
+    let onToggleMessageSentByAssistant: (ChatMessage) -> Void
 
     @State private var isConfirmingDeleteMessages = false
     @State private var isConfirmingDeleteChat = false
@@ -155,7 +156,8 @@ struct ChatConversationView: View {
                                         onToggleHandled: onToggleMessageHandled,
                                         onMarkThisAndOlderHandled: onMarkMessageAndOlderHandled,
                                         onMarkThisAndNewerUnhandled: onMarkMessageAndNewerUnhandled,
-                                        onSelectionChange: updateSelection(for:isSelected:)
+                                        onSelectionChange: updateSelection(for:isSelected:),
+                                        onToggleSentByAssistant: onToggleMessageSentByAssistant
                                     )
                                 }
                             }

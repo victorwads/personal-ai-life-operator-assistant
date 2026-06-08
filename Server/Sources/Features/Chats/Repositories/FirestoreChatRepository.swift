@@ -306,6 +306,13 @@ final class FirestoreChatRepository: ChatRepository {
         )
     }
 
+    func setMessageSentByAssistant(chatId: String, messageId: String, sentByAssistant: Bool) async throws {
+        try await messageStore.update(
+            id: messageId,
+            data: ["sentByAssistant": sentByAssistant]
+        )
+    }
+
     private func compareChatsForListOrder(_ lhs: Chat, _ rhs: Chat) -> Bool {
         switch (lhs.lastDigestedAt, rhs.lastDigestedAt) {
         case let (left?, right?):

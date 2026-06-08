@@ -28,4 +28,6 @@ protocol ChatRepository {
 
     func countUnhandledMessages(chatId: String) async throws -> Int
     func updateUnhandledCount(chatId: String, count: Int?) async throws
+    func setMessageSentByAssistant(chatId: String, messageId: String, sentByAssistant: Bool) async throws
 }
+

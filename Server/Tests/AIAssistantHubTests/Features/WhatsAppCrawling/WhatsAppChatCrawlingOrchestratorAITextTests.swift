@@ -161,6 +161,7 @@ private final class StubChatRepository: ChatRepository {
     func deleteChatAndMessages(chatId _: String) async throws {}
     func countUnhandledMessages(chatId _: String) async throws -> Int { 0 }
     func updateUnhandledCount(chatId _: String, count _: Int?) async throws {}
+    func setMessageSentByAssistant(chatId _: String, messageId _: String, sentByAssistant _: Bool) async throws {}
 }
 
 @MainActor

@@ -38,7 +38,8 @@ struct ChatsScreen: View {
                 onMarkMessageAndOlderHandled: beginMarkMessageAndOlderHandled,
                 onMarkMessageAndNewerUnhandled: beginMarkMessageAndNewerUnhandled,
                 onMarkSelectedMessagesHandled: beginMarkSelectedMessagesHandled,
-                onMarkAllHandled: beginMarkAllSelectedChatMessagesHandled
+                onMarkAllHandled: beginMarkAllSelectedChatMessagesHandled,
+                onToggleMessageSentByAssistant: beginToggleMessageSentByAssistant
             )
             .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -248,6 +249,10 @@ struct ChatsScreen: View {
         Task { await toggleMessageHandled(message) }
     }
 
+    private func beginToggleMessageSentByAssistant(_ message: ChatMessage) {
+        Task { await toggleMessageSentByAssistant(message) }
+    }
+
     private func beginMarkMessageAndOlderHandled(_ message: ChatMessage) {
         Task { await markMessageAndOlderHandled(message) }
     }
@@ -296,6 +301,22 @@ struct ChatsScreen: View {
             await loadChats(autoSelect: false)
         } catch {
             errorMessage = "Failed to update message handled state: \(error.localizedDescription)"
+        }
+    }
+
+    @MainActor
+    private func toggleMessageSentByAssistant(_ message: ChatMessage) async {
+        guard let chatId = selectedChatId, let messageId = message.id, !messageId.isEmpty else { return }
+
+        do {
+            try await feature.repository.setMessageSentByAssistant(
+                chatId: chatId,
+                messageId: messageId,
+                sentByAssistant: !(message.sentByAssistant ?? false)
+            )
+            await loadMessages(chatId: chatId, force: true)
+        } catch {
+            errorMessage = "Failed to update message assistant state: \(error.localizedDescription)"
         }
     }
 
