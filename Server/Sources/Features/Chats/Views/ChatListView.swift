@@ -7,6 +7,7 @@ struct ChatListView: View {
     let isLoading: Bool
     let errorMessage: String?
     let onRefresh: () -> Void
+    let onMarkAllAsRead: () -> Void
     let onDeleteAll: () -> Void
 
     @State private var isConfirmingDeleteAll = false
@@ -19,6 +20,12 @@ struct ChatListView: View {
                 systemImage: "message"
             ) {
                 DSRefreshButton(isLoading: isLoading, action: onRefresh)
+
+                Button(action: onMarkAllAsRead) {
+                    Label("Mark All as Read", systemImage: "checkmark.circle")
+                }
+                .disabled(isLoading || !hasUnhandledChats)
+                .help("Mark all unhandled messages from every chat as handled")
 
                 Button(role: .destructive) {
                     isConfirmingDeleteAll = true
@@ -108,6 +115,10 @@ struct ChatListView: View {
 
     private var notAllowedChats: [Chat] {
         chats.filter { !ChatPermissionResolver.isChatAllowed($0, mode: permissionMode) }
+    }
+
+    private var hasUnhandledChats: Bool {
+        chats.contains { $0.unhandledCount > 0 }
     }
 
     @ViewBuilder

@@ -8,6 +8,7 @@ This document owns chat/message domain model and repository rules.
 - Persisted chat models must not contain raw integration transport fields.
 - Raw fields such as `rawDateTimeAndAuthor` and `rawTimeText` are forbidden in persisted domain models.
 - Integration-specific parsing and cleanup belongs in the integration/parser layer before creating persisted models.
+- `Chat.chatContext` is durable assistant-owned context about who the chat represents, how the assistant should relate to that person/group, and other stable conversation notes that should accompany future reads of that chat.
 - `Chat.unhandledCount` is a cached count of messages with `handled == false`. The source of truth remains `ChatMessages`; the repository can recompute it via `updateUnhandledCount(chatId:count:)`, using Firestore count aggregation (not document reads).
 - When new messages are inserted, the repository recomputes `Chat.unhandledCount` for affected chats. This avoids recalculating counts on every chat list read.
 - `list_chats` exposes `unhandledCount`, and `list_unhandled_chats` uses cached `Chat.unhandledCount` to avoid scanning `ChatMessages` during listing. The source of truth remains `ChatMessage.handled`.
@@ -31,8 +32,9 @@ This document owns chat/message domain model and repository rules.
 ## MCP tool boundaries
 
 - Chats owns chat listing tools such as `list_chats`, `list_chat_messages`, and `list_unhandled_chats`, plus the explicit handled-marking tool `mark_chat_messages_as_handled`.
-- `list_chat_messages` returns a read receipt token for the last returned message and does not mutate handled state.
+- `list_chat_messages` returns a read receipt token for the last returned message, includes `Chat.chatContext` when present, and does not mutate handled state.
 - Chat-listing tools that surface message content should use the shared MCP hybrid response style: human-readable plain text with XML-like blocks. The result should stay readable to the model without pretending to be strict XML or bare text.
+- `update_chat_context` is the MCP write path for `Chat.chatContext` and must update only that persisted field rather than rewriting the full chat record.
 - `send_message` does not belong to Chats. Outbound audit and tool ownership belong to SentMessages.
 - `list_chats_by_search` performs a simple similarity search over `Chat.title` and `Chat.lastMessagePreview`; when no chats match, it returns a textual fallback with the latest 10 allowed chats showing only title and ID.
 - `wait_for_event` belongs to runtime/orchestration and is intentionally deferred until late-stage integration across Issues, Chats, SentMessages, SensitiveData, ClientVoice, and event queues.

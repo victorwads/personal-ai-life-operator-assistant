@@ -71,10 +71,12 @@ struct ChatMessageBubbleView: View {
             Button("Mark this and older as handled") {
                 onMarkThisAndOlderHandled(message)
             }
+            .disabled(message.handled)
 
             Button("Mark this and newer as unhandled") {
                 onMarkThisAndNewerUnhandled(message)
             }
+            .disabled(!message.handled)
 
             Divider()
 

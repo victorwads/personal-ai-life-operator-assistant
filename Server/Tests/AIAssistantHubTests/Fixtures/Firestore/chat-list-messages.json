@@ -4,6 +4,7 @@
       {
         "id": "chat-1",
         "title": "Chat 1",
+        "chatContext": "Rene is a close family contact. Prefer a warm tone, keep WhatsApp replies concise, and reveal details progressively instead of sending everything at once.",
         "listOrder": 1,
         "lastMessagePreview": "11",
         "lastMessageTimeText": "10:26",

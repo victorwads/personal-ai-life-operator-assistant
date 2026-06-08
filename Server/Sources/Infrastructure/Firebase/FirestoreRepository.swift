@@ -526,7 +526,7 @@ open class FirestoreRepository<Model: PersistableModel> {
     }
 }
 
-private extension Array {
+extension Array {
     func chunked(into size: Int) -> [[Element]] {
         guard size > 0 else { return [self] }
 

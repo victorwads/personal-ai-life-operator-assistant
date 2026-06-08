@@ -37,6 +37,7 @@ final class ChatsFeature: FeatureRuntime {
                 permissionModeProvider: { crawlingSettings.chatPermissionMode },
                 assistantNameProvider: { sentMessagesSettings.assistantName }
             ),
+            UpdateChatContextTool(repository: repository),
             MarkChatMessagesAsHandledTool(
                 repository: repository,
                 issueRepositoryProvider: {

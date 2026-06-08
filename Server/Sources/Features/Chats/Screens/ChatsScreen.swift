@@ -23,6 +23,7 @@ struct ChatsScreen: View {
                 isLoading: isLoadingChats || isDeletingAllChats,
                 errorMessage: errorMessage,
                 onRefresh: requestLoadChats,
+                onMarkAllAsRead: beginMarkAllChatsMessagesHandled,
                 onDeleteAll: beginDeleteAllChatsAndMessages
             )
             .frame(minWidth: 280, idealWidth: 340, maxWidth: 420)
@@ -84,6 +85,10 @@ struct ChatsScreen: View {
 
     private func beginDeleteAllChatsAndMessages() {
         Task { await deleteAllChatsAndMessages() }
+    }
+
+    private func beginMarkAllChatsMessagesHandled() {
+        Task { await markAllChatsMessagesHandled() }
     }
 
     private func beginDeleteSelectedChatAndMessages() {
@@ -408,6 +413,19 @@ struct ChatsScreen: View {
         do {
             _ = try await feature.repository.markAllMessagesHandled(chatId: chatId)
             await loadMessages(chatId: chatId, force: true)
+            await loadChats(autoSelect: false)
+        } catch {
+            errorMessage = "Failed to mark all chat messages as handled: \(error.localizedDescription)"
+        }
+    }
+
+    @MainActor
+    private func markAllChatsMessagesHandled() async {
+        do {
+            _ = try await feature.repository.markAllUnhandledMessagesHandled()
+            if let selectedChatId {
+                await loadMessages(chatId: selectedChatId, force: true)
+            }
             await loadChats(autoSelect: false)
         } catch {
             errorMessage = "Failed to mark all chat messages as handled: \(error.localizedDescription)"

@@ -140,16 +140,19 @@ private final class StubChatRepository: ChatRepository {
     func getChat(id _: String) async throws -> Chat? { nil }
     func listChats() async throws -> [Chat] { [] }
     func upsertChat(_: Chat) async throws {}
+    func updateChatContext(chatId _: String, context _: String) async throws {}
     func updateChatPermission(chatId _: String, permission _: ChatPermission?) async throws {}
     func deleteChat(id _: String) async throws {}
     func deleteAllChatsAndMessages() async throws {}
     func listUnhandledChats(limit _: Int?, permissionMode _: ChatPermissionMode) async throws -> [Chat] { [] }
     func listMessages(chatId _: String, limit _: Int?) async throws -> [ChatMessage] { [] }
+    func listUnhandledMessages(chatId _: String, limit _: Int?) async throws -> [ChatMessage] { [] }
     func insertMessages(_ messages: [ChatMessage]) async throws -> [ChatMessage] { messages }
     func markMessagesHandled(ids _: [String]) async throws {}
     func setMessageHandled(chatId _: String, messageId _: String, handled _: Bool) async throws {}
     func setMessagesHandled(chatId _: String, messageIds _: [String], handled _: Bool) async throws -> Int { 0 }
     func markAllMessagesHandled(chatId _: String) async throws -> Int { 0 }
+    func markAllUnhandledMessagesHandled() async throws -> Int { 0 }
     func markMessagesHandledThrough(chatId _: String, lastChatMessageId _: String) async throws -> Int { 0 }
     func markMessagesUnhandledFrom(chatId _: String, firstChatMessageId _: String) async throws -> Int { 0 }
     func observeMessages(chatId _: String, onChange _: @escaping @Sendable () -> Void) -> FirestoreListenerToken {

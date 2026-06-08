@@ -12,6 +12,7 @@ enum ChatMessageRangeOperation {
 }
 
 private enum ChatField {
+    static let chatContext = "chatContext"
     static let permission = "permission"
     static let stateHash = "stateHash"
     static let unhandledCount = "unhandledCount"
@@ -76,6 +77,13 @@ final class FirestoreChatRepository: ChatRepository {
         _ = try await chatStore.save(chat, merge: true)
     }
 
+    func updateChatContext(chatId: String, context: String) async throws {
+        try await chatStore.update(
+            id: chatId,
+            data: [ChatField.chatContext: context]
+        )
+    }
+
     func updateChatPermission(chatId: String, permission: ChatPermission?) async throws {
         try await chatStore.update(
             id: chatId,
@@ -108,12 +116,30 @@ final class FirestoreChatRepository: ChatRepository {
     }
 
     func listMessages(chatId: String, limit: Int? = nil) async throws -> [ChatMessage] {
+        try await listMessages(chatId: chatId, limit: limit, handled: nil)
+    }
+
+    func listUnhandledMessages(chatId: String, limit: Int? = nil) async throws -> [ChatMessage] {
+        try await listMessages(chatId: chatId, limit: limit, handled: false)
+    }
+
+    private func listMessages(
+        chatId: String,
+        limit: Int? = nil,
+        handled: Bool?
+    ) async throws -> [ChatMessage] {
         let effectiveLimit = max(1, limit ?? 10)
-        return try await messageStore.query(
+        let messages = try await messageStore.query(
             matching: [ChatMessageField.chatId: chatId],
             sortedBy: MessageSort.newestFirst,
-            limit: effectiveLimit
+            limit: handled == nil ? effectiveLimit : nil
         )
+
+        guard let handled else {
+            return messages
+        }
+
+        return Array(messages.filter { $0.handled == handled }.prefix(effectiveLimit))
     }
 
     func insertMessages(_ messages: [ChatMessage]) async throws -> [ChatMessage] {
@@ -149,10 +175,7 @@ final class FirestoreChatRepository: ChatRepository {
     }
 
     func markMessagesHandled(ids: [String]) async throws {
-        try await messageStore.updateAll(
-            ids: ids,
-            data: [ChatMessageField.handled: true]
-        )
+        try await updateMessagesHandled(ids: ids, handled: true)
     }
 
     func setMessageHandled(chatId: String, messageId: String, handled: Bool) async throws {
@@ -169,40 +192,40 @@ final class FirestoreChatRepository: ChatRepository {
             return 0
         }
 
-        try await messageStore.updateAll(
-            ids: resolvedIds,
-            data: [ChatMessageField.handled: handled]
-        )
+        try await updateMessagesHandled(ids: resolvedIds, handled: handled)
         try await updateUnhandledCount(chatId: chatId, count: nil)
         return resolvedIds.count
     }
 
     func markAllMessagesHandled(chatId: String) async throws -> Int {
-        let ids = try await messageStore.existingIds(
-            matching: [
-                ChatMessageField.chatId: chatId,
-                ChatMessageField.handled: false
-            ]
-        )
+        let ids = try await messageIDs(chatId: chatId, handled: false)
 
         guard !ids.isEmpty else {
             try await updateUnhandledCount(chatId: chatId, count: 0)
             return 0
         }
 
-        try await messageStore.updateAll(
-            ids: Array(ids),
-            data: [ChatMessageField.handled: true]
-        )
+        try await updateMessagesHandled(ids: ids, handled: true)
         try await updateUnhandledCount(chatId: chatId, count: 0)
         return ids.count
     }
 
+    func markAllUnhandledMessagesHandled() async throws -> Int {
+        let chats = try await listChats()
+        var totalChanged = 0
+
+        for chat in chats {
+            guard let chatId = chat.id, !chatId.isEmpty else {
+                continue
+            }
+            totalChanged += try await markAllMessagesHandled(chatId: chatId)
+        }
+
+        return totalChanged
+    }
+
     func markMessagesHandledThrough(chatId: String, lastChatMessageId: String) async throws -> Int {
-        let messages = try await messageStore.query(
-            matching: [ChatMessageField.chatId: chatId],
-            sortedBy: MessageSort.newestFirst
-        )
+        let messages = try await listMessages(chatId: chatId, limit: nil, handled: false)
 
         let ids = try ChatMessageRangeSelector.messageIDs(
             in: messages,
@@ -210,10 +233,7 @@ final class FirestoreChatRepository: ChatRepository {
             direction: .handledThrough,
             chatId: chatId
         )
-        try await messageStore.updateAll(
-            ids: ids,
-            data: [ChatMessageField.handled: true]
-        )
+        try await updateMessagesHandled(ids: ids, handled: true)
         if !ids.isEmpty {
             try await updateUnhandledCount(chatId: chatId, count: nil)
         }
@@ -221,10 +241,7 @@ final class FirestoreChatRepository: ChatRepository {
     }
 
     func markMessagesUnhandledFrom(chatId: String, firstChatMessageId: String) async throws -> Int {
-        let messages = try await messageStore.query(
-            matching: [ChatMessageField.chatId: chatId],
-            sortedBy: MessageSort.newestFirst
-        )
+        let messages = try await listMessages(chatId: chatId, limit: nil, handled: true)
 
         let ids = try ChatMessageRangeSelector.messageIDs(
             in: messages,
@@ -232,10 +249,7 @@ final class FirestoreChatRepository: ChatRepository {
             direction: .unhandledFrom,
             chatId: chatId
         )
-        try await messageStore.updateAll(
-            ids: ids,
-            data: [ChatMessageField.handled: false]
-        )
+        try await updateMessagesHandled(ids: ids, handled: false)
         if !ids.isEmpty {
             try await updateUnhandledCount(chatId: chatId, count: nil)
         }
@@ -282,12 +296,11 @@ final class FirestoreChatRepository: ChatRepository {
     }
 
     func countUnhandledMessages(chatId: String) async throws -> Int {
-        try await messageStore.count(
-            matching: [
-                ChatMessageField.chatId: chatId,
-                ChatMessageField.handled: false
-            ]
+        let messages = try await messageStore.query(
+            matching: [ChatMessageField.chatId: chatId],
+            sortedBy: MessageSort.newestFirst
         )
+        return messages.filter { !$0.handled }.count
     }
 
     func updateUnhandledCount(chatId: String, count: Int?) async throws {
@@ -375,6 +388,31 @@ final class FirestoreChatRepository: ChatRepository {
         let leftId = lhs.id ?? ""
         let rightId = rhs.id ?? ""
         return leftId < rightId
+    }
+
+    private func messageIDs(chatId: String, handled: Bool) async throws -> [String] {
+        let messages = try await listMessages(chatId: chatId, limit: nil, handled: handled)
+        return try messages.compactMapMessageIDs()
+    }
+
+    private func updateMessagesHandled(ids: [String], handled: Bool) async throws {
+        for chunk in ids.chunked(into: 450) {
+            try await messageStore.updateAll(
+                ids: chunk,
+                data: [ChatMessageField.handled: handled]
+            )
+        }
+    }
+}
+
+private extension Sequence where Element == ChatMessage {
+    func compactMapMessageIDs() throws -> [String] {
+        try map { message in
+            guard let id = message.id, !id.isEmpty else {
+                throw ChatMessageRangeOperationError.missingMessageID
+            }
+            return id
+        }
     }
 }
 

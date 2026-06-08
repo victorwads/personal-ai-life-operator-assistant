@@ -1126,7 +1126,7 @@ Risco da Feature: `R2 - Baixo`
 Score de Execução: `0.53`
 
 **Descrição**  
-Criar uma MCP tool para adicionar informações contextuais a um chat, permitindo que o assistente associe memórias, identidade e notas operacionais a uma pessoa ou conversa específica. A ideia é que, ao listar mensagens ou abrir uma conversa, a IA também consiga ver quem é aquele chat, qual o contexto daquela pessoa e quais fatos duráveis já foram ligados àquele contato. Isso transforma o chat em algo mais rico do que só uma sequência de mensagens, ajudando o assistente a lembrar quem é o Léo, o que ele representa e como deve tratar aquele fluxo.
+Criar uma MCP tool para salvar um campo textual durável dentro do próprio `Chat`, algo como `chatContext`, `contextInfo` ou nome equivalente. Esse campo é uma string grande de contexto sobre aquela conversa e sobre quem aquela pessoa ou grupo representa: relação com o cliente, instruções de comunicação, histórico relacional útil, identidade do contato e notas operacionais estáveis. A ideia é que, ao listar mensagens, a IA receba junto esse contexto do chat para não depender só da sequência recente de mensagens.
 
 **Dependências**  
 - `37) Memórias categorizadas e `list_memories` filtrável`
@@ -1134,10 +1134,11 @@ Criar uma MCP tool para adicionar informações contextuais a um chat, permitind
 
 **Comportamento desejado**  
 - Permitir anexar contexto durável a um chat específico.
-- Permitir que a IA associe memórias a uma pessoa/conversa durante o uso normal.
-- Fazer a listagem de mensagens trazer também o contexto relevante daquele chat.
+- Permitir que a IA associe contexto durável a uma pessoa/conversa durante o uso normal.
+- Fazer `list_chat_messages` trazer também o contexto relevante daquele chat, junto do `readReceipt`.
 - Manter esse contexto disponível para o runtime sem misturar com a mensagem em si.
 - Permitir atualização progressiva desse contexto ao longo do tempo.
+- A atualização deve escrever só esse campo contextual no repositório, sem regravar ou alterar outros campos do chat.
 
 **Nomes possíveis para a MCP tool**  
 - `add_chat_context_info`
@@ -1147,11 +1148,11 @@ Criar uma MCP tool para adicionar informações contextuais a um chat, permitind
 - `attach_chat_context`
 
 **Notas técnicas**  
-- O contrato da tool deve deixar claro se o vínculo é por `chatId`, por pessoa/contato ou ambos.
+- O vínculo deve ser explícito por `chatId`.
 - O contexto precisa ser persistido de forma durável, não apenas em memória do runtime.
-- A tool deve permitir guardar fatos curtos e objetivos, não só texto solto sem estrutura.
-- Vale pensar em separar “contexto da conversa” de “memória da pessoa” para evitar mistura de escopo.
-- A listagem de mensagens e a UI de chat devem conseguir exibir esse contexto sem poluir o conteúdo principal.
+- A tool deve aceitar uma string livre suficientemente grande para guardar instruções, relacionamento, identidade e nuances de comunicação.
+- Esse campo é contexto do chat/pessoa, não timeline operacional da issue.
+- `list_chat_messages` deve expor esse campo de forma clara para o modelo, separado do corpo das mensagens.
 
 **Por que isso entra no backlog**  
 Isso dá ao assistente uma camada de memória relacional por chat/pessoa, deixando o atendimento mais inteligente e consistente ao reconhecer quem é cada interlocutor.

@@ -73,4 +73,27 @@ final class FirestoreChatRepositoryIntegrationTests: FirestoreIntegrationTestCas
         XCTAssertEqual(chat?.lastMessageLocalMediaPath, nil)
         XCTAssertFalse(chat?.lastMessageTimeText?.isEmpty ?? true)
     }
+
+    func testUpdateChatContextUpdatesOnlyContextField() async throws {
+        let repository = FirestoreChatRepository(scope: scope)
+
+        try await fixtureBuilder.importFixture(named: "chat-basic.json")
+
+        guard let original = try await repository.getChat(id: "chat-1") else {
+            return XCTFail("Expected chat fixture to exist.")
+        }
+        let newContext = "Alice is the client's mother. Prefer brief affectionate messages."
+
+        try await repository.updateChatContext(chatId: "chat-1", context: newContext)
+
+        guard let updated = try await repository.getChat(id: "chat-1") else {
+            return XCTFail("Expected updated chat to exist.")
+        }
+        XCTAssertEqual(updated.chatContext, newContext)
+        XCTAssertEqual(updated.title, original.title)
+        XCTAssertEqual(updated.lastMessagePreview, original.lastMessagePreview)
+        XCTAssertEqual(updated.unreadCount, original.unreadCount)
+        XCTAssertEqual(updated.unhandledCount, original.unhandledCount)
+        XCTAssertEqual(updated.stateHash, original.stateHash)
+    }
 }

@@ -29,6 +29,10 @@ final class ListChatMessagesToolTests: FirestoreIntegrationTestCase {
                 """
                 readReceipt: \(readReceipt)
 
+                <chat_context>
+                Rene is a close family contact. Prefer a warm tone, keep WhatsApp replies concise, and reveal details progressively instead of sending everything at once.
+                </chat_context>
+
                 <message received by="Other" when="07:02, 08/06/2026">
                 2-old
                 </message>

@@ -51,11 +51,11 @@ struct ListChatMessagesTool: MCPToolDefinition {
             throw MCPServerError.invalidArguments("Chat '\(chat.title)' is not allowed by current chat permissions.")
         }
         let resolvedLimit = max(limit, minLimit(for: chat))
-        let messages = try await repository.listMessages(chatId: chatId, limit: resolvedLimit)
-
+        let messages = try await repository.listUnhandledMessages(chatId: chatId, limit: resolvedLimit)
         let renderedMessages = renderMessages(messages.reversed(), assistantName: assistantName)
+        let renderedContext = renderChatContext(chat.chatContext)
         guard !messages.isEmpty else {
-            return .string(renderedMessages)
+            return .string(composeContextAndMessages(context: renderedContext, messages: renderedMessages))
         }
 
         // First is the newer in the repository default order
@@ -69,9 +69,14 @@ struct ListChatMessagesTool: MCPToolDefinition {
         )
         let responseText = [
             "readReceipt: \(readReceipt)",
+            renderedContext,
             renderedMessages,
             Self.readReceiptInstruction
         ]
+        .compactMap { value in
+            guard let value else { return nil }
+            return value.isEmpty ? nil : value
+        }
         .joined(separator: "\n\n")
 
         return .string(responseText)
@@ -80,7 +85,32 @@ struct ListChatMessagesTool: MCPToolDefinition {
     private static let readReceiptInstruction = "To mark these messages as handled, call mark_chat_messages_as_handled with this readReceipt and an issueId."
 
     private func minLimit(for chat: Chat) -> Int {
-        max(0, chat.unhandledCount) + 5
+        max(1, chat.unhandledCount)
+    }
+
+    private func renderChatContext(_ context: String?) -> String? {
+        guard let context = context?.trimmingCharacters(in: .whitespacesAndNewlines), !context.isEmpty else {
+            return nil
+        }
+
+        return [
+            "<chat_context>",
+            context,
+            "</chat_context>"
+        ]
+        .joined(separator: "\n")
+    }
+
+    private func composeContextAndMessages(
+        context: String?,
+        messages: String
+    ) -> String {
+        [context, messages]
+            .compactMap { value in
+                guard let value else { return nil }
+                return value.isEmpty ? nil : value
+            }
+            .joined(separator: "\n\n")
     }
 
     private func renderMessages(
