@@ -749,7 +749,7 @@ const OriginalCreateObjectURL = URL.createObjectURL;
     interactWithElementsCommand
   };
   // No Animation
-  window.requestAnimationFrame = () => 0;
+//  window.requestAnimationFrame = () => 0;
   const noAnimationStyle = document.createElement("style");
   noAnimationStyle.innerHTML = `
 *,
@@ -762,7 +762,6 @@ const OriginalCreateObjectURL = URL.createObjectURL;
     transition-duration: 0s !important;
     transition-delay: 0s !important;
     scroll-behavior: auto !important;
-    caret-color: transparent !important;
 }
 `;
   document.head.appendChild(noAnimationStyle);
