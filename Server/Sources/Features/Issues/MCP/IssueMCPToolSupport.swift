@@ -83,6 +83,7 @@ enum IssueMCPToolSupport {
 enum IssueMCPToolError: Error, MCPServerErrorProviding {
     case issueNotFound(String)
     case issueFinished(String)
+    case invalidReason(String)
 
     var serverError: MCPServerError {
         switch self {
@@ -90,6 +91,8 @@ enum IssueMCPToolError: Error, MCPServerErrorProviding {
             return .executionFailed("Issue not found: \(id)")
         case .issueFinished(let id):
             return .executionFailed("Issue is already finished: \(id)")
+        case .invalidReason(let message):
+            return .executionFailed(message)
         }
     }
 }
@@ -101,6 +104,8 @@ extension IssueMCPToolError {
             self = .issueNotFound(id)
         case .issueFinished(let id):
             self = .issueFinished(id)
+        case .invalidReason(let message):
+            self = .invalidReason(message)
         }
     }
 }

@@ -7,7 +7,27 @@ struct IssuesScreen: View {
     @State private var issues: [Issue] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var actionMessage: String?
+    @State private var actionMessageStyle: ActionMessageStyle = .neutral
+    @State private var pendingTransitionRequest: IssueStatusTransitionRequest?
     @State private var selectedFilter: IssueListFilter = .active
+
+    private enum ActionMessageStyle {
+        case neutral
+        case success
+        case danger
+
+        var foregroundColor: Color {
+            switch self {
+            case .neutral:
+                return .secondary
+            case .success:
+                return .green
+            case .danger:
+                return .red
+            }
+        }
+    }
 
     var body: some View {
         FeatureScreenContainer {
@@ -36,6 +56,13 @@ struct IssuesScreen: View {
                             DSBadge("Count", secondaryText: "\(issues.count)", style: .neutral)
                         }
                     }
+                }
+
+                if let actionMessage {
+                    Text(actionMessage)
+                        .font(.callout)
+                        .foregroundStyle(actionMessageStyle.foregroundColor)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 if isLoading && issues.isEmpty {
@@ -71,70 +98,33 @@ struct IssuesScreen: View {
         .task(id: selectedFilter) {
             await loadIssues()
         }
+        .sheet(item: $pendingTransitionRequest) { request in
+            IssueStatusTransitionSheet(
+                request: request,
+                onSubmit: performTransition
+            )
+        }
     }
 
     private func issueCard(_ issue: Issue) -> some View {
-        DSListCardRow(
-            title: issue.title,
-            description: issue.description
-        ) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    DSBadge(
-                        "Status",
-                        secondaryText: issue.status.rawValue,
-                        style: badgeStyle(for: issue.status)
-                    )
-
-                    DSBadge(
-                        "Priority",
-                        secondaryText: String(issue.priority.rawValue),
-                        style: badgeStyle(for: issue.priority)
-                    )
-                }
-
-                if let suspendUntil = issue.suspendUntil {
-                    Text("Suspended until: \(suspendUntil.formatted(date: .abbreviated, time: .shortened))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        } trailing: {
-            Button("Open") {
+        IssueRowView(
+            issue: issue,
+            onOpenIssueDetail: {
                 openIssue(issue)
+            },
+            onResolve: {
+                beginTransition(issue, mode: .resolve)
+            },
+            onCancel: {
+                beginTransition(issue, mode: .cancel)
+            },
+            onSuspend: {
+                beginTransition(issue, mode: .suspend)
+            },
+            onReactivate: {
+                beginTransition(issue, mode: .reactivate)
             }
-            .buttonStyle(.bordered)
-        }
-        .contentShape(Rectangle())
-        .onTapGesture(count: 2) {
-            openIssue(issue)
-        }
-    }
-
-    private func badgeStyle(for status: IssueStatus) -> DSBadge.Style {
-        switch status {
-        case .pending:
-            return .info
-        case .suspended:
-            return .warning
-        case .resolved:
-            return .success
-        case .cancelled:
-            return .danger
-        }
-    }
-
-    private func badgeStyle(for priority: IssuePriority) -> DSBadge.Style {
-        switch priority.rawValue {
-        case 1, 2:
-            return .neutral
-        case 3:
-            return .info
-        case 4:
-            return .warning
-        default:
-            return .danger
-        }
+        )
     }
 
     @MainActor
@@ -150,6 +140,58 @@ struct IssuesScreen: View {
         }
 
         isLoading = false
+    }
+
+    private func beginTransition(_ issue: Issue, mode: IssueStatusTransitionMode) {
+        guard let issueId = issue.id, !issueId.isEmpty else {
+            return
+        }
+
+        pendingTransitionRequest = IssueStatusTransitionRequest(
+            issueId: issueId,
+            issueTitle: issue.title,
+            currentStatus: issue.status,
+            mode: mode
+        )
+    }
+
+    @MainActor
+    private func performTransition(
+        request: IssueStatusTransitionRequest,
+        reason: String?,
+        suspendUntil: Date?
+    ) async throws {
+        switch request.mode {
+        case .resolve:
+            guard let reason else {
+                throw IssueStatusTransitionError.reasonRequired
+            }
+            try await feature.statusTransitionService.resolveIssue(issueId: request.issueId, reason: reason)
+        case .cancel:
+            guard let reason else {
+                throw IssueStatusTransitionError.reasonRequired
+            }
+            try await feature.statusTransitionService.cancelIssue(issueId: request.issueId, reason: reason)
+        case .suspend:
+            guard let suspendUntil else {
+                throw IssueStatusTransitionError.suspendUntilMustBeFuture
+            }
+            try await feature.statusTransitionService.suspendIssue(
+                issueId: request.issueId,
+                suspendUntil: suspendUntil,
+                reason: reason
+            )
+        case .reactivate:
+            guard let reason else {
+                throw IssueStatusTransitionError.reasonRequired
+            }
+            try await feature.statusTransitionService.reactivateIssue(issueId: request.issueId, reason: reason)
+        }
+
+        actionMessage = "\(request.issueTitle) updated."
+        actionMessageStyle = .success
+        pendingTransitionRequest = nil
+        await loadIssues()
     }
 
     private func openIssue(_ issue: Issue) {

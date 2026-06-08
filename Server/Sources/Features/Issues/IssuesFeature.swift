@@ -37,16 +37,24 @@ final class IssuesFeature: FeatureRuntime, IssueReferenceValidating, IssueRelate
     override class var id: String { "issues" }
     let repository: FirestoreIssueRepository
     let timelineRepository: FirestoreIssueTimelineRepository
+    let statusTransitionService: IssueStatusTransitionService
 
     required init(context: FeatureContext) {
         guard let scope = context.profileContext.scope else {
             preconditionFailure("IssuesFeature requires a persisted profile scope.")
         }
 
-        let repository = FirestoreIssueRepository(scope: scope)
-        let timelineRepository = FirestoreIssueTimelineRepository(scope: scope)
+        let dateProvider: () -> Date = { Date() }
+        let repository = FirestoreIssueRepository(scope: scope, dateProvider: dateProvider)
+        let timelineRepository = FirestoreIssueTimelineRepository(scope: scope, dateProvider: dateProvider)
+        let statusTransitionService = IssueStatusTransitionService(
+            repository: repository,
+            timelineRepository: timelineRepository,
+            dateProvider: dateProvider
+        )
         self.repository = repository
         self.timelineRepository = timelineRepository
+        self.statusTransitionService = statusTransitionService
         super.init(context: context)
         context.mcp.toolRegistry.register([
             CreateIssueTool(repository: repository),

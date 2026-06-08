@@ -331,37 +331,6 @@ Isso melhora a leitura do raciocínio em tempo real e evita que a informação m
 
 ---
 
-## 29) `Unresolve` de subjects com motivo obrigatório - doing
-
-Valor: `V4 - Alto`
-Risco de Desenvolvimento: `R3 - Médio`
-Risco da Feature: `R2 - Baixo`
-Score de Execução: `0.62`
-
-**Descrição**  
-Adicionar a ação de `Unresolve` para subjects na UI e no app mobile, permitindo reabrir um assunto que foi resolvido cedo demais ou que ainda não terminou de verdade. Ao usar essa ação, o usuário deve preencher um motivo obrigatório de reabertura, que pode se chamar `bronca`, para deixar explícito por que o subject não deve ser encerrado agora.
-
-**Dependências**  
-- `41) Firebase observável com cache local sempre atualizado`
-
-**Comportamento desejado**  
-- Permitir desfazer o estado de `resolve` de um subject.
-- Exigir um motivo obrigatório ao reabrir o subject.
-- Manter o subject aberto até que ele seja realmente concluído.
-- Exibir a ação tanto na UI local quanto no app mobile.
-- Registrar o motivo da reabertura no histórico operacional do subject.
-
-**Notas técnicas**  
-- A ação precisa atualizar o estado do subject sem apagar o histórico do que já aconteceu.
-- O campo `bronca` pode ser apenas o rótulo de interface, mas o motivo precisa ser persistido de forma auditável.
-- O runtime não deve considerar o subject resolvido novamente até uma nova resolução explícita.
-- Vale deixar claro na modelagem que `unresolve` é uma reversão operacional, não um cancelamento.
-
-**Por que isso entra no backlog**  
-Isso evita que assuntos sejam fechados cedo demais e dá ao usuário uma forma clara de reabrir um fluxo com contexto e justificativa explícitos.
-
----
-
 ## 30) Gmail, Calendar e alarmes de subject com wake events
 
 Valor: `V5 - Altíssimo`
@@ -717,37 +686,6 @@ Essa padronização melhora muito a leitura do app inteiro, reduz inconsistênci
 
 ---
 
-## 45) Ações manuais de status na tela de Issues - doing
-
-Valor: `V4 - Alto`
-Risco de Desenvolvimento: `R3 - Médio`
-Risco da Feature: `R2 - Baixo`
-Score de Execução: `0.57`
-
-**Descrição**  
-Permitir que o usuário altere manualmente o status de uma issue diretamente na UI, porque hoje a tela funciona mais como visualização do que como ação operacional. O usuário precisa conseguir mudar uma issue de `active` para `resolved`, `cancelled` ou `suspended`, além de desfazer um estado errado quando a IA ou a automação concluírem algo cedo demais. A regra de `suspended` continua especial: ela precisa de uma data de suspensão, então não pode ser tratada como uma troca simples de status sem campos adicionais.
-
-**Dependências**  
-- `Nenhuma`
-
-**Comportamento desejado**  
-- Adicionar uma ação por issue para trocar o status manualmente.
-- Exigir motivo quando a mudança representar resolução, cancelamento ou reversão operacional.
-- Exigir data/horário quando o novo status for `suspended`.
-- Permitir corrigir manualmente um status que a IA tenha definido errado.
-- Manter o histórico da alteração visível para auditoria.
-
-**Notas técnicas**  
-- A UI pode usar um seletor, menu contextual ou popover de ação por linha, mas a mudança precisa ser explícita e confirmada antes de salvar.
-- `suspended` deve continuar carregando `suspendUntil` e, se fizer sentido, um motivo associado.
-- Essas ações devem atualizar o mesmo modelo de issue e continuar registrando timeline items para não perder o histórico.
-- O design atual de `Issues` é list-only, então essa feature acrescenta a camada de ação que falta sem remover o padrão de listagem.
-
-**Por que isso entra no backlog**  
-Isso devolve ao usuário controle operacional real sobre `Issues`, permitindo corrigir estados, abrir exceções e registrar decisões humanas quando a automação não acertar de primeira.
-
----
-
 ## 48) Componentes reutilizáveis de voz e request do cliente - doing
 
 Valor: `V4 - Alto`
@@ -976,7 +914,6 @@ Score de Execução: `0.45`
 Melhorar a feature de `Issues` para que o estado `suspended` possa ser definido por vários gatilhos e motivos, não apenas por um intervalo de tempo. A suspensão pode acontecer, por exemplo, porque existe um `ask_to_client` pendente, porque um chat vinculado ainda não foi respondido, porque o cliente ficou ausente, porque precisa aguardar uma mensagem específica do WhatsApp ou porque um prazo temporal precisa expirar. Em todos os casos, a issue deve sair da suspensão automaticamente quando o gatilho correspondente acontecer, e a timeline precisa registrar claramente por que ela foi suspensa e por que voltou a ficar ativa.
 
 **Dependências**  
-- `45) Ações manuais de status na tela de Issues`
 - `39) Desativar extração de imagem e sticker por chat` 
 
 **Comportamento desejado**  

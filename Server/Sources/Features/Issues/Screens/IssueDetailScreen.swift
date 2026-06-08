@@ -18,6 +18,26 @@ struct IssueDetailScreen: View {
     @State private var clientInteractionRequests: [ClientInteractionRequest] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var actionMessage: String?
+    @State private var actionMessageStyle: ActionMessageStyle = .neutral
+    @State private var pendingTransitionRequest: IssueStatusTransitionRequest?
+
+    private enum ActionMessageStyle {
+        case neutral
+        case success
+        case danger
+
+        var foregroundColor: Color {
+            switch self {
+            case .neutral:
+                return .secondary
+            case .success:
+                return .green
+            case .danger:
+                return .red
+            }
+        }
+    }
 
     var body: some View {
         FeatureScreenContainer {
@@ -30,13 +50,29 @@ struct IssueDetailScreen: View {
                         if let issue {
                             DSBadge(
                                 "Status",
-                                secondaryText: issue.status.rawValue,
-                                style: statusBadgeStyle(for: issue.status)
+                                secondaryText: IssueDisplaySupport.statusTitle(for: issue.status),
+                                style: IssueDisplaySupport.statusBadgeStyle(for: issue.status)
                             )
                             DSBadge(
                                 "Priority",
-                                secondaryText: priorityText(for: issue.priority),
-                                style: priorityBadgeStyle(for: issue.priority)
+                                secondaryText: IssueDisplaySupport.priorityText(for: issue.priority),
+                                style: IssueDisplaySupport.priorityBadgeStyle(for: issue.priority)
+                            )
+
+                            IssueActionsMenu(
+                                status: issue.status,
+                                onResolve: {
+                                    beginTransition(issue, mode: .resolve)
+                                },
+                                onCancel: {
+                                    beginTransition(issue, mode: .cancel)
+                                },
+                                onSuspend: {
+                                    beginTransition(issue, mode: .suspend)
+                                },
+                                onReactivate: {
+                                    beginTransition(issue, mode: .reactivate)
+                                }
                             )
                         }
 
@@ -46,11 +82,24 @@ struct IssueDetailScreen: View {
                     }
                 }
 
+                if let actionMessage {
+                    Text(actionMessage)
+                        .font(.callout)
+                        .foregroundStyle(actionMessageStyle.foregroundColor)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
                 content
             }
         }
         .task {
             await loadDetail()
+        }
+        .sheet(item: $pendingTransitionRequest) { request in
+            IssueStatusTransitionSheet(
+                request: request,
+                onSubmit: performTransition
+            )
         }
     }
 
@@ -149,17 +198,17 @@ struct IssueDetailScreen: View {
         ) {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 8) {
-                    DSBadge("Status", secondaryText: issue.status.rawValue, style: statusBadgeStyle(for: issue.status))
-                    DSBadge("Priority", secondaryText: priorityText(for: issue.priority), style: priorityBadgeStyle(for: issue.priority))
+                    DSBadge("Status", secondaryText: IssueDisplaySupport.statusTitle(for: issue.status), style: IssueDisplaySupport.statusBadgeStyle(for: issue.status))
+                    DSBadge("Priority", secondaryText: IssueDisplaySupport.priorityText(for: issue.priority), style: IssueDisplaySupport.priorityBadgeStyle(for: issue.priority))
                     DSBadge("Finished", secondaryText: issue.finished ? "Yes" : "No", style: issue.finished ? .success : .neutral)
                 }
 
                 VStack(alignment: .leading, spacing: 12) {
                     overviewRow("Issue ID", issue.id ?? issueId)
-                    overviewRow("Status", issue.status.rawValue)
-                    overviewRow("Priority", priorityText(for: issue.priority))
+                    overviewRow("Status", IssueDisplaySupport.statusTitle(for: issue.status))
+                    overviewRow("Priority", IssueDisplaySupport.priorityText(for: issue.priority))
                     overviewRow("Finished", issue.finished ? "Yes" : "No")
-                    overviewRow("Suspend Until", formattedDate(issue.suspendUntil))
+                    overviewRow("Suspend Until", IssueDisplaySupport.formattedSuspendUntil(issue.suspendUntil))
                 }
             }
         }
@@ -194,11 +243,41 @@ struct IssueDetailScreen: View {
                 VStack(alignment: .leading, spacing: 12) {
                     ForEach(timelineItems, id: \.id) { item in
                         DSListCardRow(
-                            title: formattedTimelineTitle(item.kind),
+                            title: IssueDisplaySupport.formattedTimelineKind(item.kind),
                             subtitle: item.id ?? "No item id",
                             description: item.description
                         ) {
-                            DSBadge("Kind", secondaryText: item.kind, style: .info)
+                            HStack(spacing: 8) {
+                                if let changedAt = item.changedAt {
+                                    DSBadge(
+                                        "Changed",
+                                        secondaryText: changedAt.formatted(date: .abbreviated, time: .shortened),
+                                        style: .info
+                                    )
+                                }
+
+                                if let reason = item.reason, !reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                    DSBadge("Reason", secondaryText: reason, style: .neutral)
+                                }
+
+                                if let previousStatus = item.previousStatus {
+                                    DSBadge(
+                                        "Previous",
+                                        secondaryText: IssueDisplaySupport.statusTitle(for: previousStatus),
+                                        style: IssueDisplaySupport.statusBadgeStyle(for: previousStatus)
+                                    )
+                                }
+
+                                if let suspendUntil = item.suspendUntil {
+                                    DSBadge(
+                                        "Until",
+                                        secondaryText: suspendUntil.formatted(date: .abbreviated, time: .shortened),
+                                        style: .warning
+                                    )
+                                }
+
+                                DSBadge("Kind", secondaryText: item.kind, style: .info)
+                            }
                         }
                     }
                 }
@@ -345,6 +424,58 @@ struct IssueDetailScreen: View {
         isLoading = false
     }
 
+    private func beginTransition(_ issue: Issue, mode: IssueStatusTransitionMode) {
+        guard let issueId = issue.id, !issueId.isEmpty else {
+            return
+        }
+
+        pendingTransitionRequest = IssueStatusTransitionRequest(
+            issueId: issueId,
+            issueTitle: issue.title,
+            currentStatus: issue.status,
+            mode: mode
+        )
+    }
+
+    @MainActor
+    private func performTransition(
+        request: IssueStatusTransitionRequest,
+        reason: String?,
+        suspendUntil: Date?
+    ) async throws {
+        switch request.mode {
+        case .resolve:
+            guard let reason else {
+                throw IssueStatusTransitionError.reasonRequired
+            }
+            try await issuesFeature.statusTransitionService.resolveIssue(issueId: request.issueId, reason: reason)
+        case .cancel:
+            guard let reason else {
+                throw IssueStatusTransitionError.reasonRequired
+            }
+            try await issuesFeature.statusTransitionService.cancelIssue(issueId: request.issueId, reason: reason)
+        case .suspend:
+            guard let suspendUntil else {
+                throw IssueStatusTransitionError.suspendUntilMustBeFuture
+            }
+            try await issuesFeature.statusTransitionService.suspendIssue(
+                issueId: request.issueId,
+                suspendUntil: suspendUntil,
+                reason: reason
+            )
+        case .reactivate:
+            guard let reason else {
+                throw IssueStatusTransitionError.reasonRequired
+            }
+            try await issuesFeature.statusTransitionService.reactivateIssue(issueId: request.issueId, reason: reason)
+        }
+
+        actionMessage = "\(request.issueTitle) updated."
+        actionMessageStyle = .success
+        pendingTransitionRequest = nil
+        await loadDetail()
+    }
+
     private func overviewRow(_ title: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title.uppercased())
@@ -380,24 +511,9 @@ struct IssueDetailScreen: View {
         return try await relatedDataProvider.listClientInteractionRequestsByIssueId(issueId)
     }
 
-    private func formattedDate(_ date: Date?) -> String {
-        guard let date else {
-            return "Not scheduled"
-        }
-
-        return date.formatted(date: .abbreviated, time: .shortened)
-    }
-
     private func nonEmpty(_ value: String, fallback: String) -> String {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? fallback : value
-    }
-
-    private func formattedTimelineTitle(_ kind: String) -> String {
-        let words = kind
-            .replacingOccurrences(of: "_", with: " ")
-            .replacingOccurrences(of: "-", with: " ")
-        return words.isEmpty ? "Timeline Item" : words.localizedCapitalized
     }
 
     private func displayKey(for usage: SensitiveDataUsage) -> String {
@@ -442,47 +558,6 @@ struct IssueDetailScreen: View {
         }
 
         return lines.joined(separator: "\n")
-    }
-
-    private func priorityText(for priority: IssuePriority) -> String {
-        switch priority {
-        case .veryLow:
-            return "1 Very Low"
-        case .low:
-            return "2 Low"
-        case .medium:
-            return "3 Medium"
-        case .high:
-            return "4 High"
-        case .urgent:
-            return "5 Urgent"
-        }
-    }
-
-    private func statusBadgeStyle(for status: IssueStatus) -> DSBadge.Style {
-        switch status {
-        case .pending:
-            return .info
-        case .suspended:
-            return .warning
-        case .resolved:
-            return .success
-        case .cancelled:
-            return .danger
-        }
-    }
-
-    private func priorityBadgeStyle(for priority: IssuePriority) -> DSBadge.Style {
-        switch priority.rawValue {
-        case 1, 2:
-            return .neutral
-        case 3:
-            return .info
-        case 4:
-            return .warning
-        default:
-            return .danger
-        }
     }
 
     private func usageBadgeStyle(for action: SensitiveDataUsageAction) -> DSBadge.Style {
