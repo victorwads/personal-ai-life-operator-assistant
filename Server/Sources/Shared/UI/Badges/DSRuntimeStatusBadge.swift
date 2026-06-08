@@ -7,6 +7,7 @@ struct DSRuntimeStatusBadge: View {
     let trailingSystemImage: String?
     let trailingActionLabel: String?
     let trailingAction: (() -> Void)?
+    let allowsHorizontalCompression: Bool
 
     enum State {
         case running
@@ -41,7 +42,8 @@ struct DSRuntimeStatusBadge: View {
         state: State = .idle,
         trailingSystemImage: String? = nil,
         trailingActionLabel: String? = nil,
-        trailingAction: (() -> Void)? = nil
+        trailingAction: (() -> Void)? = nil,
+        allowsHorizontalCompression: Bool = true
     ) {
         self.title = title
         self.secondaryText = secondaryText
@@ -49,6 +51,7 @@ struct DSRuntimeStatusBadge: View {
         self.trailingSystemImage = trailingSystemImage
         self.trailingActionLabel = trailingActionLabel
         self.trailingAction = trailingAction
+        self.allowsHorizontalCompression = allowsHorizontalCompression
     }
 
     var body: some View {
@@ -91,7 +94,7 @@ struct DSRuntimeStatusBadge: View {
             }
         }
         .lineLimit(1)
-        .fixedSize(horizontal: true, vertical: false)
+        .fixedSize(horizontal: !allowsHorizontalCompression, vertical: false)
         .padding(.horizontal, 9)
         .padding(.vertical, 5)
         .background(.quaternary, in: Capsule())

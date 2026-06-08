@@ -5,6 +5,7 @@ enum DesignSystemPreviewRoute: String, CaseIterable, Identifiable, Hashable {
     case badges
     case runtimeStatus
     case headers
+    case flowLayout
     case cards
     case containers
     case titledSections
@@ -52,6 +53,8 @@ enum DesignSystemPreviewRoute: String, CaseIterable, Identifiable, Hashable {
             return "Runtime Status"
         case .headers:
             return "Headers"
+        case .flowLayout:
+            return "Flow Layout"
         case .cards:
             return "Cards"
         case .containers:
@@ -77,7 +80,7 @@ enum DesignSystemPreviewRoute: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .buttons, .badges, .runtimeStatus:
             return .foundations
-        case .headers, .cards, .containers, .titledSections:
+        case .headers, .flowLayout, .cards, .containers, .titledSections:
             return .layout
         case .listRows, .codeBlocks, .debugInspectors:
             return .dataDisplay
@@ -98,6 +101,8 @@ enum DesignSystemPreviewRoute: String, CaseIterable, Identifiable, Hashable {
             return "dot.radiowaves.left.and.right"
         case .headers:
             return "rectangle.topthird.inset.filled"
+        case .flowLayout:
+            return "square.grid.2x2"
         case .cards:
             return "square.on.square"
         case .containers:
@@ -130,6 +135,8 @@ enum DesignSystemPreviewRoute: String, CaseIterable, Identifiable, Hashable {
             RuntimeStatusPreviewPage()
         case .headers:
             HeadersPreviewPage()
+        case .flowLayout:
+            FlowLayoutPreviewPage()
         case .cards:
             CardsPreviewPage()
         case .containers:
