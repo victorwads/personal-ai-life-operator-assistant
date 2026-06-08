@@ -5,6 +5,7 @@ import Foundation
 struct FirestoreFixture {
     private static let defaultCollectionNames: Set<String> = [
         "AIImageExtractionCache",
+        "AIResourceUsage",
         "ChatMessages",
         "Chats",
         "ClientInteractionRequests",

@@ -1,6 +1,6 @@
 import Foundation
 
-struct AIProviderFailure: Equatable, Sendable, Encodable {
+struct AIProviderFailure: Equatable, Sendable, Encodable, LocalizedError {
     let message: String
     let provider: AIConnectionProviderKind?
     let model: String?
@@ -37,5 +37,9 @@ struct AIProviderFailure: Equatable, Sendable, Encodable {
         self.requestMessageCount = requestMessageCount
         self.requestToolCount = requestToolCount
         self.underlyingError = underlyingError
+    }
+
+    var errorDescription: String? {
+        message
     }
 }

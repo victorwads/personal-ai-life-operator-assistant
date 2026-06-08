@@ -15,19 +15,33 @@ final class AIImageExtractionService: AIImageExtracting {
     private let settingsProvider: @Sendable () async -> AIConnectionProviderConfiguration
     private let promptProvider: @Sendable () throws -> String
     private let cacheRepository: any AIImageExtractionCacheRepository
+    private let resourceUsageRepository: any AIResourceUsageRepository
+    private let runtimeLogger: AIConnectionRuntimeLogger
+    private let tokenEstimator = AITokenEstimator()
 
     init(
         profileId: String,
         streamingService: any AIConnectionStreamingServing,
         settingsProvider: @escaping @Sendable () async -> AIConnectionProviderConfiguration,
         promptProvider: @escaping @Sendable () throws -> String,
-        cacheRepository: any AIImageExtractionCacheRepository
+        cacheRepository: any AIImageExtractionCacheRepository,
+        resourceUsageRepository: any AIResourceUsageRepository = NoopAIResourceUsageRepository(),
+        runtimeLogger: AIConnectionRuntimeLogger? = nil
     ) {
         self.profileId = profileId
         self.streamingService = streamingService
         self.settingsProvider = settingsProvider
         self.promptProvider = promptProvider
         self.cacheRepository = cacheRepository
+        self.resourceUsageRepository = resourceUsageRepository
+        self.runtimeLogger = runtimeLogger ?? AIConnectionRuntimeLogger(
+            errorLogStore: AIConnectionErrorLogStore(),
+            serverLogsProvider: {
+                ServerLogsService(
+                    repository: SQLiteServerLogRepository(profileId: "ai-connection-default")
+                )
+            }
+        )
     }
 
     func extractTextAndDescription(
@@ -105,6 +119,7 @@ final class AIImageExtractionService: AIImageExtracting {
         imageURL: URL,
         mediaKind: ChatMessage.Kind
     ) async throws -> String {
+        let startedAt = Date()
         let configuration = await settingsProvider()
         let prompt = try promptProvider()
         let contentParts = try Self.contentParts(for: imageURL, mediaKind: mediaKind)
@@ -123,19 +138,84 @@ final class AIImageExtractionService: AIImageExtracting {
             loadAvailableTools: false
         )
 
+        let estimatedInputTokens = tokenEstimator.estimateInputTokens(for: request)
         var extractedText = ""
+        var providerUsage: AIUsage?
+        var provider: AIConnectionProviderKind?
+        var model: String?
         for try await event in streamingService.streamEvents(for: request) {
             switch event {
+            case let .requestStarted(eventProvider, eventModel):
+                provider = eventProvider
+                model = eventModel
+            case let .usage(usage):
+                providerUsage = usage
             case let .textDelta(delta):
                 extractedText += delta
             case let .completed(response):
+                provider = response.provider
+                model = response.model
+                providerUsage = response.usage ?? providerUsage
                 if extractedText.isEmpty {
                     extractedText = response.text
                 }
+            case .failed(let failure):
+                runtimeLogger.logImageExtractionCompleted(
+                    profileId: profileId,
+                    imageId: imageURL.deletingPathExtension().lastPathComponent,
+                    mediaKind: mediaKind,
+                    provider: provider,
+                    model: model,
+                    success: false,
+                    extractedText: nil,
+                    errorMessage: failure.message,
+                    usage: providerUsage,
+                    isEstimated: providerUsage == nil,
+                    durationMilliseconds: Date().timeIntervalSince(startedAt) * 1_000
+                )
+                throw failure
             default:
                 break
             }
         }
+
+        let trimmedText = extractedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let usage = providerUsage ?? AIUsage(
+            promptTokens: estimatedInputTokens,
+            completionTokens: tokenEstimator.estimateOutputTokens(text: trimmedText),
+            reasoningTokens: nil,
+            totalTokens: estimatedInputTokens + tokenEstimator.estimateOutputTokens(text: trimmedText),
+            cachedInputTokens: nil
+        )
+
+        if (usage.promptTokens ?? 0) > 0 ||
+            (usage.completionTokens ?? 0) > 0 ||
+            (usage.reasoningTokens ?? 0) > 0 ||
+            (usage.totalTokens ?? 0) > 0 {
+            await resourceUsageRepository.add(
+                AIResourceUsageAddition(
+                    pool: .imageExtraction,
+                    provider: provider,
+                    model: model,
+                    usage: usage,
+                    success: true
+                )
+            )
+        }
+
+        runtimeLogger.logImageExtractionCompleted(
+            profileId: profileId,
+            imageId: imageURL.deletingPathExtension().lastPathComponent,
+            mediaKind: mediaKind,
+            provider: provider,
+            model: model,
+            success: true,
+            extractedText: trimmedText.isEmpty ? nil : trimmedText,
+            errorMessage: nil,
+            usage: usage,
+            isEstimated: providerUsage == nil,
+            durationMilliseconds: Date().timeIntervalSince(startedAt) * 1_000
+        )
         return extractedText
     }
 

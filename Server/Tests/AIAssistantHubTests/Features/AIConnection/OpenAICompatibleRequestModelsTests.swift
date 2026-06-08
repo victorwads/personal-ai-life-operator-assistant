@@ -145,6 +145,22 @@ final class OpenAICompatibleRequestModelsTests: XCTestCase {
         XCTAssertNil(jsonObject["extra_body"])
     }
 
+    func testRequestEncodesStreamUsageOptions() throws {
+        let request = OpenAICompatibleChatCompletionsRequest(
+            request: AIProviderRequest(
+                model: "model-1",
+                messages: [
+                    AIConversationMessage(role: .user, content: "hello")
+                ]
+            )
+        )
+
+        let jsonObject = try encodedJSONObject(for: request)
+        XCTAssertEqual(jsonObject["stream"] as? Bool, true)
+        let streamOptions = try XCTUnwrap(jsonObject["stream_options"] as? [String: Any])
+        XCTAssertEqual(streamOptions["include_usage"] as? Bool, true)
+    }
+
     func testReasoningNoneSerializesInsideEffortObject() throws {
         let request = OpenAICompatibleChatCompletionsRequest(
             request: AIProviderRequest(

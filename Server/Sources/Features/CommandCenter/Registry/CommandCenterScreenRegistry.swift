@@ -45,6 +45,8 @@ struct CommandCenterScreenRegistry {
             MCPToolsScreen(mcpServersFeature: appFeatures.feature(MCPServersFeature.self))
         case .aiConnection:
             AIConnectionScreen(feature: appFeatures.feature(AIConnectionFeature.self))
+        case .aiResourceUsage:
+            AIResourceUsageView(repository: appFeatures.feature(AIConnectionFeature.self).resourceUsageRepository)
         case .serverLogs:
             ServerLogsScreen(feature: appFeatures.feature(ServerLogsFeature.self))
         case .settings:

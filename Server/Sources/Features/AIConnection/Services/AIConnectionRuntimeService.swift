@@ -15,6 +15,7 @@ final class AIConnectionRuntimeService: ObservableObject {
     private let debugRecorder: AIConnectionRuntimeDebugRecorder
     private let toolCallTracker: AIConnectionToolCallTracker
     private let runtimeLogger: AIConnectionRuntimeLogger
+    private let resourceUsageRepository: any AIResourceUsageRepository
     private let eventProcessor: AIConnectionStreamEventProcessor
 
     private var activeStreamingTask: Task<Void, Never>?
@@ -44,7 +45,9 @@ final class AIConnectionRuntimeService: ObservableObject {
                 cacheMode: .automatic
             )
         },
+        runtimeLogger: AIConnectionRuntimeLogger? = nil,
         errorLogStore: AIConnectionErrorLogStore = AIConnectionErrorLogStore(),
+        resourceUsageRepository: any AIResourceUsageRepository = NoopAIResourceUsageRepository(),
         serverLogsProvider: @escaping @MainActor () -> ServerLogsService = {
             AIConnectionRuntimeService.defaultServerLogsService
         }
@@ -59,7 +62,8 @@ final class AIConnectionRuntimeService: ObservableObject {
         self.usageTracker = AIConnectionUsageTracker()
         self.debugRecorder = AIConnectionRuntimeDebugRecorder(maxEvents: 200)
         self.toolCallTracker = AIConnectionToolCallTracker()
-        self.runtimeLogger = AIConnectionRuntimeLogger(
+        self.resourceUsageRepository = resourceUsageRepository
+        self.runtimeLogger = runtimeLogger ?? AIConnectionRuntimeLogger(
             errorLogStore: errorLogStore,
             serverLogsProvider: serverLogsProvider
         )
@@ -67,7 +71,7 @@ final class AIConnectionRuntimeService: ObservableObject {
             toolCallTracker: toolCallTracker,
             usageTracker: usageTracker,
             debugRecorder: debugRecorder,
-            runtimeLogger: runtimeLogger
+            runtimeLogger: self.runtimeLogger
         )
         self.state = .initial(systemPrompt: AIConnectionRuntimeDefaults.baseSystemPrompt)
     }
@@ -358,6 +362,7 @@ final class AIConnectionRuntimeService: ObservableObject {
         state.debugEvents = []
         state.currentPhaseStartedAt = runStartedAt
 
+        resourceUsageRepository.clearSessionUse()
         currentRequestLogContext = nil
         toolCallTracker.reset()
 
@@ -416,6 +421,15 @@ final class AIConnectionRuntimeService: ObservableObject {
                 startedAt: Date(),
                 requestMessages: request.messages
             )
+            usageTracker.applyEstimatedInputTokens(
+                for: request,
+                at: Date(),
+                state: &state
+            )
+            appendDebug(
+                kind: "usage.input.estimated",
+                summary: "Estimated input tokens before streaming."
+            )
             if cycleNumber == 1 && requestIndex == 1 {
                 runtimeLogger.logSessionStarted(
                     state: state,
@@ -449,6 +463,15 @@ final class AIConnectionRuntimeService: ObservableObject {
         }
 
         if let completedResponse {
+            await resourceUsageRepository.add(
+                AIResourceUsageAddition(
+                    pool: .assistant,
+                    provider: completedResponse.provider,
+                    model: completedResponse.model,
+                    usage: state.usage.normalizedAIUsage(),
+                    success: true
+                )
+            )
             return completedResponse
         }
 

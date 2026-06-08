@@ -9,6 +9,7 @@ struct OpenAICompatibleChatCompletionsRequest: Encodable {
     let extraBody: OpenAICompatibleExtraBody?
     let maxTokens: Int?
     let stream: Bool
+    let streamOptions: OpenAICompatibleStreamOptions?
 
     enum CodingKeys: String, CodingKey {
         case model
@@ -19,6 +20,7 @@ struct OpenAICompatibleChatCompletionsRequest: Encodable {
         case extraBody = "extra_body"
         case maxTokens = "max_tokens"
         case stream
+        case streamOptions = "stream_options"
     }
 
     init(request: AIProviderRequest) {
@@ -30,6 +32,15 @@ struct OpenAICompatibleChatCompletionsRequest: Encodable {
         self.extraBody = request.reasoningEffort.extraBody
         self.maxTokens = request.maxOutputTokens
         self.stream = true
+        self.streamOptions = OpenAICompatibleStreamOptions(includeUsage: true)
+    }
+}
+
+struct OpenAICompatibleStreamOptions: Encodable {
+    let includeUsage: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case includeUsage = "include_usage"
     }
 }
 

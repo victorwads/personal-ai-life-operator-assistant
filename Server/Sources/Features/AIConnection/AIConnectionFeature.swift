@@ -11,6 +11,8 @@ final class AIConnectionFeature: FeatureRuntime {
     private(set) var streamingService: AIConnectionStreamingService
     private(set) var imageExtractionService: AIImageExtractionService
     private(set) var runtimeService: AIConnectionRuntimeService
+    private(set) var resourceUsageRepository: FirestoreAIResourceUsageRepository
+    private(set) var runtimeLogger: AIConnectionRuntimeLogger
     private let serverLogsProvider: @MainActor () -> ServerLogsService
 
     required init(context: FeatureContext) {
@@ -22,6 +24,15 @@ final class AIConnectionFeature: FeatureRuntime {
         self.serverLogsProvider = {
             context.feature(ServerLogsFeature.self).service
         }
+        let resourceUsageRepository = FirestoreAIResourceUsageRepository(
+            profileId: context.profileContext.profileId
+        )
+        self.resourceUsageRepository = resourceUsageRepository
+        let runtimeLogger = AIConnectionRuntimeLogger(
+            errorLogStore: errorLogStore,
+            serverLogsProvider: serverLogsProvider
+        )
+        self.runtimeLogger = runtimeLogger
         let memoryBootstrapBridge = AIConnectionMemoryBootstrapBridge(
             featureProvider: {
                 context.feature(MemoriesFeature.self)
@@ -73,7 +84,9 @@ final class AIConnectionFeature: FeatureRuntime {
             promptProvider: {
                 try AIConnectionPromptLoader.loadBundledPrompt(named: "ImageExtraction")
             },
-            cacheRepository: imageExtractionCacheRepository
+            cacheRepository: imageExtractionCacheRepository,
+            resourceUsageRepository: resourceUsageRepository,
+            runtimeLogger: runtimeLogger
         )
         self.imageExtractionService = imageExtractionService
         self.runtimeService = AIConnectionRuntimeService(
@@ -92,7 +105,9 @@ final class AIConnectionFeature: FeatureRuntime {
             providerConfigurationProvider: {
                 settings.providerConfiguration
             },
+            runtimeLogger: runtimeLogger,
             errorLogStore: errorLogStore,
+            resourceUsageRepository: resourceUsageRepository,
             serverLogsProvider: serverLogsProvider
         )
 

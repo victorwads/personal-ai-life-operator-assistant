@@ -207,18 +207,40 @@ private struct OpenAICompatibleUsagePayload: Decodable {
     let promptTokens: Int?
     let completionTokens: Int?
     let totalTokens: Int?
+    let completionTokensDetails: OpenAICompatibleCompletionTokensDetailsPayload?
+    let promptTokensDetails: OpenAICompatiblePromptTokensDetailsPayload?
 
     enum CodingKeys: String, CodingKey {
         case promptTokens = "prompt_tokens"
         case completionTokens = "completion_tokens"
         case totalTokens = "total_tokens"
+        case completionTokensDetails = "completion_tokens_details"
+        case promptTokensDetails = "prompt_tokens_details"
     }
 
     var normalizedUsage: AIUsage {
         AIUsage(
             promptTokens: promptTokens,
             completionTokens: completionTokens,
-            totalTokens: totalTokens
+            reasoningTokens: completionTokensDetails?.reasoningTokens,
+            totalTokens: totalTokens,
+            cachedInputTokens: promptTokensDetails?.cachedTokens
         )
+    }
+}
+
+private struct OpenAICompatibleCompletionTokensDetailsPayload: Decodable {
+    let reasoningTokens: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case reasoningTokens = "reasoning_tokens"
+    }
+}
+
+private struct OpenAICompatiblePromptTokensDetailsPayload: Decodable {
+    let cachedTokens: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case cachedTokens = "cached_tokens"
     }
 }

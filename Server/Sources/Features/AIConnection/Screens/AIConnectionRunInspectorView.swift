@@ -108,15 +108,21 @@ struct AIRunUsagePanelView: View {
             systemImage: "speedometer"
         ) {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 8) {
-                usageRow("Input tokens", value: number(usage.inputTokens))
+                usageRow("Input tokens", value: inputText)
                 usageRow("Output tokens", value: outputText)
                 usageRow("Reasoning tokens", value: number(usage.reasoningTokens))
+                usageRow("Cached input tokens", value: number(usage.cachedInputTokens))
                 usageRow("Total tokens", value: number(usage.totalTokens))
                 usageRow("TTPS", value: rate(usage.tokensPerSecond))
                 usageRow("Time to first token", value: time(usage.timeToFirstToken))
                 usageRow("Run duration", value: time(usage.runDuration))
             }
         }
+    }
+
+    private var inputText: String {
+        let base = number(usage.inputTokens)
+        return usage.isInputTokensEstimated ? "\(base) (estimated)" : base
     }
 
     private var outputText: String {

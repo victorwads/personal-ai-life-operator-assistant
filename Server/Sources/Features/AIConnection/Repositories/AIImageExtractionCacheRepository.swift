@@ -33,8 +33,8 @@ final class FirestoreAIImageExtractionCacheRepository: FirestoreRepository<AIIma
     init(profileId: String) {
         self.profileId = profileId
         super.init(
-            entityName: "AIImageExtractionCacheDocument",
-            path: .profileScoped(scope: FirebaseProfileScope(profileId: profileId), collection: "AIImageExtractionCache"),
+            entityName: "ImageExtractionCaches",
+            path: .profileScoped(scope: FirebaseProfileScope(profileId: profileId), collection: "ImageExtractionCaches"),
             readSource: .cacheOnly,
             warmCacheOnInit: false
         )

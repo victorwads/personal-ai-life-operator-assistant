@@ -77,6 +77,93 @@ final class AIImageExtractionServiceTests: XCTestCase {
         XCTAssertEqual(cacheRepository.saveRequests.first?.2, "Visible text")
     }
 
+    func testSingleImageLiveExtractionPersistsUsageAndLogsCompletion() async throws {
+        let prompt = "Prompt from bundle"
+        let image = try makeTempImageURL(fileName: "live-image.jpg", contents: Data("live-image".utf8))
+        let cacheRepository = FakeAIImageExtractionCacheRepository()
+        let usageRepository = RecordingAIResourceUsageRepository()
+        let logRepository = FakeServerLogRepository()
+        let runtimeLogger = AIConnectionRuntimeLogger(
+            errorLogStore: AIConnectionErrorLogStore(),
+            serverLogsProvider: {
+                ServerLogsService(repository: logRepository)
+            }
+        )
+
+        let streamingService = FakeAIImageExtractionStreamingService(
+            responseEvents: [
+                .requestStarted(provider: .openRouter, model: "image-model"),
+                .usage(
+                    AIUsage(
+                        promptTokens: 55,
+                        completionTokens: 14,
+                        reasoningTokens: 2,
+                        totalTokens: 71,
+                        cachedInputTokens: 3
+                    )
+                ),
+                .textDelta("  Live extracted text  "),
+                .completed(
+                    AIProviderResponse(
+                        id: "response-1",
+                        model: "image-model",
+                        provider: .openRouter,
+                        finishReason: "stop",
+                        text: "Live extracted text",
+                        reasoning: "",
+                        toolCalls: [],
+                        usage: AIUsage(
+                            promptTokens: 55,
+                            completionTokens: 14,
+                            reasoningTokens: 2,
+                            totalTokens: 71,
+                            cachedInputTokens: 3
+                        )
+                    )
+                )
+            ]
+        )
+        let service = AIImageExtractionService(
+            profileId: "profile-1",
+            streamingService: streamingService,
+            settingsProvider: {
+                AIConnectionProviderConfiguration(
+                    providerKind: .openRouter,
+                    baseURL: "https://example.com/v1",
+                    apiKey: "secret",
+                    model: "image-model",
+                    temperature: 0.6,
+                    reasoningEffort: .off,
+                    maxOutputTokens: 4096,
+                    streamingEnabled: true,
+                    cacheMode: .automatic
+                )
+            },
+            promptProvider: { prompt },
+            cacheRepository: cacheRepository,
+            resourceUsageRepository: usageRepository,
+            runtimeLogger: runtimeLogger
+        )
+
+        let extractedText = try await service.extractTextAndDescription(
+            from: [image],
+            mediaKind: .image
+        )
+
+        let additions = await usageRepository.additions
+        XCTAssertEqual(extractedText, "Live extracted text")
+        XCTAssertEqual(additions.count, 1)
+        XCTAssertEqual(additions.first?.pool, .imageExtraction)
+        XCTAssertEqual(additions.first?.usage.promptTokens, 55)
+        XCTAssertEqual(additions.first?.usage.cachedInputTokens, 3)
+
+        let logEntry = try await waitForServerLogEntry(in: logRepository)
+        XCTAssertEqual(logEntry.kind, .imageExtractionCompleted)
+        XCTAssertTrue(logEntry.metadataPayload?.contains("\"imageId\":\"live-image\"") == true)
+        XCTAssertTrue(logEntry.metadataPayload?.contains("\"inputTokens\":55") == true)
+        XCTAssertTrue(logEntry.metadataPayload?.contains("\"cachedInputTokens\":3") == true)
+    }
+
     func testMultiImageExtractionUsesCachePerImageAndPreservesOrder() async throws {
         let prompt = "Prompt from bundle"
         let image1 = try makeTempImageURL(fileName: "image-one.png", contents: Data("image-one".utf8))
@@ -245,6 +332,21 @@ final class AIImageExtractionServiceTests: XCTestCase {
         try contents.write(to: url, options: .atomic)
         return url
     }
+
+    private func waitForServerLogEntry(in repository: FakeServerLogRepository) async throws -> ServerLogEntry {
+        for _ in 0..<50 {
+            if let entry = await repository.entries.first {
+                return entry
+            }
+            try await Task.sleep(nanoseconds: 20_000_000)
+        }
+
+        throw NSError(
+            domain: "AIImageExtractionServiceTests",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: "Timed out waiting for server log entry."]
+        )
+    }
 }
 
 private final class FakeAIImageExtractionStreamingService: AIConnectionStreamingServing {
@@ -300,5 +402,55 @@ private final class FakeAIImageExtractionCacheRepository: AIImageExtractionCache
 
     private func key(profileId: String, imageId: String) -> String {
         "\(profileId)|\(imageId)"
+    }
+}
+
+private actor RecordingAIResourceUsageRepository: AIResourceUsageRepository {
+    private(set) var additions: [AIResourceUsageAddition] = []
+
+    nonisolated var currentUse: AIResourceUsageDocument {
+        AIResourceUsageDocument()
+    }
+
+    nonisolated var sessionUse: AIResourceUsageDocument {
+        AIResourceUsageDocument()
+    }
+
+    nonisolated var pendingUnsyncedUse: AIResourceUsageDocument? {
+        nil
+    }
+
+    func add(_ addition: AIResourceUsageAddition) async {
+        additions.append(addition)
+    }
+
+    func flush() async {}
+
+    nonisolated func clearSessionUse() {}
+
+    func loadCurrentUse() async throws -> AIResourceUsageDocument {
+        AIResourceUsageDocument()
+    }
+}
+
+private actor FakeServerLogRepository: ServerLogRepository {
+    private(set) var entries: [ServerLogEntry] = []
+
+    func insert(_ entry: ServerLogEntry) async throws {
+        entries.append(entry)
+    }
+
+    func list(_ query: ServerLogQuery) async throws -> [ServerLogEntry] {
+        entries
+    }
+
+    func clear() async throws {
+        entries.removeAll()
+    }
+
+    func updates() async -> AsyncStream<ServerLogRepositoryChange> {
+        AsyncStream { continuation in
+            continuation.finish()
+        }
     }
 }

@@ -255,6 +255,24 @@ open class FirestoreRepository<Model: PersistableModel> {
         try await document.updateData(payload)
     }
 
+    open func increment(id: String, fields: [String: Int]) async throws {
+        guard !id.isEmpty else {
+            throw FirestoreRepositoryError.missingDocumentId
+        }
+
+        var payload: [String: Any] = [:]
+        for (field, value) in fields where value != 0 {
+            payload[field] = FieldValue.increment(Int64(value))
+        }
+
+        guard !payload.isEmpty else { return }
+
+        payload[FirestoreRepositoryMetadataField.updatedAt] = dateProvider()
+
+        let document = try documentReference(for: id)
+        try await document.setData(payload, merge: true)
+    }
+
     open func delete(_ id: String, soft: Bool = false) async throws {
         guard !id.isEmpty else {
             throw FirestoreRepositoryError.missingDocumentId

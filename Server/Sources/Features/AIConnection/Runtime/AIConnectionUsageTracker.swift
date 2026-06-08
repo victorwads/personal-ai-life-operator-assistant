@@ -1,11 +1,28 @@
 import Foundation
 
 struct AIConnectionUsageTracker {
+    private let tokenEstimator = AITokenEstimator()
+
     func recordFirstTokenIfNeeded(at time: Date, state: inout AIConnectionRuntimeState) {
         guard state.usage.timeToFirstToken == nil else { return }
         if let runStartedAt = state.usage.runStartedAt ?? state.startedAt {
             state.usage.timeToFirstToken = time.timeIntervalSince(runStartedAt)
         }
+    }
+
+    func applyEstimatedInputTokens(
+        for request: AIProviderRequest,
+        at time: Date,
+        state: inout AIConnectionRuntimeState
+    ) {
+        let estimatedTokens = tokenEstimator.estimateInputTokens(for: request)
+        state.usage.inputTokens = estimatedTokens
+        state.usage.isInputTokensEstimated = true
+        state.usage.lastUpdatedAt = time
+        if let outputTokens = state.usage.outputTokens {
+            state.usage.totalTokens = estimatedTokens + outputTokens
+        }
+        updateLiveMetrics(at: time, state: &state)
     }
 
     func updateEstimatedOutputTokens(at time: Date, state: inout AIConnectionRuntimeState) {
@@ -14,7 +31,7 @@ struct AIConnectionUsageTracker {
             return
         }
 
-        let estimatedTokens = estimateTokenCount(text: state.assistantText + state.reasoningText)
+        let estimatedTokens = tokenEstimator.estimateOutputTokens(text: state.assistantText + state.reasoningText)
         state.usage.outputTokens = estimatedTokens
         state.usage.isOutputTokensEstimated = true
 
@@ -29,7 +46,10 @@ struct AIConnectionUsageTracker {
     func applyProviderUsage(_ usage: AIUsage, at time: Date, state: inout AIConnectionRuntimeState) {
         state.usage.inputTokens = usage.promptTokens
         state.usage.outputTokens = usage.completionTokens
-        state.usage.totalTokens = usage.totalTokens
+        state.usage.reasoningTokens = usage.reasoningTokens
+        state.usage.cachedInputTokens = usage.cachedInputTokens
+        state.usage.totalTokens = usage.totalTokens ?? fallbackTotalTokens(for: usage)
+        state.usage.isInputTokensEstimated = false
         state.usage.isOutputTokensEstimated = false
         state.usage.lastUpdatedAt = time
         updateLiveMetrics(at: time, state: &state)
@@ -53,8 +73,11 @@ struct AIConnectionUsageTracker {
         updateLiveMetrics(at: time, state: &state)
     }
 
-    private func estimateTokenCount(text: String) -> Int {
-        let chars = max(text.count, 0)
-        return max(1, Int((Double(chars) / 4.0).rounded(.up)))
+    private func fallbackTotalTokens(for usage: AIUsage) -> Int? {
+        let input = usage.promptTokens ?? 0
+        let output = usage.completionTokens ?? 0
+        let reasoning = usage.reasoningTokens ?? 0
+        let total = input + output + reasoning
+        return total > 0 ? total : nil
     }
 }

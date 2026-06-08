@@ -28,6 +28,7 @@ enum ServerLogKind: String, Codable, CaseIterable, Sendable {
     case toolCallCompleted
     case sessionCompleted
     case sessionFailed
+    case imageExtractionCompleted
 }
 
 enum ServerLogSeverity: String, Codable, CaseIterable, Sendable {

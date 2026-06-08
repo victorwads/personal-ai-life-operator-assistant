@@ -87,6 +87,8 @@ extension ServerLogKind {
             return "Session Completed"
         case .sessionFailed:
             return "Session Failed"
+        case .imageExtractionCompleted:
+            return "Image Extraction"
         }
     }
 }

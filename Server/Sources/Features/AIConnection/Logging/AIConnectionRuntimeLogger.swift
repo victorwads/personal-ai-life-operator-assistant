@@ -58,7 +58,17 @@ final class AIConnectionRuntimeLogger {
                 ("status", .string(state.status.rawValue)),
                 ("requestIndex", requestContext.map { .int($0.requestIndex) }),
                 ("provider", requestContext?.provider.map { .string($0.rawValue) }),
-                ("model", requestContext?.model.map { .string($0) })
+                ("model", requestContext?.model.map { .string($0) }),
+                ("inputTokens", state.usage.inputTokens.map { .int($0) }),
+                ("outputTokens", state.usage.outputTokens.map { .int($0) }),
+                ("reasoningTokens", state.usage.reasoningTokens.map { .int($0) }),
+                ("cachedInputTokens", state.usage.cachedInputTokens.map { .int($0) }),
+                ("totalTokens", state.usage.totalTokens.map { .int($0) }),
+                ("isInputTokensEstimated", .bool(state.usage.isInputTokensEstimated)),
+                ("isOutputTokensEstimated", .bool(state.usage.isOutputTokensEstimated)),
+                ("tokensPerSecond", state.usage.tokensPerSecond.map { .double($0) }),
+                ("timeToFirstToken", state.usage.timeToFirstToken.map { .double($0) }),
+                ("runDuration", state.usage.runDuration.map { .double($0) })
             ])
         )
     }
@@ -141,7 +151,17 @@ final class AIConnectionRuntimeLogger {
                 ("errorCount", .int(state.errors.count)),
                 ("requestIndex", requestContext.map { .int($0.requestIndex) }),
                 ("provider", requestContext?.provider.map { .string($0.rawValue) }),
-                ("model", requestContext?.model.map { .string($0) })
+                ("model", requestContext?.model.map { .string($0) }),
+                ("inputTokens", state.usage.inputTokens.map { .int($0) }),
+                ("outputTokens", state.usage.outputTokens.map { .int($0) }),
+                ("reasoningTokens", state.usage.reasoningTokens.map { .int($0) }),
+                ("cachedInputTokens", state.usage.cachedInputTokens.map { .int($0) }),
+                ("totalTokens", state.usage.totalTokens.map { .int($0) }),
+                ("isInputTokensEstimated", .bool(state.usage.isInputTokensEstimated)),
+                ("isOutputTokensEstimated", .bool(state.usage.isOutputTokensEstimated)),
+                ("tokensPerSecond", state.usage.tokensPerSecond.map { .double($0) }),
+                ("timeToFirstToken", state.usage.timeToFirstToken.map { .double($0) }),
+                ("runDuration", state.usage.runDuration.map { .double($0) })
             ])
         )
     }
@@ -193,7 +213,11 @@ final class AIConnectionRuntimeLogger {
                 cycleNumber: requestContext?.cycleNumber,
                 success: true,
                 outputPayload: finalReasoning,
-                metadataPayload: responseMetadataPayload(response, requestContext: requestContext)
+                metadataPayload: responseMetadataPayload(
+                    response,
+                    requestContext: requestContext,
+                    state: state
+                )
             )
         }
 
@@ -209,7 +233,11 @@ final class AIConnectionRuntimeLogger {
                 cycleNumber: requestContext?.cycleNumber,
                 success: true,
                 outputPayload: finalOutput,
-                metadataPayload: responseMetadataPayload(response, requestContext: requestContext)
+                metadataPayload: responseMetadataPayload(
+                    response,
+                    requestContext: requestContext,
+                    state: state
+                )
             )
         }
     }
@@ -230,12 +258,58 @@ final class AIConnectionRuntimeLogger {
             cycleNumber: cycleNumber,
             success: true,
             inputPayload: requestContext.flatMap { requestMessagesPayload($0.requestMessages) },
+            metadataPayload: usageMetadataPayload(
+                state: state,
+                extra: [
+                    ("completionReason", .string(outcome.completionReason)),
+                    ("status", .string(state.status.rawValue)),
+                    ("requestIndex", requestContext.map { .int($0.requestIndex) }),
+                    ("provider", requestContext?.provider.map { .string($0.rawValue) }),
+                    ("model", requestContext?.model.map { .string($0) })
+                ]
+            )
+        )
+    }
+
+    func logImageExtractionCompleted(
+        profileId: String,
+        imageId: String,
+        mediaKind: ChatMessage.Kind,
+        provider: AIConnectionProviderKind?,
+        model: String?,
+        success: Bool,
+        extractedText: String?,
+        errorMessage: String?,
+        usage: AIUsage?,
+        isEstimated: Bool,
+        durationMilliseconds: Double?
+    ) {
+        let title = success ? "Image extracted" : "Image extraction failed"
+        let summary = success
+            ? "AI image extraction completed for \(mediaKind.rawValue)."
+            : "AI image extraction failed for \(mediaKind.rawValue): \(errorMessage ?? "Unknown error")"
+
+        log(
+            kind: .imageExtractionCompleted,
+            severity: success ? .success : .error,
+            title: title,
+            summary: summary,
+            durationMilliseconds: durationMilliseconds,
+            success: success,
+            outputPayload: extractedText,
+            errorPayload: errorMessage,
             metadataPayload: ServerLogPayloadEncoder.objectString([
-                ("completionReason", .string(outcome.completionReason)),
-                ("status", .string(state.status.rawValue)),
-                ("requestIndex", requestContext.map { .int($0.requestIndex) }),
-                ("provider", requestContext?.provider.map { .string($0.rawValue) }),
-                ("model", requestContext?.model.map { .string($0) })
+                ("profileId", .string(profileId)),
+                ("imageId", .string(imageId)),
+                ("mediaKind", .string(mediaKind.rawValue)),
+                ("provider", provider.map { .string($0.rawValue) }),
+                ("model", model.map { .string($0) }),
+                ("inputTokens", usage?.promptTokens.map { .int($0) }),
+                ("outputTokens", usage?.completionTokens.map { .int($0) }),
+                ("reasoningTokens", usage?.reasoningTokens.map { .int($0) }),
+                ("cachedInputTokens", usage?.cachedInputTokens.map { .int($0) }),
+                ("totalTokens", usage?.totalTokens.map { .int($0) }),
+                ("isEstimated", .bool(isEstimated))
             ])
         )
     }
@@ -289,16 +363,40 @@ final class AIConnectionRuntimeLogger {
 
     private func responseMetadataPayload(
         _ response: AIProviderResponse,
-        requestContext: AIConnectionRequestLogContext?
+        requestContext: AIConnectionRequestLogContext?,
+        state: AIConnectionRuntimeState
     ) -> String? {
-        ServerLogPayloadEncoder.objectString([
-            ("requestIndex", requestContext.map { .int($0.requestIndex) }),
-            ("provider", .string(response.provider.rawValue)),
-            ("model", .string(response.model)),
-            ("responseId", response.id.map { .string($0) }),
-            ("finishReason", response.finishReason.map { .string($0) }),
-            ("toolCallCount", .int(response.toolCalls.count))
-        ])
+        usageMetadataPayload(
+            state: state,
+            extra: [
+                ("requestIndex", requestContext.map { .int($0.requestIndex) }),
+                ("provider", .string(response.provider.rawValue)),
+                ("model", .string(response.model)),
+                ("responseId", response.id.map { .string($0) }),
+                ("finishReason", response.finishReason.map { .string($0) }),
+                ("toolCallCount", .int(response.toolCalls.count))
+            ]
+        )
+    }
+
+    private func usageMetadataPayload(
+        state: AIConnectionRuntimeState,
+        extra: [(String, AIJSONValue?)] = []
+    ) -> String? {
+        ServerLogPayloadEncoder.objectString(
+            extra + [
+                ("inputTokens", state.usage.inputTokens.map { .int($0) }),
+                ("outputTokens", state.usage.outputTokens.map { .int($0) }),
+                ("reasoningTokens", state.usage.reasoningTokens.map { .int($0) }),
+                ("cachedInputTokens", state.usage.cachedInputTokens.map { .int($0) }),
+                ("totalTokens", state.usage.totalTokens.map { .int($0) }),
+                ("isInputTokensEstimated", .bool(state.usage.isInputTokensEstimated)),
+                ("isOutputTokensEstimated", .bool(state.usage.isOutputTokensEstimated)),
+                ("tokensPerSecond", state.usage.tokensPerSecond.map { .double($0) }),
+                ("timeToFirstToken", state.usage.timeToFirstToken.map { .double($0) }),
+                ("runDuration", state.usage.runDuration.map { .double($0) })
+            ]
+        )
     }
 
     private func requestMessagesPayload(_ messages: [AIConversationMessage]) -> String? {

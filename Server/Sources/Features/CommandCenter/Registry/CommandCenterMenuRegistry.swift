@@ -69,6 +69,7 @@ enum CommandCenterMenuRegistry {
             items: [
                 CommandCenterMenuItem(title: "Tools", icon: "wrench.and.screwdriver", route: .tools),
                 CommandCenterMenuItem(title: "AI Connection", icon: "bolt.horizontal.circle", route: .aiConnection),
+                CommandCenterMenuItem(title: "Resource Usage", icon: "chart.bar.doc.horizontal", route: .aiResourceUsage),
                 CommandCenterMenuItem(title: "Server Logs", icon: "terminal", route: .serverLogs)
             ]
         ),
