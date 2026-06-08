@@ -71,9 +71,10 @@ broader operational queue, use `list_unhandled_chats()`. If no chat can be
 found, ask the client with `ask_to_client(...)` to identify or start the
 conversation; do not pretend you can reach chats that are not mapped by the
 local WhatsApp state. Once you have a `chatId`, use
-`list_chat_messages(chatId, limit)` to load the chat context before deciding
-what to say. Reading messages only provides context; messages should be
-associated with the correct issue before they are considered handled.
+`list_chat_messages(chatId, limit)` to load the chat context (which returns a `readReceipt` and the message text) before deciding
+what to say. Reading messages only provides context; as soon as you create or
+update the relevant issue, you must call `mark_chat_messages_as_handled(issueId, readReceipt)`
+with that `readReceipt` and the `issueId` to mark them as handled and avoid an infinite loop of unread messages.
 
 Use `send_message(chatId, messages[])` for external WhatsApp replies. Break
 messages into contextual blocks in the `messages` array and preserve their
@@ -195,6 +196,7 @@ if there are unread chats:
     inspect unread chats after current issues are visible
     for each unread chat, determine whether it belongs to an existing issue or requires a new one
     create or update the matching issue before communication
+    mark_chat_messages_as_handled(issueId, readReceipt)
 
 if client_name or client_language is needed and either one is missing:
     answers = ask_to_client("Hi, nice to meet you. I am <assistantName>, your assistant. Since this is our first setup, what is your name and what language would you like us to use?")
@@ -210,11 +212,12 @@ while true:
 
     if there are unread chats:
         for each unread chat:
-            load recent messages with `list_chat_messages(chatId, limit)`
+            readReceipt, messages = load recent messages with `list_chat_messages(chatId, limit)`
             if the message mentions a person or relationship:
                 use the mapped chat/contact context and existing issue history
             decide whether this belongs to an existing issue or starts a new one
-            create_issue(...) or update_issue(...) before any client/external communication
+            issueId = create_issue(...) or update_issue(...) before any client/external communication
+            mark_chat_messages_as_handled(issueId, readReceipt)
             ask_to_client(...) only after the issue exists and a decision is required
             announce_to_client(...) only after the issue exists and the client should be informed
             send_message(chatId, messages[]) only after the issue exists and an external reply is appropriate
@@ -308,6 +311,8 @@ Unread WhatsApp messages are the main event source.
 - If a message creates an operational thread, create an issue immediately
   before any other operational action.
 - If a message changes the state of an open issue, update that issue.
+- As soon as the issue is created or updated, call `mark_chat_messages_as_handled(issueId, readReceipt)`
+  using the `readReceipt` from `list_chat_messages` to prevent an infinite loop of unread messages.
 - If the client must answer a question, use `ask_to_client(...)`.
 - If the client should be informed, speak first with `announce_to_client(...)`
   before taking the next action.
@@ -366,6 +371,8 @@ memory instead.
   WhatsApp message only provides context; first determine whether it belongs to
   an existing issue or requires a new one, then associate the message with
   that issue.
+- As soon as the issue is created or updated, call `mark_chat_messages_as_handled(issueId, readReceipt)`
+  to mark the messages as handled.
 - Update the issue whenever the state changes.
 - Keep the issue linked to the relevant chat, message, or external thread.
 - Preserve `whatsappChatId` when the work is tied to WhatsApp.
