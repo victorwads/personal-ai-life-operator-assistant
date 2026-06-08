@@ -61,7 +61,8 @@ enum WhatsAppCurrentChatParser {
                 listOrder: index,
                 dateTime: parsedDateTime,
                 quotedMessageText: WhatsAppCrawlingNormalizer.normalizeText(rawObject["quotedMessageText"] as? String),
-                quotedMessageAuthor: WhatsAppCrawlingNormalizer.normalizeText(rawObject["quotedMessageAuthor"] as? String)
+                quotedMessageAuthor: WhatsAppCrawlingNormalizer.normalizeText(rawObject["quotedMessageAuthor"] as? String),
+                handled: direction == .sent ? true : false
             )
         }
 
