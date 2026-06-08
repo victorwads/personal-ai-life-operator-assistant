@@ -126,7 +126,7 @@ Isso devolve controle fino ao usuário e evita perder regras importantes do chat
 
 ---
 
-## 4) Ações de `handled` por mensagem e em lote no chat
+## 4) Ações de `handled` por mensagem e em lote no chat - doing
 
 Valor: `V4 - Alto`
 Risco de Desenvolvimento: `R3 - Médio`
@@ -363,7 +363,7 @@ Isso melhora a leitura do raciocínio em tempo real e evita que a informação m
 
 ---
 
-## 29) `Unresolve` de subjects com motivo obrigatório
+## 29) `Unresolve` de subjects com motivo obrigatório - doing
 
 Valor: `V4 - Alto`
 Risco de Desenvolvimento: `R3 - Médio`
@@ -559,7 +559,7 @@ Isso torna o contexto durável muito mais útil e evita que o assistente misture
 
 ---
 
-## 39) Desativar extração de imagem e sticker por chat
+## 39) Desativar extração de imagem e sticker por chat - doing
 
 Valor: `V3 - Médio`
 Risco de Desenvolvimento: `R3 - Médio`
@@ -749,7 +749,7 @@ Essa padronização melhora muito a leitura do app inteiro, reduz inconsistênci
 
 ---
 
-## 45) Ações manuais de status na tela de Issues
+## 45) Ações manuais de status na tela de Issues - doing
 
 Valor: `V4 - Alto`
 Risco de Desenvolvimento: `R3 - Médio`
@@ -780,39 +780,7 @@ Isso devolve ao usuário controle operacional real sobre `Issues`, permitindo co
 
 ---
 
-## 47) Bootstrapping de memories fora do prompt de tool calling
-
-Valor: `V4 - Alto`
-Risco de Desenvolvimento: `R3 - Médio`
-Risco da Feature: `R2 - Baixo`
-Score de Execução: `0.57`
-
-**Descrição**  
-Remover a dependência do `list_memories` do prompt operacional e passar a injetar todas as memórias duráveis no começo de cada sessão de IA, como parte fixa do primeiro bloco de contexto do usuário. A ideia é que o `AIConnection` já monte a sessão com as memórias antes de qualquer reasoning ou tool calling, deixando o prompt do sistema mais simples e reduzindo a necessidade de o modelo gastar chamadas só para recuperar contexto permanente. A tool de listagem pode continuar existindo para uso manual e de debug, mas deixa de ser a fonte principal de carregamento do contexto durável na sessão normal.
-
-**Dependências**  
-- `37) Memórias categorizadas e `list_memories` filtrável`
-- `41) Firebase observável com cache local sempre atualizado`
-
-**Comportamento desejado**  
-- Injetar as memórias no boot da sessão como texto fixo inicial do usuário, antes do prompt operacional.
-- Tirar do prompt a obrigação de chamar `list_memories()` para conhecer o contexto permanente.
-- Manter o prompt do sistema mais curto e menos dependente de tool calling para contexto durável.
-- Atualizar a carga inicial de memórias sempre que houver mudança relevante no cache.
-- Preservar uma forma de listagem manual de memories para manutenção e debug, sem depender dela no fluxo padrão.
-
-**Notas técnicas**  
-- O `AIConnectionConversationContextBuilder` já monta system prompt + user prompt, então esse é o ponto natural para append do bloco de memórias.
-- O bootstrap deve receber memórias em formato estável para favorecer cache de input do provedor de IA.
-- Quando houver mudança nas memórias, a sessão nova pode perder cache inicial, mas esse custo é aceitável porque a memória não muda com tanta frequência.
-- O `list_memories` continua útil como ferramenta de inspeção, mas a carga automática deve virar responsabilidade da conexão de IA, não do prompt.
-
-**Por que isso entra no backlog**  
-Isso simplifica o contrato mental do assistente, melhora a chance de reaproveitamento de cache da API de IA e garante que o contexto durável esteja sempre presente sem depender de uma tool call adicional.
-
----
-
-## 48) Componentes reutilizáveis de voz e request do cliente
+## 48) Componentes reutilizáveis de voz e request do cliente - doing
 
 Valor: `V4 - Alto`
 Risco de Desenvolvimento: `R4 - Alto`
@@ -837,37 +805,6 @@ Reaproveitar a base de `Client Voice` como uma camada mais modular, com componen
 
 **Por que isso entra no backlog**  
 Isso transforma `Client Voice` numa base mais arquitetural e reutilizável para a experiência de voz, além de abrir um canal real para o cliente iniciar trabalho diretamente com o assistente.
-
----
-
-## 49) Request manual do cliente como evento operacional
-
-Valor: `V5 - Altíssimo`
-Risco de Desenvolvimento: `R4 - Alto`
-Risco da Feature: `R2 - Baixo`
-Score de Execução: `0.53`
-
-**Descrição**  
-Adicionar na `Client Voice` um botão/ação para o cliente criar uma request nova diretamente, sem depender de WhatsApp, de uma pergunta já aberta ou de uma tool disparada pelo assistente. Essa request deve entrar no runtime como evento explícito e virar o ponto de partida para a IA criar e tratar a issue correspondente. Hoje o cliente ainda não tem como pedir algo diretamente ao assistente por esse canal, então essa feature fecha a ponta de entrada humana no fluxo de voz.
-
-**Dependências**  
-- `42) `wait_for_event` com fontes de evento ampliadas`
-
-**Comportamento desejado**  
-- Permitir que o cliente crie uma request manual diretamente na `Client Voice`.
-- Fazer essa request entrar no fluxo operacional como evento do runtime.
-- Garantir que a IA trate essa entrada como um pedido iniciado pelo cliente, não como uma resposta automática a outro evento.
-- Persistir o registro da request no mesmo modelo de interação já usado pela feature.
-- Permitir que esse evento seja consumido pelo `wait_for_event` ampliado e pelo prompt operacional.
-
-**Notas técnicas**  
-- A nova request deve usar o mesmo backbone de `ClientInteractionRequest`, mas com origem explícita de cliente.
-- O prompt operacional precisa entender que o runtime pode despertar por uma request manual do cliente, além de WhatsApp e voice replies.
-- Esse evento deve ser fácil de diferenciar de mensagens, respostas e speak requests já existentes.
-- A entrada manual do cliente precisa criar o contexto necessário para que o assistente abra o trabalho certo na sequência.
-
-**Por que isso entra no backlog**  
-Isso dá ao cliente um canal direto para iniciar trabalho com o assistente, fechando a lacuna entre ouvir, responder e pedir algo novo sem depender de um intermediário.
 
 ---
 
@@ -1029,67 +966,6 @@ Esse bug afeta diretamente a confiança no envio: uma confirmação falsa pode c
 
 ---
 
-## 55) Extrair imagem em alta resolução na mensagem
-
-Valor: `V4 - Alto`
-Risco de Desenvolvimento: `R3 - Médio`
-Risco da Feature: `R2 - Baixo`
-Score de Execução: `0.57`
-
-**Descrição**  
-Investigar e corrigir o fluxo de extração de imagens das mensagens do WhatsApp para evitar que o sistema pegue apenas a miniatura ou uma versão de baixa resolução da mídia. O objetivo é garantir que a extração capture a imagem na maior qualidade disponível na mensagem, ou que o fluxo consiga trazer mais de uma variante da mídia quando isso fizer sentido.
-
-**Dependências**  
-- `Nenhuma`
-
-**Comportamento desejado**  
-- Preferir sempre a mídia em alta resolução quando ela existir na mensagem.
-- Evitar salvar só a imagem reduzida/previsualização quando houver uma versão melhor disponível.
-- Se o WhatsApp expuser mais de uma variante útil da mídia, permitir capturar mais de uma imagem por mensagem.
-- Validar o resultado com exemplos reais de mensagens com imagem para não regressar para thumbnail borrada.
-
-**Notas técnicas**  
-- O ponto principal é descobrir qual campo do HTML/DOM ou metadado leva à mídia original e não só à preview image.
-- Se houver múltiplas URLs ou caminhos para a mesma imagem, o parser deve escolher a melhor variante disponível antes de persistir.
-- Vale revisar também se a camada de armazenamento precisa aceitar múltiplos assets por mensagem de forma consistente.
-- Esse item deve ser testado com mensagens reais, porque a diferença entre thumbnail e original pode variar conforme o tipo de mídia e o estado da conversa.
-
-**Por que isso entra no backlog**  
-Imagem borrada ou em baixa resolução prejudica tanto a leitura humana quanto qualquer fluxo futuro que dependa de mídia correta, então vale corrigir isso na base.
-
----
-
-## 56) Incluir imagens no contexto de IA durante o tool calling
-
-Valor: `V5 - Altíssimo`
-Risco de Desenvolvimento: `R4 - Alto`
-Risco da Feature: `R4 - Alto`
-Score de Execução: `0.48`
-
-**Descrição**  
-Adicionar suporte real para que mensagens com imagem entrem no contexto do modelo de IA durante o fluxo de tool calling. Hoje os modelos usados já aceitam visão, mas o runtime ainda não deixa claro como a imagem deve ser enviada para a IA quando a mensagem do WhatsApp vem com mídia. O objetivo deste item é descobrir e implementar a forma correta de incluir a imagem no contexto da request, seja enviando o asset diretamente para o modelo, seja convertendo a mídia em uma representação textual/estruturada que o modelo consiga consumir sem perder a informação visual.
-
-**Dependências**  
-- `55) Extrair imagem em alta resolução na mensagem`
-
-**Comportamento desejado**  
-- Incluir imagens relevantes no contexto quando a mensagem do WhatsApp vier com mídia visual.
-- Definir se o fluxo vai usar imagem bruta, asset multimodal ou uma descrição textual gerada antes da chamada ao modelo.
-- Garantir que o modelo receba a mídia certa junto da mensagem certa, sem confundir o contexto textual com o visual.
-- Cobrir o caso de mensagens com imagem antes de ativar qualquer lógica automática de interpretação visual.
-- Validar o comportamento com exemplos reais do WhatsApp para evitar perda da informação visual.
-
-**Notas técnicas**  
-- O primeiro passo é investigar a capacidade real do pipeline atual de IA para receber multimodalidade no formato que a codebase já usa.
-- Se o modelo não puder receber imagem diretamente no ponto atual do tool calling, a alternativa pode ser gerar uma descrição/metadata estruturada e anexar isso à request.
-- Esse item precisa esclarecer a fronteira entre `Chats`, `WhatsAppCrawling` e `AIConnection`, para não misturar extração de mídia com transporte da request.
-- Como há risco de duplicar payload ou de enviar a imagem errada para o contexto errado, vale implementar com bastante cobertura de teste e exemplos reais.
-
-**Por que isso entra no backlog**  
-Isso habilita o assistente a realmente “ver” o que chegou no WhatsApp, o que é uma base importante para responder melhor a mensagens que dependem de mídia e não só de texto.
-
----
-
 ## 57) Fechar o servidor HTTP do user agent só depois da resposta HTML
 
 Valor: `V4 - Alto`
@@ -1158,7 +1034,7 @@ Isso deixa `Issues` mais útil para operação real, porque pausa trabalhos até
 
 ---
 
-## 59) Corrigir compressão do header quando os badges ocupam muito espaço
+## 59) Corrigir compressão do header quando os badges ocupam muito espaço - doing
 
 Valor: `V4 - Alto`
 Risco de Desenvolvimento: `R2 - Baixo`
@@ -1185,38 +1061,6 @@ Corrigir o layout do header do `Command Center` para que o título do profile n�
 
 **Por que isso entra no backlog**  
 Esse bug degrada muito a leitura do workspace principal quando há muitos estados exibidos ao mesmo tempo, então vale corrigir para o header continuar legível e estável.
-
----
-
-## 60) Persistir hash da imagem para deduplicar extração de texto
-
-Valor: `V4 - Alto`
-Risco de Desenvolvimento: `R3 - Médio`
-Risco da Feature: `R2 - Baixo`
-Score de Execução: `0.57`
-
-**Descrição**  
-Atualizar o fluxo de extração de imagem para salvar também um identificador estável da mídia, como um hash `MD5` do arquivo/imagem persistida. A motivação é evitar retrabalho quando a mesma imagem aparecer várias vezes no WhatsApp: se a mídia já foi extraída e processada, o sistema pode reaproveitar o resultado em vez de executar OCR ou qualquer extração textual de novo. Isso também ajuda a manter consistência quando a mesma imagem circula em mais de uma mensagem.
-
-**Dependências**  
-- `55) Extrair imagem em alta resolução na mensagem`
-- `56) Incluir imagens no contexto de IA durante o tool calling`
-
-**Comportamento desejado**  
-- Gerar e persistir um hash estável da imagem salva.
-- Reusar o resultado de extração textual quando a mesma imagem reaparecer.
-- Evitar OCR duplicado em mídias idênticas.
-- Permitir que o hash seja usado como chave de cache para futuras integrações de visão/OCR.
-- Manter o vínculo entre a imagem original, seu hash e o texto derivado.
-
-**Notas técnicas**  
-- O hash pode ser `MD5` ou outro identificador estável equivalente, desde que seja consistente para deduplicação.
-- O ideal é calcular o hash sobre o conteúdo final persistido da mídia, não sobre metadados frágeis do DOM.
-- Essa camada pode virar base para cache de OCR, cache de descrição visual e até histórico de mídias já processadas.
-- Vale revisar o modelo de armazenamento de mensagens para guardar o hash junto com os assets extraídos.
-
-**Por que isso entra no backlog**  
-Isso reduz custo, evita processamento repetido e prepara o sistema para tratar imagens repetidas sem refazer trabalho inútil toda vez.
 
 ---
 
@@ -1300,36 +1144,6 @@ Revisar e padronizar toda a forma como o app grava arquivos no `Application Supp
 Isso reduz bagunça de persistência, evita inconsistência entre features e deixa a estrutura de arquivos do app muito mais fácil de manter e entender.
 
 ---
-
-## 63) Padronizar repositórios reais substituíveis na target de testes
-
-Valor: `V5 - Altíssimo`
-Risco de Desenvolvimento: `R4 - Alto`
-Risco da Feature: `R2 - Baixo`
-Score de Execução: `0.59`
-
-**Descrição**  
-Padronizar a forma como os testes unitários usam repositórios para que a suite pare de reimplementar cada contrato de forma isolada. Hoje, quando um contrato de repositório muda, vários testes quebram porque cada um mantém sua própria implementação paralela. A ideia é permitir que a target de testes substitua os repositórios reais por versões em memória ou de teste, mantendo o mesmo contrato e o mesmo comportamento principal de cadastro, leitura, delete e atualização, sem exigir mocks, spies ou reimplementações manuais em cada teste.
-
-**Dependências**  
-- `62) Padronizar o uso do Application Support por profile e feature`
-
-**Comportamento desejado**  
-- Usar os contratos reais dos repositórios nos testes sempre que possível.
-- Substituir a implementação de produção por uma versão de teste/memória na target de teste.
-- Permitir que operações reais de CRUD funcionem de ponta a ponta no ambiente de teste.
-- Evitar que mudanças de contrato quebrem dezenas de testes por duplicação de implementação.
-- Reduzir o custo de manutenção da suite de testes quando os repositórios evoluírem.
-
-**Notas técnicas**  
-- O ideal é ter uma camada de composição/registro que consiga trocar a implementação do repositório por target.
-- A versão de teste deve respeitar o mesmo contrato público da produção, para os testes continuarem representando o uso real.
-- Se houver repositórios de Firebase/Firestore, a implementação de teste pode ser em memória, mas precisa manter semântica de persistência suficiente para validar o fluxo.
-- Esse item deve cobrir também a infraestrutura necessária para cadastrar, atualizar e deletar dados dentro do ambiente de teste sem depender da nuvem.
-- Vale mapear quais repositórios hoje ainda são reimplementados manualmente para migrá-los para esse padrão unificado.
-
-**Por que isso entra no backlog**  
-Isso deixa a suite de testes muito mais estável e sustentável, reduz retrabalho em cascata e faz os testes usarem contratos mais próximos do comportamento real do app.
 
 ---
 
