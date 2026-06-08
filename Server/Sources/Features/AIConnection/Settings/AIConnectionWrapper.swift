@@ -12,15 +12,61 @@ final class AIConnectionSettingsWrapper {
 
     private enum Key {
         static let autoStart = "autoStart"
-        static let providerKind = "providerKind"
-        static let baseURL = "baseURL"
-        static let apiKey = "apiKey"
-        static let model = "model"
+        static let assistantProviderKind = "providerKind"
+        static let assistantBaseURL = "baseURL"
+        static let assistantAPIKey = "apiKey"
+        static let assistantModel = "model"
+        static let imageExtractionProviderKind = "imageExtractionProviderKind"
+        static let imageExtractionBaseURL = "imageExtractionBaseURL"
+        static let imageExtractionAPIKey = "imageExtractionAPIKey"
+        static let imageExtractionModel = "imageExtractionModel"
         static let temperature = "temperature"
         static let reasoningEffort = "reasoningEffort"
         static let maxOutputTokens = "maxOutputTokens"
         static let streamingEnabled = "streamingEnabled"
         static let cacheMode = "cacheMode"
+        static let imageExtractionCacheMode = "imageExtractionCacheMode"
+    }
+
+    private enum ProviderTarget {
+        case assistant
+        case imageExtraction
+
+        var providerKindKey: String {
+            switch self {
+            case .assistant:
+                Key.assistantProviderKind
+            case .imageExtraction:
+                Key.imageExtractionProviderKind
+            }
+        }
+
+        var baseURLKey: String {
+            switch self {
+            case .assistant:
+                Key.assistantBaseURL
+            case .imageExtraction:
+                Key.imageExtractionBaseURL
+            }
+        }
+
+        var apiKeyKey: String {
+            switch self {
+            case .assistant:
+                Key.assistantAPIKey
+            case .imageExtraction:
+                Key.imageExtractionAPIKey
+            }
+        }
+
+        var modelKey: String {
+            switch self {
+            case .assistant:
+                Key.assistantModel
+            case .imageExtraction:
+                Key.imageExtractionModel
+            }
+        }
     }
 
     var autoStart: Bool {
@@ -34,65 +80,73 @@ final class AIConnectionSettingsWrapper {
 
     var providerKind: AIConnectionProviderKind {
         get {
-            guard
-                let rawValue = settings.value(scope: Self.scopeName, key: Key.providerKind),
-                let providerKind = AIConnectionProviderKind(rawValue: rawValue)
-            else {
-                return .openRouter
-            }
-
-            return providerKind
+            providerKind(for: .assistant)
         }
         set {
-            let previousKind = providerKind
-            let existingBaseURL = settings.value(scope: Self.scopeName, key: Key.baseURL) ?? ""
-
-            settings.setValue(scope: Self.scopeName, key: Key.providerKind, value: newValue.rawValue)
-
-            let trimmedBaseURL = existingBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-            let shouldReplaceBaseURL = trimmedBaseURL.isEmpty || trimmedBaseURL == previousKind.defaultBaseURL
-            if shouldReplaceBaseURL {
-                settings.setValue(scope: Self.scopeName, key: Key.baseURL, value: newValue.defaultBaseURL)
-            }
+            setProviderKind(newValue, for: .assistant)
         }
     }
 
     var baseURL: String {
         get {
-            let value = settings.value(scope: Self.scopeName, key: Key.baseURL) ?? ""
-            let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
-            return trimmedValue.isEmpty ? providerKind.defaultBaseURL : trimmedValue
+            baseURL(for: .assistant)
         }
         set {
-            settings.setValue(
-                scope: Self.scopeName,
-                key: Key.baseURL,
-                value: newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-            )
+            setBaseURL(newValue, for: .assistant)
         }
     }
 
     var apiKey: String {
         get {
-            settings.value(scope: Self.scopeName, key: Key.apiKey) ?? ""
+            apiKey(for: .assistant)
         }
         set {
-            // TODO: Move API keys/secrets to Keychain before this feature is used outside local development.
-            // SettingsStore is profile-scoped app configuration, not a secure secret store.
-            settings.setValue(scope: Self.scopeName, key: Key.apiKey, value: newValue)
+            setAPIKey(newValue, for: .assistant)
         }
     }
 
     var model: String {
         get {
-            settings.value(scope: Self.scopeName, key: Key.model) ?? ""
+            model(for: .assistant)
         }
         set {
-            settings.setValue(
-                scope: Self.scopeName,
-                key: Key.model,
-                value: newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-            )
+            setModel(newValue, for: .assistant)
+        }
+    }
+
+    var imageExtractionProviderKind: AIConnectionProviderKind {
+        get {
+            providerKind(for: .imageExtraction)
+        }
+        set {
+            setProviderKind(newValue, for: .imageExtraction)
+        }
+    }
+
+    var imageExtractionBaseURL: String {
+        get {
+            baseURL(for: .imageExtraction)
+        }
+        set {
+            setBaseURL(newValue, for: .imageExtraction)
+        }
+    }
+
+    var imageExtractionAPIKey: String {
+        get {
+            apiKey(for: .imageExtraction)
+        }
+        set {
+            setAPIKey(newValue, for: .imageExtraction)
+        }
+    }
+
+    var imageExtractionModel: String {
+        get {
+            model(for: .imageExtraction)
+        }
+        set {
+            setModel(newValue, for: .imageExtraction)
         }
     }
 
@@ -155,21 +209,27 @@ final class AIConnectionSettingsWrapper {
 
     var cacheMode: AIConnectionCacheMode {
         get {
-            guard
-                let rawValue = settings.value(scope: Self.scopeName, key: Key.cacheMode),
-                let cacheMode = AIConnectionCacheMode(rawValue: rawValue)
-            else {
-                return .automatic
-            }
-
-            return cacheMode
+            cacheMode(for: Key.cacheMode, fallbackKey: nil)
         }
         set {
             settings.setValue(scope: Self.scopeName, key: Key.cacheMode, value: newValue.rawValue)
         }
     }
 
+    var imageExtractionCacheMode: AIConnectionCacheMode {
+        get {
+            cacheMode(for: Key.imageExtractionCacheMode, fallbackKey: Key.cacheMode)
+        }
+        set {
+            settings.setValue(scope: Self.scopeName, key: Key.imageExtractionCacheMode, value: newValue.rawValue)
+        }
+    }
+
     var providerConfiguration: AIConnectionProviderConfiguration {
+        assistantProviderConfiguration
+    }
+
+    var assistantProviderConfiguration: AIConnectionProviderConfiguration {
         AIConnectionProviderConfiguration(
             providerKind: providerKind,
             baseURL: baseURL,
@@ -181,6 +241,121 @@ final class AIConnectionSettingsWrapper {
             streamingEnabled: streamingEnabled,
             cacheMode: cacheMode
         )
+    }
+
+    var imageExtractionProviderConfiguration: AIConnectionProviderConfiguration {
+        AIConnectionProviderConfiguration(
+            providerKind: imageExtractionProviderKind,
+            baseURL: imageExtractionBaseURL,
+            apiKey: imageExtractionAPIKey,
+            model: imageExtractionModel,
+            temperature: 0.0,
+            reasoningEffort: .off,
+            maxOutputTokens: 4096,
+            streamingEnabled: true,
+            cacheMode: imageExtractionCacheMode
+        )
+    }
+
+    private func providerKind(for target: ProviderTarget) -> AIConnectionProviderKind {
+        if let rawValue = settings.value(scope: Self.scopeName, key: target.providerKindKey),
+           let providerKind = AIConnectionProviderKind(rawValue: rawValue) {
+            return providerKind
+        }
+
+        if case .imageExtraction = target {
+            return providerKind(for: .assistant)
+        }
+
+        return .openRouter
+    }
+
+    private func setProviderKind(_ newValue: AIConnectionProviderKind, for target: ProviderTarget) {
+        let previousKind = providerKind(for: target)
+        let existingBaseURL = settings.value(scope: Self.scopeName, key: target.baseURLKey) ?? ""
+
+        settings.setValue(scope: Self.scopeName, key: target.providerKindKey, value: newValue.rawValue)
+
+        let trimmedBaseURL = existingBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let shouldReplaceBaseURL = trimmedBaseURL.isEmpty || trimmedBaseURL == previousKind.defaultBaseURL
+        if shouldReplaceBaseURL {
+            settings.setValue(scope: Self.scopeName, key: target.baseURLKey, value: newValue.defaultBaseURL)
+        }
+    }
+
+    private func baseURL(for target: ProviderTarget) -> String {
+        let value = stringValue(for: target, key: target.baseURLKey)
+        let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedValue.isEmpty ? providerKind(for: target).defaultBaseURL : trimmedValue
+    }
+
+    private func setBaseURL(_ value: String, for target: ProviderTarget) {
+        settings.setValue(
+            scope: Self.scopeName,
+            key: target.baseURLKey,
+            value: value.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+    }
+
+    private func apiKey(for target: ProviderTarget) -> String {
+        stringValue(for: target, key: target.apiKeyKey)
+    }
+
+    private func setAPIKey(_ value: String, for target: ProviderTarget) {
+        // TODO: Move API keys/secrets to Keychain before this feature is used outside local development.
+        // SettingsStore is profile-scoped app configuration, not a secure secret store.
+        settings.setValue(scope: Self.scopeName, key: target.apiKeyKey, value: value)
+    }
+
+    private func model(for target: ProviderTarget) -> String {
+        stringValue(for: target, key: target.modelKey).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func setModel(_ value: String, for target: ProviderTarget) {
+        settings.setValue(
+            scope: Self.scopeName,
+            key: target.modelKey,
+            value: value.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+    }
+
+    private func stringValue(for target: ProviderTarget, key: String) -> String {
+        if let value = settings.value(scope: Self.scopeName, key: key) {
+            return value
+        }
+
+        switch target {
+        case .assistant:
+            return ""
+        case .imageExtraction:
+            break
+        }
+
+        switch key {
+        case ProviderTarget.imageExtraction.baseURLKey:
+            return settings.value(scope: Self.scopeName, key: ProviderTarget.assistant.baseURLKey) ?? ""
+        case ProviderTarget.imageExtraction.apiKeyKey:
+            return settings.value(scope: Self.scopeName, key: ProviderTarget.assistant.apiKeyKey) ?? ""
+        case ProviderTarget.imageExtraction.modelKey:
+            return settings.value(scope: Self.scopeName, key: ProviderTarget.assistant.modelKey) ?? ""
+        default:
+            return ""
+        }
+    }
+
+    private func cacheMode(for key: String, fallbackKey: String?) -> AIConnectionCacheMode {
+        if let rawValue = settings.value(scope: Self.scopeName, key: key),
+           let cacheMode = AIConnectionCacheMode(rawValue: rawValue) {
+            return cacheMode
+        }
+
+        if let fallbackKey,
+           let rawValue = settings.value(scope: Self.scopeName, key: fallbackKey),
+           let cacheMode = AIConnectionCacheMode(rawValue: rawValue) {
+            return cacheMode
+        }
+
+        return .automatic
     }
 
     private func boolValue(for key: String, default defaultValue: Bool) -> Bool {

@@ -7,6 +7,7 @@ struct OpenAICompatibleChatCompletionsRequest: Encodable {
     let temperature: Double
     let reasoning: OpenAICompatibleReasoningPayload?
     let extraBody: OpenAICompatibleExtraBody?
+    let cacheEnabled: Bool
     let maxTokens: Int?
     let stream: Bool
     let streamOptions: OpenAICompatibleStreamOptions?
@@ -18,6 +19,7 @@ struct OpenAICompatibleChatCompletionsRequest: Encodable {
         case temperature
         case reasoning
         case extraBody = "extra_body"
+        case cacheEnabled = "cache_enabled"
         case maxTokens = "max_tokens"
         case stream
         case streamOptions = "stream_options"
@@ -30,6 +32,7 @@ struct OpenAICompatibleChatCompletionsRequest: Encodable {
         self.temperature = request.temperature
         self.reasoning = request.reasoningEffort.reasoningPayload
         self.extraBody = request.reasoningEffort.extraBody
+        self.cacheEnabled = request.cacheMode.cacheEnabled
         self.maxTokens = request.maxOutputTokens
         self.stream = true
         self.streamOptions = OpenAICompatibleStreamOptions(includeUsage: true)
@@ -46,6 +49,7 @@ struct OpenAICompatibleStreamOptions: Encodable {
 
 enum OpenAICompatibleReasoningPayload: Encodable {
     case off
+    case enabled
     case effort(String)
 
     func encode(to encoder: Encoder) throws {
@@ -53,6 +57,9 @@ enum OpenAICompatibleReasoningPayload: Encodable {
         case .off:
             var container = encoder.singleValueContainer()
             try container.encode("off")
+        case .enabled:
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(true, forKey: .enabled)
         case let .effort(effort):
             var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode(effort, forKey: .effort)
@@ -60,6 +67,7 @@ enum OpenAICompatibleReasoningPayload: Encodable {
     }
 
     private enum CodingKeys: String, CodingKey {
+        case enabled
         case effort
     }
 }

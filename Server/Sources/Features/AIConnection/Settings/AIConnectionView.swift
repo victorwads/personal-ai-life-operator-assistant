@@ -4,28 +4,31 @@ struct AIConnectionSettingsView: View {
     let wrapper: AIConnectionSettingsWrapper
 
     @State private var autoStart = false
-    @State private var providerKind = AIConnectionProviderKind.openRouter
-    @State private var baseURL = ""
-    @State private var apiKey = ""
-    @State private var model = ""
+    @State private var assistantProviderKind = AIConnectionProviderKind.openRouter
+    @State private var assistantBaseURL = ""
+    @State private var assistantAPIKey = ""
+    @State private var assistantModel = ""
     @State private var temperature = 0.6
     @State private var reasoningEffort = AIConnectionReasoningEffort.off
     @State private var maxOutputTokens = ""
-    @State private var cacheMode = AIConnectionCacheMode.automatic
+    @State private var assistantCacheMode = AIConnectionCacheMode.automatic
+    @State private var imageProviderKind = AIConnectionProviderKind.openRouter
+    @State private var imageBaseURL = ""
+    @State private var imageAPIKey = ""
+    @State private var imageModel = ""
+    @State private var imageCacheMode = AIConnectionCacheMode.automatic
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Toggle("Auto Start AI Connection", isOn: autoStartBinding)
-            Picker("Provider", selection: providerKindBinding) {
-                ForEach(AIConnectionProviderKind.allCases, id: \.self) { provider in
-                    Text(provider.displayName).tag(provider)
-                }
-            }
-            TextField("Base URL", text: baseURLBinding)
-                .autocorrectionDisabled()
-            SecureField("API Key", text: apiKeyBinding)
-            TextField("Model", text: modelBinding)
-                .autocorrectionDisabled()
+            providerSection(
+                title: "Assistant Provider",
+                providerKind: assistantProviderKindBinding,
+                baseURL: assistantBaseURLBinding,
+                apiKey: assistantAPIKeyBinding,
+                model: assistantModelBinding,
+                cacheMode: assistantCacheModeBinding
+            )
             Stepper(
                 "Temperature: \(temperature, specifier: "%.1f")",
                 value: temperatureBinding,
@@ -39,11 +42,14 @@ struct AIConnectionSettingsView: View {
             }
             TextField("Max Output Tokens (optional)", text: maxOutputTokensBinding)
                 .autocorrectionDisabled()
-            Picker("Cache Mode", selection: cacheModeBinding) {
-                ForEach(AIConnectionCacheMode.allCases, id: \.self) { mode in
-                    Text(mode.displayName).tag(mode)
-                }
-            }
+            providerSection(
+                title: "Image Extraction Provider",
+                providerKind: imageProviderKindBinding,
+                baseURL: imageBaseURLBinding,
+                apiKey: imageAPIKeyBinding,
+                model: imageModelBinding,
+                cacheMode: imageCacheModeBinding
+            )
 
             Text("Streaming is always used. Cache behavior depends on the selected provider.")
                 .foregroundStyle(.secondary)
@@ -62,39 +68,39 @@ struct AIConnectionSettingsView: View {
         }
     }
 
-    private var providerKindBinding: Binding<AIConnectionProviderKind> {
+    private var assistantProviderKindBinding: Binding<AIConnectionProviderKind> {
         Binding {
-            providerKind
+            assistantProviderKind
         } set: { value in
-            providerKind = value
+            assistantProviderKind = value
             wrapper.providerKind = value
-            baseURL = wrapper.baseURL
+            assistantBaseURL = wrapper.baseURL
         }
     }
 
-    private var baseURLBinding: Binding<String> {
+    private var assistantBaseURLBinding: Binding<String> {
         Binding {
-            baseURL
+            assistantBaseURL
         } set: { value in
-            baseURL = value
+            assistantBaseURL = value
             wrapper.baseURL = value
         }
     }
 
-    private var apiKeyBinding: Binding<String> {
+    private var assistantAPIKeyBinding: Binding<String> {
         Binding {
-            apiKey
+            assistantAPIKey
         } set: { value in
-            apiKey = value
+            assistantAPIKey = value
             wrapper.apiKey = value
         }
     }
 
-    private var modelBinding: Binding<String> {
+    private var assistantModelBinding: Binding<String> {
         Binding {
-            model
+            assistantModel
         } set: { value in
-            model = value
+            assistantModel = value
             wrapper.model = value
         }
     }
@@ -128,24 +134,106 @@ struct AIConnectionSettingsView: View {
         }
     }
 
-    private var cacheModeBinding: Binding<AIConnectionCacheMode> {
+    private var assistantCacheModeBinding: Binding<AIConnectionCacheMode> {
         Binding {
-            cacheMode
+            assistantCacheMode
         } set: { value in
-            cacheMode = value
+            assistantCacheMode = value
             wrapper.cacheMode = value
+        }
+    }
+
+    private var imageProviderKindBinding: Binding<AIConnectionProviderKind> {
+        Binding {
+            imageProviderKind
+        } set: { value in
+            imageProviderKind = value
+            wrapper.imageExtractionProviderKind = value
+            imageBaseURL = wrapper.imageExtractionBaseURL
+        }
+    }
+
+    private var imageBaseURLBinding: Binding<String> {
+        Binding {
+            imageBaseURL
+        } set: { value in
+            imageBaseURL = value
+            wrapper.imageExtractionBaseURL = value
+        }
+    }
+
+    private var imageAPIKeyBinding: Binding<String> {
+        Binding {
+            imageAPIKey
+        } set: { value in
+            imageAPIKey = value
+            wrapper.imageExtractionAPIKey = value
+        }
+    }
+
+    private var imageModelBinding: Binding<String> {
+        Binding {
+            imageModel
+        } set: { value in
+            imageModel = value
+            wrapper.imageExtractionModel = value
+        }
+    }
+
+    private var imageCacheModeBinding: Binding<AIConnectionCacheMode> {
+        Binding {
+            imageCacheMode
+        } set: { value in
+            imageCacheMode = value
+            wrapper.imageExtractionCacheMode = value
         }
     }
 
     private func load() {
         autoStart = wrapper.autoStart
-        providerKind = wrapper.providerKind
-        baseURL = wrapper.baseURL
-        apiKey = wrapper.apiKey
-        model = wrapper.model
+        assistantProviderKind = wrapper.providerKind
+        assistantBaseURL = wrapper.baseURL
+        assistantAPIKey = wrapper.apiKey
+        assistantModel = wrapper.model
         temperature = wrapper.temperature
         reasoningEffort = wrapper.reasoningEffort
         maxOutputTokens = wrapper.maxOutputTokens.map(String.init) ?? ""
-        cacheMode = wrapper.cacheMode
+        assistantCacheMode = wrapper.cacheMode
+        imageProviderKind = wrapper.imageExtractionProviderKind
+        imageBaseURL = wrapper.imageExtractionBaseURL
+        imageAPIKey = wrapper.imageExtractionAPIKey
+        imageModel = wrapper.imageExtractionModel
+        imageCacheMode = wrapper.imageExtractionCacheMode
+    }
+
+    @ViewBuilder
+    private func providerSection(
+        title: String,
+        providerKind: Binding<AIConnectionProviderKind>,
+        baseURL: Binding<String>,
+        apiKey: Binding<String>,
+        model: Binding<String>,
+        cacheMode: Binding<AIConnectionCacheMode>
+    ) -> some View {
+        GroupBox(title) {
+            VStack(alignment: .leading, spacing: 12) {
+                Picker("Provider", selection: providerKind) {
+                    ForEach(AIConnectionProviderKind.allCases, id: \.self) { provider in
+                        Text(provider.displayName).tag(provider)
+                    }
+                }
+                TextField("Base URL", text: baseURL)
+                    .autocorrectionDisabled()
+                SecureField("API Key", text: apiKey)
+                TextField("Model", text: model)
+                    .autocorrectionDisabled()
+                Picker("Cache Mode", selection: cacheMode) {
+                    ForEach(AIConnectionCacheMode.allCases, id: \.self) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }

@@ -78,7 +78,7 @@ final class AIConnectionFeature: FeatureRuntime {
             streamingService: streamingService,
             settingsProvider: {
                 await MainActor.run {
-                    settings.providerConfiguration
+                    settings.imageExtractionProviderConfiguration
                 }
             },
             promptProvider: {
@@ -103,7 +103,7 @@ final class AIConnectionFeature: FeatureRuntime {
                 )
             },
             providerConfigurationProvider: {
-                settings.providerConfiguration
+                settings.assistantProviderConfiguration
             },
             runtimeLogger: runtimeLogger,
             errorLogStore: errorLogStore,

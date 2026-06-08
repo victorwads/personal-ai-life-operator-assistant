@@ -2,6 +2,7 @@ import Foundation
 
 enum AIConnectionReasoningEffort: String, Codable, CaseIterable, Sendable {
     case off
+    case enabled
     case none
     case low
     case medium
@@ -13,6 +14,8 @@ enum AIConnectionReasoningEffort: String, Codable, CaseIterable, Sendable {
         switch self {
         case .off:
             return .off
+        case .enabled:
+            return .enabled
         case .none, .low, .medium, .high, .xhigh:
             return .effort(rawValue)
         case .qwenOff:
@@ -26,7 +29,7 @@ enum AIConnectionReasoningEffort: String, Codable, CaseIterable, Sendable {
             return OpenAICompatibleExtraBody(
                 chatTemplateKwargs: OpenAICompatibleChatTemplateKwargs(enableThinking: false)
             )
-        case .off, .none, .low, .medium, .high, .xhigh:
+        case .off, .enabled, .none, .low, .medium, .high, .xhigh:
             return nil
         }
     }
@@ -35,6 +38,8 @@ enum AIConnectionReasoningEffort: String, Codable, CaseIterable, Sendable {
         switch self {
         case .off:
             return "Off"
+        case .enabled:
+            return "Enabled"
         case .none:
             return "None"
         case .low:

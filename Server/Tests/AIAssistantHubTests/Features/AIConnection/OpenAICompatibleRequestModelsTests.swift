@@ -143,6 +143,7 @@ final class OpenAICompatibleRequestModelsTests: XCTestCase {
 
         XCTAssertEqual(jsonObject["reasoning"] as? String, "off")
         XCTAssertNil(jsonObject["extra_body"])
+        XCTAssertEqual(jsonObject["cache_enabled"] as? Bool, true)
     }
 
     func testRequestEncodesStreamUsageOptions() throws {
@@ -179,6 +180,24 @@ final class OpenAICompatibleRequestModelsTests: XCTestCase {
         XCTAssertNil(jsonObject["extra_body"])
     }
 
+    func testReasoningEnabledSerializesInsideEnabledObject() throws {
+        let request = OpenAICompatibleChatCompletionsRequest(
+            request: AIProviderRequest(
+                model: "model-1",
+                messages: [
+                    AIConversationMessage(role: .user, content: "hello")
+                ],
+                reasoningEffort: .enabled
+            )
+        )
+
+        let jsonObject = try encodedJSONObject(for: request)
+        let reasoning = try XCTUnwrap(jsonObject["reasoning"] as? [String: Any])
+
+        XCTAssertEqual(reasoning["enabled"] as? Bool, true)
+        XCTAssertNil(jsonObject["extra_body"])
+    }
+
     func testQwenOffSerializesExtraBodyWithoutReasoningField() throws {
         let request = OpenAICompatibleChatCompletionsRequest(
             request: AIProviderRequest(
@@ -196,6 +215,22 @@ final class OpenAICompatibleRequestModelsTests: XCTestCase {
 
         XCTAssertEqual(chatTemplateKwargs["enable_thinking"] as? Bool, false)
         XCTAssertNil(jsonObject["reasoning"])
+    }
+
+    func testDisabledCacheSerializesCacheEnabledFalse() throws {
+        let request = OpenAICompatibleChatCompletionsRequest(
+            request: AIProviderRequest(
+                model: "model-1",
+                messages: [
+                    AIConversationMessage(role: .user, content: "hello")
+                ],
+                cacheMode: .disabled
+            )
+        )
+
+        let jsonObject = try encodedJSONObject(for: request)
+
+        XCTAssertEqual(jsonObject["cache_enabled"] as? Bool, false)
     }
 
     private func encodedJSONObject(for request: OpenAICompatibleChatCompletionsRequest) throws -> [String: Any] {
