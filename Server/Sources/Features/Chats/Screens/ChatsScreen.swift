@@ -6,6 +6,7 @@ struct ChatsScreen: View {
     @State private var chats: [Chat] = []
     @State private var selectedChatId: String?
     @State private var messagesByChatId: [String: [ChatMessage]] = [:]
+    @State private var messagesListener: FirestoreListenerToken?
     @State private var isLoadingChats = false
     @State private var loadingMessagesChatId: String?
     @State private var isDeletingAllChats = false
@@ -20,7 +21,7 @@ struct ChatsScreen: View {
                 selectedChatId: $selectedChatId,
                 isLoading: isLoadingChats || isDeletingAllChats,
                 errorMessage: errorMessage,
-                onRefresh: loadChats,
+                onRefresh: requestLoadChats,
                 onDeleteAll: beginDeleteAllChatsAndMessages
             )
             .frame(minWidth: 280, idealWidth: 340, maxWidth: 420)
@@ -30,10 +31,14 @@ struct ChatsScreen: View {
                 messages: selectedMessages,
                 isLoading: isLoadingMessages || isDeletingSelectedChat,
                 errorMessage: errorMessage,
-                onRefresh: refreshSelection,
                 onDeleteMessages: beginDeleteSelectedChatMessages,
                 onDeleteChat: beginDeleteSelectedChatAndMessages,
-                onPermissionChange: beginSetSelectedChatPermission
+                onPermissionChange: beginSetSelectedChatPermission,
+                onToggleMessageHandled: beginToggleMessageHandled,
+                onMarkMessageAndOlderHandled: beginMarkMessageAndOlderHandled,
+                onMarkMessageAndNewerUnhandled: beginMarkMessageAndNewerUnhandled,
+                onMarkSelectedMessagesHandled: beginMarkSelectedMessagesHandled,
+                onMarkAllHandled: beginMarkAllSelectedChatMessagesHandled
             )
             .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -42,8 +47,7 @@ struct ChatsScreen: View {
             await loadChats()
         }
         .task(id: selectedChatId) {
-            guard let selectedChatId, messagesByChatId[selectedChatId] == nil else { return }
-            await loadMessages(chatId: selectedChatId)
+            await refreshSelectedChatMessagesListener()
         }
     }
 
@@ -67,15 +71,7 @@ struct ChatsScreen: View {
         return deletingChatId == selectedChatId
     }
 
-    private func refreshSelection() {
-        if let selectedChatId {
-            Task { await loadMessages(chatId: selectedChatId, force: true) }
-        } else {
-            Task { await loadChats() }
-        }
-    }
-
-    private func loadChats() {
+    private func requestLoadChats() {
         Task { await loadChats() }
     }
 
@@ -95,6 +91,7 @@ struct ChatsScreen: View {
         Task { await setSelectedChatPermission(permission) }
     }
 
+    @MainActor
     private func loadChats(autoSelect: Bool = true) async {
         isLoadingChats = true
         errorMessage = nil
@@ -121,6 +118,7 @@ struct ChatsScreen: View {
         }
     }
 
+    @MainActor
     private func deleteAllChatsAndMessages() async {
         isDeletingAllChats = true
         errorMessage = nil
@@ -130,6 +128,8 @@ struct ChatsScreen: View {
             try await feature.repository.deleteAllChatsAndMessages()
             selectedChatId = nil
             messagesByChatId = [:]
+            messagesListener?.cancel()
+            messagesListener = nil
             chats = []
             await loadChats(autoSelect: false)
         } catch {
@@ -139,6 +139,7 @@ struct ChatsScreen: View {
         }
     }
 
+    @MainActor
     private func deleteSelectedChatAndMessages() async {
         guard let chatId = selectedChatId else {
             return
@@ -156,6 +157,8 @@ struct ChatsScreen: View {
             try await feature.repository.deleteChatAndMessages(chatId: chatId)
             selectedChatId = nil
             messagesByChatId[chatId] = nil
+            messagesListener?.cancel()
+            messagesListener = nil
             await loadChats(autoSelect: false)
         } catch {
             let message = "Failed to delete chat \(chatId) and messages: \(error.localizedDescription)"
@@ -164,6 +167,7 @@ struct ChatsScreen: View {
         }
     }
 
+    @MainActor
     private func deleteSelectedChatMessages() async {
         guard let chatId = selectedChatId else {
             return
@@ -198,6 +202,7 @@ struct ChatsScreen: View {
         }
     }
 
+    @MainActor
     private func loadMessages(chatId: String, force: Bool = false) async {
         if !force, messagesByChatId[chatId] != nil {
             return
@@ -219,6 +224,7 @@ struct ChatsScreen: View {
         }
     }
 
+    @MainActor
     private func setSelectedChatPermission(_ permission: ChatPermission?) async {
         guard let chatId = selectedChatId else { return }
         guard let chatIndex = chats.firstIndex(where: { $0.id == chatId }) else { return }
@@ -235,6 +241,123 @@ struct ChatsScreen: View {
             chats[chatIndex] = updatedChat
         } catch {
             errorMessage = "Failed to update chat permission: \(error.localizedDescription)"
+        }
+    }
+
+    private func beginToggleMessageHandled(_ message: ChatMessage) {
+        Task { await toggleMessageHandled(message) }
+    }
+
+    private func beginMarkMessageAndOlderHandled(_ message: ChatMessage) {
+        Task { await markMessageAndOlderHandled(message) }
+    }
+
+    private func beginMarkMessageAndNewerUnhandled(_ message: ChatMessage) {
+        Task { await markMessageAndNewerUnhandled(message) }
+    }
+
+    private func beginMarkSelectedMessagesHandled(ids: [String], handled: Bool) {
+        Task { await setSelectedMessagesHandled(ids: ids, handled: handled) }
+    }
+
+    private func beginMarkAllSelectedChatMessagesHandled() {
+        Task { await markAllSelectedChatMessagesHandled() }
+    }
+
+    @MainActor
+    private func refreshSelectedChatMessagesListener() async {
+        messagesListener?.cancel()
+        messagesListener = nil
+
+        guard let chatId = selectedChatId else {
+            return
+        }
+
+        messagesListener = feature.repository.observeMessages(chatId: chatId) {
+            Task { @MainActor in
+                await self.loadMessages(chatId: chatId, force: true)
+            }
+        }
+
+        await loadMessages(chatId: chatId, force: true)
+    }
+
+    @MainActor
+    private func toggleMessageHandled(_ message: ChatMessage) async {
+        guard let chatId = selectedChatId, let messageId = message.id, !messageId.isEmpty else { return }
+
+        do {
+            try await feature.repository.setMessageHandled(
+                chatId: chatId,
+                messageId: messageId,
+                handled: !message.handled
+            )
+            await loadMessages(chatId: chatId, force: true)
+            await loadChats(autoSelect: false)
+        } catch {
+            errorMessage = "Failed to update message handled state: \(error.localizedDescription)"
+        }
+    }
+
+    @MainActor
+    private func markMessageAndOlderHandled(_ message: ChatMessage) async {
+        guard let chatId = selectedChatId, let messageId = message.id, !messageId.isEmpty else { return }
+
+        do {
+            _ = try await feature.repository.markMessagesHandledThrough(
+                chatId: chatId,
+                lastChatMessageId: messageId
+            )
+            await loadMessages(chatId: chatId, force: true)
+            await loadChats(autoSelect: false)
+        } catch {
+            errorMessage = "Failed to mark this message and older messages as handled: \(error.localizedDescription)"
+        }
+    }
+
+    @MainActor
+    private func markMessageAndNewerUnhandled(_ message: ChatMessage) async {
+        guard let chatId = selectedChatId, let messageId = message.id, !messageId.isEmpty else { return }
+
+        do {
+            _ = try await feature.repository.markMessagesUnhandledFrom(
+                chatId: chatId,
+                firstChatMessageId: messageId
+            )
+            await loadMessages(chatId: chatId, force: true)
+            await loadChats(autoSelect: false)
+        } catch {
+            errorMessage = "Failed to mark this message and newer messages as unhandled: \(error.localizedDescription)"
+        }
+    }
+
+    @MainActor
+    private func setSelectedMessagesHandled(ids: [String], handled: Bool) async {
+        guard let chatId = selectedChatId else { return }
+
+        do {
+            _ = try await feature.repository.setMessagesHandled(
+                chatId: chatId,
+                messageIds: ids,
+                handled: handled
+            )
+            await loadMessages(chatId: chatId, force: true)
+            await loadChats(autoSelect: false)
+        } catch {
+            errorMessage = "Failed to update selected messages: \(error.localizedDescription)"
+        }
+    }
+
+    @MainActor
+    private func markAllSelectedChatMessagesHandled() async {
+        guard let chatId = selectedChatId else { return }
+
+        do {
+            _ = try await feature.repository.markAllMessagesHandled(chatId: chatId)
+            await loadMessages(chatId: chatId, force: true)
+            await loadChats(autoSelect: false)
+        } catch {
+            errorMessage = "Failed to mark all chat messages as handled: \(error.localizedDescription)"
         }
     }
 

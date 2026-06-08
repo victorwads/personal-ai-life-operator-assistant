@@ -3,6 +3,12 @@ import AppKit
 
 struct ChatMessageBubbleView: View {
     let message: ChatMessage
+    let isSelected: Bool
+    let isSelectionModeEnabled: Bool
+    let onToggleHandled: (ChatMessage) -> Void
+    let onMarkThisAndOlderHandled: (ChatMessage) -> Void
+    let onMarkThisAndNewerUnhandled: (ChatMessage) -> Void
+    let onSelectionChange: (ChatMessage, Bool) -> Void
 
     var body: some View {
         DSMessageBubbleRow(
@@ -25,15 +31,15 @@ struct ChatMessageBubbleView: View {
             }
         } footer: {
             HStack(spacing: 6) {
+                if isSelectionModeEnabled {
+                    selectionCheckbox
+                }
+
                 messageRoleBadge
 
                 kindBadge
 
-                if message.handled {
-                    DSBadge("Handled", systemImage: "checkmark.circle", style: .success)
-                } else {
-                    DSBadge("Unhandled", systemImage: "clock.badge.exclamationmark", style: .warning)
-                }
+                handledBadge
 
                 Spacer(minLength: 8)
 
@@ -43,6 +49,29 @@ struct ChatMessageBubbleView: View {
                         DebugObjectItem(title: "Message", value: message)
                     ]
                 )
+            }
+        }
+        .contextMenu {
+            Button("Mark this as handled") {
+                if !message.handled {
+                    onToggleHandled(message)
+                }
+            }
+            .disabled(message.handled)
+
+            Button("Mark this as unhandled") {
+                if message.handled {
+                    onToggleHandled(message)
+                }
+            }
+            .disabled(!message.handled)
+
+            Button("Mark this and older as handled") {
+                onMarkThisAndOlderHandled(message)
+            }
+
+            Button("Mark this and newer as unhandled") {
+                onMarkThisAndNewerUnhandled(message)
             }
         }
     }
@@ -56,6 +85,33 @@ struct ChatMessageBubbleView: View {
         case .client:
             return DSBadge("Client", systemImage: "person", style: .neutral)
         }
+    }
+
+    private var handledBadge: some View {
+        Button {
+            onToggleHandled(message)
+        } label: {
+            if message.handled {
+                DSBadge("Handled", systemImage: "checkmark.circle", style: .success)
+            } else {
+                DSBadge("Unhandled", systemImage: "clock.badge.exclamationmark", style: .warning)
+            }
+        }
+        .buttonStyle(.plain)
+        .help(message.handled ? "Mark this message as unhandled" : "Mark this message as handled")
+    }
+
+    private var selectionCheckbox: some View {
+        Button {
+            onSelectionChange(message, !isSelected)
+        } label: {
+            Image(systemName: isSelected ? "checkmark.square.fill" : "square")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                .frame(width: 18, height: 18)
+        }
+        .buttonStyle(.plain)
+        .help(isSelected ? "Deselect this message" : "Select this message")
     }
 
     @ViewBuilder

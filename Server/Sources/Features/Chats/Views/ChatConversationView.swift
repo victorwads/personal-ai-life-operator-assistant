@@ -5,13 +5,19 @@ struct ChatConversationView: View {
     let messages: [ChatMessage]
     let isLoading: Bool
     let errorMessage: String?
-    let onRefresh: () -> Void
     let onDeleteMessages: () -> Void
     let onDeleteChat: () -> Void
     let onPermissionChange: (ChatPermission?) -> Void
+    let onToggleMessageHandled: (ChatMessage) -> Void
+    let onMarkMessageAndOlderHandled: (ChatMessage) -> Void
+    let onMarkMessageAndNewerUnhandled: (ChatMessage) -> Void
+    let onMarkSelectedMessagesHandled: ([String], Bool) -> Void
+    let onMarkAllHandled: () -> Void
 
     @State private var isConfirmingDeleteMessages = false
     @State private var isConfirmingDeleteChat = false
+    @State private var isSelectionModeEnabled = false
+    @State private var selectedMessageIds: Set<String> = []
 
     var body: some View {
         VStack(spacing: 0) {
@@ -20,7 +26,35 @@ struct ChatConversationView: View {
                 subtitle: chatSubtitle,
                 systemImage: "text.bubble"
             ) {
-                DSRefreshButton(isLoading: isLoading, action: onRefresh)
+                Button {
+                    onMarkAllHandled()
+                    exitSelectionMode()
+                } label: {
+                    Label("Mark all handled", systemImage: "checkmark.circle")
+                }
+                .disabled(isLoading || chat == nil)
+
+                if isSelectionModeEnabled {
+                    Button("Cancel Selection") {
+                        exitSelectionMode()
+                    }
+                    .disabled(isLoading)
+
+                    Button("Mark Selected Handled") {
+                        beginMarkSelectedMessagesHandled(handled: true)
+                    }
+                    .disabled(isLoading || selectedMessageIds.isEmpty)
+
+                    Button("Mark Selected Unhandled") {
+                        beginMarkSelectedMessagesHandled(handled: false)
+                    }
+                    .disabled(isLoading || selectedMessageIds.isEmpty)
+                } else {
+                    Button("Select") {
+                        isSelectionModeEnabled = true
+                    }
+                    .disabled(isLoading || chat == nil || messages.isEmpty)
+                }
 
                 Button(role: .destructive) {
                     isConfirmingDeleteMessages = true
@@ -84,6 +118,7 @@ struct ChatConversationView: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
+
                     Divider()
                 }
 
@@ -92,9 +127,7 @@ struct ChatConversationView: View {
                         EmptyStateView(
                             title: "Unable to load messages",
                             message: errorMessage,
-                            systemImage: "exclamationmark.triangle",
-                            actionTitle: "Retry",
-                            action: onRefresh
+                            systemImage: "exclamationmark.triangle"
                         )
                     } else if chat == nil {
                         EmptyStateView(
@@ -115,7 +148,15 @@ struct ChatConversationView: View {
                         ScrollView {
                             LazyVStack(alignment: .leading, spacing: 10) {
                                 ForEach(Array(messages.enumerated()), id: \.offset) { _, message in
-                                    ChatMessageBubbleView(message: message)
+                                    ChatMessageBubbleView(
+                                        message: message,
+                                        isSelected: selectedMessageIds.contains(message.id ?? ""),
+                                        isSelectionModeEnabled: isSelectionModeEnabled,
+                                        onToggleHandled: onToggleMessageHandled,
+                                        onMarkThisAndOlderHandled: onMarkMessageAndOlderHandled,
+                                        onMarkThisAndNewerUnhandled: onMarkMessageAndNewerUnhandled,
+                                        onSelectionChange: updateSelection(for:isSelected:)
+                                    )
                                 }
                             }
                             .padding(16)
@@ -125,6 +166,12 @@ struct ChatConversationView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        .onChange(of: chat?.id) { _, _ in
+            exitSelectionMode()
+        }
+        .onChange(of: messages) { _, _ in
+            pruneSelectionToVisibleMessages()
+        }
     }
 
     private var chatSubtitle: String {
@@ -132,5 +179,34 @@ struct ChatConversationView: View {
             return "Persisted history for \(chat.title)."
         }
         return "Persisted message history."
+    }
+
+    private func updateSelection(for message: ChatMessage, isSelected: Bool) {
+        guard let messageId = message.id, !messageId.isEmpty else {
+            return
+        }
+
+        if isSelected {
+            selectedMessageIds.insert(messageId)
+        } else {
+            selectedMessageIds.remove(messageId)
+        }
+    }
+
+    private func beginMarkSelectedMessagesHandled(handled: Bool) {
+        let ids = Array(selectedMessageIds)
+        guard !ids.isEmpty else { return }
+        onMarkSelectedMessagesHandled(ids, handled)
+        exitSelectionMode()
+    }
+
+    private func exitSelectionMode() {
+        isSelectionModeEnabled = false
+        selectedMessageIds = []
+    }
+
+    private func pruneSelectionToVisibleMessages() {
+        let visibleMessageIds = Set(messages.compactMap(\.id))
+        selectedMessageIds = selectedMessageIds.intersection(visibleMessageIds)
     }
 }

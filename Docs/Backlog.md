@@ -126,38 +126,6 @@ Isso devolve controle fino ao usuário e evita perder regras importantes do chat
 
 ---
 
-## 4) Ações de `handled` por mensagem e em lote no chat - doing
-
-Valor: `V4 - Alto`
-Risco de Desenvolvimento: `R3 - Médio`
-Risco da Feature: `R2 - Baixo`
-Score de Execução: `0.57`
-
-**Descrição**  
-Adicionar ações operacionais por mensagem dentro da conversa para marcar `handled` e `unhandled` de forma explícita. Hoje a UI já exibe um badge de `Handled`/`Unhandled`, então ele pode virar o ponto de interação principal: clicar no badge alterna o estado daquela mensagem. Além disso, a conversa precisa oferecer um atalho no header para marcar todo o chat como handled, e também uma ação em lote para marcar mensagens mais antigas ou mais novas a partir de uma mensagem escolhida.
-
-**Dependências**  
-- `Nenhuma`
-
-**Comportamento desejado**  
-- Permitir alternar o estado de uma mensagem ao clicar no badge de `Handled`/`Unhandled`.
-- Adicionar no header da conversa uma ação do tipo `Mark all handled`.
-- Permitir marcar uma mensagem específica e todas as anteriores como handled.
-- Permitir marcar uma mensagem específica e todas as posteriores como unhandled.
-- Oferecer seleção em lote com checkbox visível nas linhas para aplicar ações em massa.
-
-**Notas técnicas**  
-- A regra de `handled` continua sendo por mensagem, não por chat inteiro, então o lote deve apenas facilitar a edição de várias mensagens de uma vez.
-- O fluxo de “marcar como handled” precisa respeitar a ordem temporal da conversa, para não criar buracos no meio da sequência.
-- A ação em lote pode usar um popover, menu contextual ou menu de linha, desde que a direção da alteração fique clara para o usuário.
-- O badge existente em `ChatMessageBubbleView` já é a melhor ancoragem visual para essa ação e pode ser usado como disparador da interação.
-- O cabeçalho da conversa pode expor a ação global sem esconder o controle individual por mensagem.
-
-**Por que isso entra no backlog**  
-Isso transforma a tela de chat em uma ferramenta operacional de verdade, permitindo corrigir estados de leitura e processamento sem depender só de ações automáticas do runtime.
-
----
-
 ## 8) Indicador de "digitando" durante o processamento
 
 Valor: `V3 - Médio`

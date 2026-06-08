@@ -308,6 +308,35 @@ open class FirestoreRepository<Model: PersistableModel> {
         }
     }
 
+    open func observe(
+        matching filters: [String: Any]? = nil,
+        sortedBy sortDescriptors: [FirestoreRepositorySort] = [],
+        limit: Int? = nil,
+        listener: @escaping () -> Void
+    ) -> FirestoreListenerToken {
+        var query: Query = collection
+
+        for (field, value) in filters ?? [:] {
+            query = query.whereField(field, isEqualTo: value)
+        }
+
+        for sortDescriptor in sortDescriptors {
+            query = query.order(by: sortDescriptor.field, descending: sortDescriptor.descending)
+        }
+
+        if let limit {
+            query = query.limit(to: limit)
+        }
+
+        let registration = query.addSnapshotListener { _, _ in
+            listener()
+        }
+
+        return FirestoreListenerToken {
+            registration.remove()
+        }
+    }
+
     private func documentReference(for id: String?) throws -> DocumentReference {
         guard path.isValid else {
             throw FirestoreRepositoryError.invalidPath

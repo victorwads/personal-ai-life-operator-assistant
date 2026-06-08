@@ -57,4 +57,37 @@ final class ChatMessageRangeSelectorTests: FirestoreIntegrationTestCase {
         let unhandledCountAfterUnhandling = try await repository.countUnhandledMessages(chatId: "chat-range")
         XCTAssertEqual(unhandledCountAfterUnhandling, 8)
     }
+
+    func testSetMessageHandledUpdatesChatUnhandledCount() async throws {
+        let repository = FirestoreChatRepository(scope: scope)
+
+        try await fixtureBuilder.importFixture(named: "chat-message-range-selector.json")
+
+        try await repository.setMessageHandled(
+            chatId: "chat-range",
+            messageId: "m10",
+            handled: true
+        )
+
+        let chat = try await repository.getChat(id: "chat-range")
+        XCTAssertEqual(chat?.unhandledCount, 4)
+
+        let unhandledCount = try await repository.countUnhandledMessages(chatId: "chat-range")
+        XCTAssertEqual(unhandledCount, 4)
+    }
+
+    func testMarkAllMessagesHandledClearsUnhandledCount() async throws {
+        let repository = FirestoreChatRepository(scope: scope)
+
+        try await fixtureBuilder.importFixture(named: "chat-message-range-selector.json")
+
+        let changedCount = try await repository.markAllMessagesHandled(chatId: "chat-range")
+        XCTAssertEqual(changedCount, 5)
+
+        let chat = try await repository.getChat(id: "chat-range")
+        XCTAssertEqual(chat?.unhandledCount, 0)
+
+        let messages = try await repository.listMessages(chatId: "chat-range", limit: 10)
+        XCTAssertTrue(messages.allSatisfy(\.handled))
+    }
 }

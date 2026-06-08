@@ -21,6 +21,13 @@ private enum ChatField {
 }
 
 final class FirestoreChatRepository: ChatRepository {
+    private enum MessageSort {
+        static let newestFirst = [
+            FirestoreRepositorySort(field: FirestoreRepositoryMetadataField.createdAt, descending: true),
+            FirestoreRepositorySort(field: ChatMessageField.listOrder, descending: true)
+        ]
+    }
+
     private final class ChatStore: FirestoreRepository<Chat> {
         init(scope: FirebaseProfileScope) {
             super.init(
@@ -101,15 +108,11 @@ final class FirestoreChatRepository: ChatRepository {
 
     func listMessages(chatId: String, limit: Int? = nil) async throws -> [ChatMessage] {
         let effectiveLimit = max(1, limit ?? 10)
-        let messages = try await messageStore.query(
+        return try await messageStore.query(
             matching: [ChatMessageField.chatId: chatId],
-            sortedBy: [
-                FirestoreRepositorySort(field: "_createdAt", descending: true),
-                FirestoreRepositorySort(field: ChatMessageField.listOrder, descending: true)
-            ],
+            sortedBy: MessageSort.newestFirst,
             limit: effectiveLimit
         )
-        return messages
     }
 
     func insertMessages(_ messages: [ChatMessage]) async throws -> [ChatMessage] {
@@ -151,13 +154,53 @@ final class FirestoreChatRepository: ChatRepository {
         )
     }
 
+    func setMessageHandled(chatId: String, messageId: String, handled: Bool) async throws {
+        try await messageStore.update(
+            id: messageId,
+            data: [ChatMessageField.handled: handled]
+        )
+        try await updateUnhandledCount(chatId: chatId, count: nil)
+    }
+
+    func setMessagesHandled(chatId: String, messageIds: [String], handled: Bool) async throws -> Int {
+        let resolvedIds = Array(Set(messageIds.filter { !$0.isEmpty }))
+        guard !resolvedIds.isEmpty else {
+            return 0
+        }
+
+        try await messageStore.updateAll(
+            ids: resolvedIds,
+            data: [ChatMessageField.handled: handled]
+        )
+        try await updateUnhandledCount(chatId: chatId, count: nil)
+        return resolvedIds.count
+    }
+
+    func markAllMessagesHandled(chatId: String) async throws -> Int {
+        let ids = try await messageStore.existingIds(
+            matching: [
+                ChatMessageField.chatId: chatId,
+                ChatMessageField.handled: false
+            ]
+        )
+
+        guard !ids.isEmpty else {
+            try await updateUnhandledCount(chatId: chatId, count: 0)
+            return 0
+        }
+
+        try await messageStore.updateAll(
+            ids: Array(ids),
+            data: [ChatMessageField.handled: true]
+        )
+        try await updateUnhandledCount(chatId: chatId, count: 0)
+        return ids.count
+    }
+
     func markMessagesHandledThrough(chatId: String, lastChatMessageId: String) async throws -> Int {
         let messages = try await messageStore.query(
             matching: [ChatMessageField.chatId: chatId],
-            sortedBy: [
-                FirestoreRepositorySort(field: FirestoreRepositoryMetadataField.createdAt, descending: true),
-                FirestoreRepositorySort(field: ChatMessageField.listOrder, descending: true)
-            ]
+            sortedBy: MessageSort.newestFirst
         )
 
         let ids = try ChatMessageRangeSelector.messageIDs(
@@ -179,10 +222,7 @@ final class FirestoreChatRepository: ChatRepository {
     func markMessagesUnhandledFrom(chatId: String, firstChatMessageId: String) async throws -> Int {
         let messages = try await messageStore.query(
             matching: [ChatMessageField.chatId: chatId],
-            sortedBy: [
-                FirestoreRepositorySort(field: FirestoreRepositoryMetadataField.createdAt, descending: true),
-                FirestoreRepositorySort(field: ChatMessageField.listOrder, descending: true)
-            ]
+            sortedBy: MessageSort.newestFirst
         )
 
         let ids = try ChatMessageRangeSelector.messageIDs(
@@ -199,6 +239,17 @@ final class FirestoreChatRepository: ChatRepository {
             try await updateUnhandledCount(chatId: chatId, count: nil)
         }
         return ids.count
+    }
+
+    func observeMessages(
+        chatId: String,
+        onChange: @escaping @Sendable () -> Void
+    ) -> FirestoreListenerToken {
+        messageStore.observe(
+            matching: [ChatMessageField.chatId: chatId],
+            sortedBy: MessageSort.newestFirst,
+            listener: onChange
+        )
     }
 
     func existingMessageIds(chatId: String) async throws -> Set<String> {

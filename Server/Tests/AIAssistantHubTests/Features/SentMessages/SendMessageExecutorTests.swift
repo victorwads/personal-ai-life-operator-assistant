@@ -145,8 +145,14 @@ private final class SpyChatRepository: ChatRepository {
     func listUnhandledChats(limit _: Int?, permissionMode _: ChatPermissionMode) async throws -> [Chat] { [] }
     func listMessages(chatId _: String, limit _: Int?) async throws -> [ChatMessage] { [] }
     func markMessagesHandled(ids _: [String]) async throws {}
+    func setMessageHandled(chatId _: String, messageId _: String, handled _: Bool) async throws {}
+    func setMessagesHandled(chatId _: String, messageIds _: [String], handled _: Bool) async throws -> Int { 0 }
+    func markAllMessagesHandled(chatId _: String) async throws -> Int { 0 }
     func markMessagesHandledThrough(chatId _: String, lastChatMessageId _: String) async throws -> Int { 0 }
     func markMessagesUnhandledFrom(chatId _: String, firstChatMessageId _: String) async throws -> Int { 0 }
+    func observeMessages(chatId _: String, onChange _: @escaping @Sendable () -> Void) -> FirestoreListenerToken {
+        FirestoreListenerToken {}
+    }
     func existingMessageIds(chatId _: String) async throws -> Set<String> { [] }
     func deleteMessage(id _: String) async throws {}
     func deleteChatMessages(chatId _: String) async throws {}
