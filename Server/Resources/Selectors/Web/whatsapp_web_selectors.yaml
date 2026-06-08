@@ -1,4 +1,4 @@
-schemaVersion: 2
+schemaVersion: 3
 version: 1
 
 flows:
@@ -98,6 +98,8 @@ web:
             selectors:
               - '.message-out'
               - '[data-testid="tail-out"]'
+              - '[data-testid="msg-meta"] svg'
+
             type: boolean
 
           messageId:
@@ -116,7 +118,7 @@ web:
 
           messageAuthor:
             type: text
-            selector: '[data-testid="author"]'
+            selector: '[data-testid="author"]:not([data-testid="quoted-message"] [data-testid="author"])'
 
           messageTime:
             type: text
@@ -129,6 +131,10 @@ web:
           quotedMessageAuthor:
             type: text
             selector: '[data-testid="quoted-message"] [testid="author"]'
+
+          quotedMessageAllText:
+            type: text
+            selector: '[data-testid="quoted-message"]'
 
           images:
             selector: '[data-testid="media-url-provider"] div:last-child'

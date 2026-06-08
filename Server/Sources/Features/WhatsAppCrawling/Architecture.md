@@ -41,7 +41,7 @@ When WebView startup needs User-Agent capture (missing value or expired auto-ref
 
 Settings memory updates are synchronous in `SettingsStore`; Firebase persistence can happen later and must not block `WKWebView` creation/load after capture.
 
-WebView integration injects a small global JavaScript bridge at document end through `WKUserScript` when the `WKWebView` is created. The bridge lives at `window.AssistantMCP` and currently exposes two generic functions:
+WebView integration injects a small global JavaScript bridge at document end through `WKUserScript` when the `WKWebView` is created. The bridge source lives in `Resources/Scripts/WebViewAssistantBridge.js`, is loaded once into the static `WebViewJavaScripts.assistantBridge` string, and currently exposes two generic functions:
 
 - `extractTree(spec)` performs selector-driven DOM extraction for `web` and `flows` specs and returns clean JSON (`null`, object, array, string, number, boolean) without artificial wrappers such as `found/type/children`.
 - `executeShortcut(shortcut)` dispatches global keyboard events (`keydown`/`keyup`) and is the foundation for YAML-defined shortcuts.

@@ -1,18 +1,8 @@
-import Foundation
+const OriginalRequestAnimationFrame = window.requestAnimationFrame;
+const OriginalBlob = Blob;
+const OriginalCreateObjectURL = URL.createObjectURL;
 
-enum WebViewJavaScripts {
-    // Manual console examples:
-    // window.AssistantMCP.extractTree({
-    //   web: { body_text: { type: "text", selector: "body" } },
-    //   flows: { body_exists: { selector: "body" } }
-    // })
-    // Expected: { web: { body_text: "..." }, flows: { body_exists: true } }
-    //
-    // window.AssistantMCP.executeShortcut({ key: "k", code: "KeyK", metaKey: true })
-    static let assistantBridge = #"""
 (() => {
-  const root = window;
-  const existing = root.AssistantMCP && typeof root.AssistantMCP === "object" ? root.AssistantMCP : {};
   let elementRegistry = {};
   let elementCounter = 0;
 
@@ -661,80 +651,96 @@ enum WebViewJavaScripts {
     }
   }
 
-  function parseShortcut(shortcut) {
-    if (!shortcut || typeof shortcut !== "object") return null;
 
-    let key = typeof shortcut.key === "string" ? shortcut.key : null;
-    let code = typeof shortcut.code === "string" ? shortcut.code : null;
-    let metaKey = Boolean(shortcut.metaKey);
-    let ctrlKey = Boolean(shortcut.ctrlKey);
-    let altKey = Boolean(shortcut.altKey);
-    let shiftKey = Boolean(shortcut.shiftKey);
-
-    if (Array.isArray(shortcut.keys) && shortcut.keys.length > 0) {
-      const normalized = shortcut.keys
-        .filter((item) => typeof item === "string")
-        .map((item) => item.trim())
-        .filter((item) => item.length > 0);
-      if (normalized.length > 0) {
-        const last = normalized[normalized.length - 1];
-        key = key ?? last;
-        if (!code && last.length === 1) {
-          code = "Key" + last.toUpperCase();
-        }
-
-        for (const item of normalized) {
-          const upper = item.toUpperCase();
-          if (upper === "META" || upper === "CMD" || upper === "COMMAND") metaKey = true;
-          if (upper === "CTRL" || upper === "CONTROL") ctrlKey = true;
-          if (upper === "ALT" || upper === "OPTION") altKey = true;
-          if (upper === "SHIFT") shiftKey = true;
-        }
-      }
-    }
-
-    if (typeof key !== "string" || key.trim().length === 0) return null;
-    key = key.trim();
-
-    if (!code) {
-      if (key.length === 1) code = "Key" + key.toUpperCase();
-      else code = key;
-    }
-
-    return { key, code, metaKey, ctrlKey, altKey, shiftKey };
-  }
-
+  /**
+   * Executes a keyboard shortcut on the currently focused element.
+   *
+   * Examples:
+   *
+   * executeShortcut({
+   *   keys: ["Escape"]
+   * });
+   *
+   * executeShortcut({
+   *   keys: ["Control", "Shift", "D"]
+   * });
+   *
+   * Supported modifiers:
+   * - Control
+   * - Shift
+   * - Alt
+   * - Meta
+   *
+   * The last non-modifier key becomes the primary key.
+   *
+   * @param {{
+   *   keys: string[]
+   * }} shortcut
+   * @returns {boolean}
+   */
   function executeShortcut(shortcut) {
     try {
-      const parsed = parseShortcut(shortcut);
-      if (!parsed) return false;
+      const keys = shortcut?.keys;
 
-      const target = document.activeElement || document.body || document;
-      if (!target || typeof target.dispatchEvent !== "function") return false;
+      if (!Array.isArray(keys) || keys.length === 0) {
+        return false;
+      }
 
-      const base = {
-        key: parsed.key,
-        code: parsed.code,
-        metaKey: parsed.metaKey,
-        ctrlKey: parsed.ctrlKey,
-        altKey: parsed.altKey,
-        shiftKey: parsed.shiftKey,
+      const normalized = keys
+        .filter(key => typeof key === "string")
+        .map(key => key.trim())
+        .filter(Boolean);
+
+      if (normalized.length === 0) {
+        return false;
+      }
+
+      const modifiers = new Set(
+        normalized.map(key => key.toLowerCase())
+      );
+
+      const key =
+        normalized.findLast(key =>
+          !["control", "ctrl", "shift", "alt", "meta", "command", "cmd"].includes(
+            key.toLowerCase()
+          )
+        ) ?? normalized[normalized.length - 1];
+
+      const event = {
+        key,
+        code: key.length === 1 ? `Key${key.toUpperCase()}` : key,
+        ctrlKey: modifiers.has("control") || modifiers.has("ctrl"),
+        shiftKey: modifiers.has("shift"),
+        altKey: modifiers.has("alt"),
+        metaKey:
+          modifiers.has("meta") ||
+          modifiers.has("command") ||
+          modifiers.has("cmd"),
         bubbles: true,
         cancelable: true
       };
 
-      const downEvent = new KeyboardEvent("keydown", base);
-      const upEvent = new KeyboardEvent("keyup", base);
-      target.dispatchEvent(downEvent);
-      target.dispatchEvent(upEvent);
+      const target =
+        document.activeElement ??
+        document.body ??
+        document;
+
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", event)
+      );
+
+      target.dispatchEvent(
+        new KeyboardEvent("keyup", event)
+      );
+
       return true;
-    } catch (_) {
+    } catch {
       return false;
     }
   }
 
-  root.AssistantMCP = {
-    ...existing,
+  window.AssistantMCP = {
+    ...window.AssistantMCP || {},
     extractTree,
     executeShortcut,
     interactWithElement,
@@ -742,6 +748,143 @@ enum WebViewJavaScripts {
     interactWithElements,
     interactWithElementsCommand
   };
-})();
-"""#
+  // No Animation
+  window.requestAnimationFrame = () => 0;
+  const noAnimationStyle = document.createElement("style");
+  noAnimationStyle.innerHTML = `
+*,
+*::before,
+*::after {
+    animation: none !important;
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+    transition: none !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+    caret-color: transparent !important;
 }
+`;
+  document.head.appendChild(noAnimationStyle);
+})();
+
+(() => {
+  let MediaInterceptor = {
+    wantedMimeTypes: [
+      "audio/ogg",
+    ],
+    running: false,
+    entries: []
+  };
+
+  URL.createObjectURL = function(blob) {
+    try {
+      const mimeType = blob?.type ?? "";
+
+      const shouldCapture = MediaInterceptor.running &&
+        MediaInterceptor.wantedMimeTypes.some(
+          wanted => mimeType.startsWith(wanted)
+        );
+
+      if (shouldCapture) {
+        MediaInterceptor.entries.push({
+          blob,
+          mimeType,
+          size: blob.size,
+          timestamp: Date.now()
+        });
+        console.log(
+          new Date().toISOString(),
+          "[MediaInterceptor]",
+          mimeType,
+          blob.size
+        );
+      }
+    } catch (error) {
+      console.error(error);
+    }
+
+    return OriginalCreateObjectURL.call(this, blob);
+  };
+
+  MediaInterceptor.cleanup = function(stop = false) {
+    MediaInterceptor.entries = [];
+    if (MediaInterceptor.running && stop) {
+      console.log(new Date().toISOString(), "[MediaInterceptor] Stopped and cleaned up");
+    } else if (!MediaInterceptor.running && !stop) {
+      console.log(new Date().toISOString(), "[MediaInterceptor] Started");
+    } else {
+      console.log(new Date().toISOString(), "[MediaInterceptor] Cleaned up");
+    }
+    MediaInterceptor.running = !stop;
+    return true;
+  };
+
+  /**
+   * Consumes a captured media entry and returns its data as base64.
+   *
+   * @param {number} index - The index of the captured media entry to consume
+   * @param {string} type - The MIME type prefix to filter captured media (e.g., "audio/ogg"). optionally consume all media if not provided
+   * @returns {Promise<{ mimeType: string, size: number, timestamp: number, base64: string }>}
+   */
+  MediaInterceptor.consume = async function(index, type) {
+    const item = MediaInterceptor.entries
+      .filter(entry => (!type) || entry.mimeType.startsWith(type))
+      [index];
+
+    if (!item) {
+      console.log(new Date().toISOString(), "[MediaInterceptor] No media entry found at index", index, "with type", type);
+      return null;
+    }
+
+    const buffer = await item.blob.arrayBuffer();
+
+    let binary = "";
+    const bytes = new Uint8Array(buffer);
+
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+
+    let result =  {
+      mimeType: item.mimeType,
+      size: item.size,
+      timestamp: item.timestamp,
+      base64: btoa(binary)
+    };
+    console.log(new Date().toISOString(), "[MediaInterceptor] Consumed media entry at index", index, result);
+    return result;
+  };
+
+  // TO DEDUG:
+  MediaInterceptor.play = function(capturedMedia) {
+    const binary = atob(capturedMedia.base64);
+    const bytes = new Uint8Array(binary.length);
+
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+
+    const blob = new OriginalBlob([bytes], { type: capturedMedia.mimeType });
+    const url = OriginalCreateObjectURL(blob);
+
+    const audio = document.createElement("audio");
+    audio.src = url;
+    audio.controls = true;
+
+    document.body.appendChild(audio);
+    audio.play();
+
+    return {
+      cancel() {
+        audio.pause();
+        audio.removeAttribute("src");
+        audio.load();
+        audio.remove();
+        URL.revokeObjectURL(url);
+      }
+    };
+  }
+
+  window.AssistantMCP.MediaInterceptor = MediaInterceptor
+})();

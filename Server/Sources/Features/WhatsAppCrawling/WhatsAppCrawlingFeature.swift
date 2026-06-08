@@ -23,6 +23,10 @@ final class WhatsAppCrawlingFeature: FeatureRuntime {
         let crawlingSettings = WhatsAppCrawlingSettingsWrapper(settings: context.settings.store)
         let webViewSettings = WhatsAppWebViewSettingsWrapper(settings: context.settings.store)
         let nativeSettings = WhatsAppNativeSettingsWrapper(settings: context.settings.store)
+        let clientVoiceSettings = ClientVoiceSettingsWrapper(settings: context.settings.store)
+        let audioTranscriptionCacheRepository = FirestoreWhatsAppAudioTranscriptionCacheRepository(
+            profileId: context.profileContext.profileId
+        )
         let logStore = WhatsAppCrawlingLogStore()
         let webViewService = WebViewWhatsAppCrawlingService(
             profileId: context.profileContext.profileId,
@@ -66,6 +70,13 @@ final class WhatsAppCrawlingFeature: FeatureRuntime {
                 chatRepositoryProvider: { context.feature(ChatsFeature.self).repository },
                 aiImageExtractorProvider: {
                     context.feature(AIConnectionFeature.self).imageExtractionService
+                },
+                audioTranscriptionServiceProvider: {
+                    WhatsAppAudioTranscriptionService(
+                        profileId: context.profileContext.profileId,
+                        settingsProvider: { clientVoiceSettings },
+                        cacheRepository: audioTranscriptionCacheRepository
+                    )
                 },
                 logStore: logStore,
                 sharedLocks: context.sharedLocks

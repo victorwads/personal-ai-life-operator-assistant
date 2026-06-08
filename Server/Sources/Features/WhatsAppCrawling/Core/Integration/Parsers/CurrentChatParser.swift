@@ -72,6 +72,20 @@ enum WhatsAppCurrentChatParser {
             mediaElementsByMessageId: mediaElementsByMessageId
         )
     }
+    
+    private static func getQuotedMessageAuthor(
+        rawObject: [String: Any]
+    ) -> String? {
+        guard let author = rawObject["quotedMessageAuthor"] as? String else {
+            guard
+                let text = rawObject["quotedMessageText"] as? String,
+                let fullText = rawObject["quotedMessageAllText"] as? String else {
+                return nil
+            }
+            return fullText.replacingOccurrences(of: text, with: "")
+        }
+        return author
+    }
 
     private static func detectDirection(
         rawObject: [String: Any]

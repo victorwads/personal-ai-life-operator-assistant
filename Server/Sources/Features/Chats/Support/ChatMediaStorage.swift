@@ -1,10 +1,12 @@
 import CommonCrypto
 import Foundation
 
-struct ChatMediaImageData {
+struct ChatMediaData {
     let data: Data
     let mimeType: String?
 }
+
+typealias ChatMediaImageData = ChatMediaData
 
 enum ChatMediaStorage {
     static func mediaDirectoryURL(profileId: String, forMessageId messageId: String) -> URL {
@@ -26,11 +28,11 @@ enum ChatMediaStorage {
             includingPropertiesForKeys: nil,
             options: [.skipsHiddenFiles]
         )
-        let imageURLs = fileURLs
-            .filter { supportedImageExtensions.contains($0.pathExtension.lowercased()) }
+        let mediaURLs = fileURLs
+            .filter { supportedMediaExtensions.contains($0.pathExtension.lowercased()) }
             .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
 
-        return imageURLs.map(relativePath(for:))
+        return mediaURLs.map(relativePath(for:))
     }
 
     static func saveImageData(
@@ -38,7 +40,23 @@ enum ChatMediaStorage {
         profileId: String,
         forMessageId messageId: String
     ) throws -> [String] {
-        guard !imageItems.isEmpty else { return [] }
+        try saveMediaData(imageItems, profileId: profileId, forMessageId: messageId)
+    }
+
+    static func saveAudioData(
+        _ audioItems: [ChatMediaData],
+        profileId: String,
+        forMessageId messageId: String
+    ) throws -> [String] {
+        try saveMediaData(audioItems, profileId: profileId, forMessageId: messageId)
+    }
+
+    static func saveMediaData(
+        _ mediaItems: [ChatMediaData],
+        profileId: String,
+        forMessageId messageId: String
+    ) throws -> [String] {
+        guard !mediaItems.isEmpty else { return [] }
 
         let directoryURL = mediaDirectoryURL(profileId: profileId, forMessageId: messageId)
         try FileManager.default.createDirectory(
@@ -48,18 +66,18 @@ enum ChatMediaStorage {
         )
 
         var relativePaths: [String] = []
-        for imageItem in imageItems {
-            let fileExtension = fileExtension(for: imageItem.mimeType)
-            let hash = md5Hex(of: imageItem.data)
+        for mediaItem in mediaItems {
+            let fileExtension = fileExtension(for: mediaItem.mimeType)
+            let hash = md5Hex(of: mediaItem.data)
             let fileURL = directoryURL.appendingPathComponent("\(hash).\(fileExtension)", isDirectory: false)
             if FileManager.default.fileExists(atPath: fileURL.path),
                let existingData = try? Data(contentsOf: fileURL),
-               existingData == imageItem.data {
+               existingData == mediaItem.data {
                 relativePaths.append(relativePath(for: fileURL))
                 continue
             }
 
-            try imageItem.data.write(to: fileURL, options: .atomic)
+            try mediaItem.data.write(to: fileURL, options: .atomic)
             relativePaths.append(relativePath(for: fileURL))
         }
         return relativePaths
@@ -108,6 +126,8 @@ enum ChatMediaStorage {
             return "gif"
         case "image/webp":
             return "webp"
+        case let value? where value.hasPrefix("audio/ogg"):
+            return "ogg"
         default:
             return "png"
         }
@@ -122,5 +142,5 @@ enum ChatMediaStorage {
         return digest.map { String(format: "%02x", $0) }.joined()
     }
 
-    private static let supportedImageExtensions: Set<String> = ["png", "jpg", "jpeg", "gif", "webp"]
+    private static let supportedMediaExtensions: Set<String> = ["png", "jpg", "jpeg", "gif", "webp", "ogg"]
 }

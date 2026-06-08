@@ -7,6 +7,7 @@ final class WhatsAppChatCrawlingOrchestrator {
     private let chatRepositoryProvider: @MainActor () -> any ChatRepository
     private let permissionModeProvider: @MainActor () -> ChatPermissionMode
     private let aiImageExtractorProvider: @MainActor () -> (any AIImageExtracting)?
+    private let audioTranscriptionServiceProvider: @MainActor () -> WhatsAppAudioTranscriptionService
     private let yamlText: String
     private let logStore: WhatsAppCrawlingLogStore
     private let sharedLocks: SharedLockRegistry
@@ -19,6 +20,7 @@ final class WhatsAppChatCrawlingOrchestrator {
         chatRepositoryProvider: @escaping @MainActor () -> any ChatRepository,
         permissionModeProvider: @escaping @MainActor () -> ChatPermissionMode,
         aiImageExtractorProvider: @escaping @MainActor () -> (any AIImageExtracting)?,
+        audioTranscriptionServiceProvider: @escaping @MainActor () -> WhatsAppAudioTranscriptionService,
         yamlText: String,
         logStore: WhatsAppCrawlingLogStore,
         sharedLocks: SharedLockRegistry,
@@ -28,6 +30,7 @@ final class WhatsAppChatCrawlingOrchestrator {
         self.chatRepositoryProvider = chatRepositoryProvider
         self.permissionModeProvider = permissionModeProvider
         self.aiImageExtractorProvider = aiImageExtractorProvider
+        self.audioTranscriptionServiceProvider = audioTranscriptionServiceProvider
         self.yamlText = yamlText
         self.logStore = logStore
         self.sharedLocks = sharedLocks
@@ -154,6 +157,7 @@ final class WhatsAppChatCrawlingOrchestrator {
 
                 guard shouldProceed() else { return .success(()) }
                 onStatusUpdate?("Opening \(header.title)")
+                await prepareForChatSelection(title: header.title, in: webView, interactor: interactor, stop: false)
                 logStore.append(source: "Interactor", "Click started for '\(header.title)'")
                 let clicked = try await interactor.click(openElement)
                 logStore.append(source: "Interactor", "Click result=\(clicked) for '\(header.title)'")
@@ -187,12 +191,21 @@ final class WhatsAppChatCrawlingOrchestrator {
                 onStatusUpdate?("Extracting messages from \(parsedCurrentChat.chatTitle)")
 
                 guard shouldProceed() else { return .success(()) }
-                let messagesToPersist = try await enrichMessagesWithLocalMedia(
+                let enrichmentResult = try await enrichMessagesWithLocalMedia(
                     parsedCurrentChat.messages,
                     mediaElementsByMessageId: parsedCurrentChat.mediaElementsByMessageId,
+                    chatTitle: parsedCurrentChat.chatTitle,
                     in: webView
                 )
-                let insertedMessages = try await chatRepository.insertMessages(messagesToPersist)
+                if enrichmentResult.audioErrorCount > 0 {
+                    logStore.append(
+                        source: "Media",
+                        "Skipping persistence for '\(parsedCurrentChat.chatTitle)' due to audio errors count=\(enrichmentResult.audioErrorCount)."
+                    )
+                    continue
+                }
+
+                let insertedMessages = try await chatRepository.insertMessages(enrichmentResult.messages)
                 if insertedMessages.isEmpty {
                     logStore.append(source: "Repository", "No new messages, global_event not unlocked")
 
@@ -230,6 +243,8 @@ final class WhatsAppChatCrawlingOrchestrator {
                     source: "Repository",
                     "Inserted \(insertedMessages.count) messages, unlocking global_event"
                 )
+                
+                await prepareForChatSelection(title: header.title, in: webView, interactor: interactor, stop: true)
             }
 
             return .success(())
@@ -241,7 +256,6 @@ final class WhatsAppChatCrawlingOrchestrator {
 
     func shouldRefreshChatMessages(header: ParsedChatHeader, existingChat: Chat?) -> Bool {
         guard let existingChat else { return true }
-        if header.unreadCount > 0 { return true }
         if header.stateHash != existingChat.stateHash { return true }
         return false
     }
@@ -257,6 +271,25 @@ final class WhatsAppChatCrawlingOrchestrator {
         guard let data = text.data(using: .utf8) else { return nil }
         guard let object = try? JSONSerialization.jsonObject(with: data) else { return nil }
         return object as? [String: Any]
+    }
+
+    private func prepareForChatSelection(
+        title: String,
+        in webView: WKWebView,
+        interactor: WebViewElementInteractor,
+        stop: Bool,
+    ) async {
+        do {
+            try await interactor.pressEscape()
+            logStore.append(source: "Interactor", "Escape shortcut sent for '\(title)'")
+            try await WebViewMediaInterceptor(webView: webView).cleanup(stop: stop)
+            logStore.append(source: "Media", "MediaInterceptor cleanup")
+        } catch {
+            logStore.append(
+                source: "Media",
+                "MediaInterceptor cleanup failed for '\(title)': \(error.localizedDescription)"
+            )
+        }
     }
 
     private func resolveFreshOpenChatElement(
@@ -347,19 +380,41 @@ final class WhatsAppChatCrawlingOrchestrator {
     private func enrichMessagesWithLocalMedia(
         _ messages: [ChatMessage],
         mediaElementsByMessageId: [String: [WebViewInteractiveElement]],
+        chatTitle: String,
         in webView: WKWebView
-    ) async throws -> [ChatMessage] {
+    ) async throws -> (messages: [ChatMessage], audioErrorCount: Int) {
         guard let chatId = messages.first?.chatId else {
-            return messages
+            return (messages, 0)
         }
 
         let chatRepository = chatRepositoryProvider()
         let existingIds = try await chatRepository.existingMessageIds(chatId: chatId)
         var enrichedMessages = messages
+        var audioErrorCount = 0
         let imageExtractor = WebViewImageExtractor(webView: webView)
+        let mediaInterceptor = WebViewMediaInterceptor(webView: webView)
 
+        let audioMessageCount = enrichedMessages.reduce(into: 0) { partialResult, message in
+            if message.kind == .audio, let messageId = message.id, !existingIds.contains(messageId) {
+                partialResult += 1
+            }
+        }
+        let imageMessageCount = enrichedMessages.reduce(into: 0) { partialResult, message in
+            if (message.kind == .image || message.kind == .sticker),
+               let messageId = message.id,
+               !existingIds.contains(messageId) {
+                partialResult += 1
+            }
+        }
+
+        var audioIndex = -1
+        var imageIndex = 0
         for index in enrichedMessages.indices {
             guard let messageId = enrichedMessages[index].id else { continue }
+
+            if enrichedMessages[index].kind == .audio {
+                audioIndex += 1
+            }
             guard !existingIds.contains(messageId) else {
                 // TODO: check if current `listOrder` is bigger than the saved `listOrder`, update just the `listOrder` as a temporary bug fix
                 // for this, we need to make a separeted commit with also sliting date and time in separeted fields on model and fix all ordering and db indexes (`chatID`, `handled`, `date`, `time`, `listorder`)
@@ -367,39 +422,149 @@ final class WhatsAppChatCrawlingOrchestrator {
                 // time = hh-mm-ss (seconds as extract from the crownling date)
                 continue
             }
-            guard enrichedMessages[index].kind == .image || enrichedMessages[index].kind == .sticker else { continue }
 
-            guard let mediaElements = mediaElementsByMessageId[messageId], !mediaElements.isEmpty else {
-                logStore.append(source: "Media", "No media handle available for \(messageId); saving message without local media.")
+            if enrichedMessages[index].kind == .audio {
+                let audioPosition = audioIndex + 1
+                onStatusUpdate?("Extracting audio \(audioPosition)/\(audioMessageCount) from \(chatTitle)")
+                logStore.append(
+                    source: "Audio",
+                    "Extracting audio message \(audioPosition)/\(audioMessageCount) from '\(chatTitle)' messageId=\(messageId)"
+                )
+                let hadAudioError = await enrichAudioMessage(
+                    messageIndex: index,
+                    messageId: messageId,
+                    audioIndex: audioIndex,
+                    mediaInterceptor: mediaInterceptor,
+                    in: &enrichedMessages
+                )
+                if hadAudioError {
+                    audioErrorCount += 1
+                }
                 continue
             }
 
-            do {
-                let resolvedImages = try await imageExtractor.extractImages(from: mediaElements)
-                guard !resolvedImages.isEmpty else {
-                    logStore.append(source: "Media", "Extraction returned no media for \(messageId); saving message without local media.")
-                    continue
+            guard enrichedMessages[index].kind == .image || enrichedMessages[index].kind == .sticker else { continue }
+            imageIndex += 1
+            onStatusUpdate?("Extracting image \(imageIndex)/\(imageMessageCount) from \(chatTitle)")
+            logStore.append(
+                source: "Media",
+                "Extracting image/sticker message \(imageIndex)/\(imageMessageCount) from '\(chatTitle)' messageId=\(messageId)"
+            )
+
+            await enrichImageMessage(
+                messageIndex: index,
+                messageId: messageId,
+                mediaElementsByMessageId: mediaElementsByMessageId,
+                imageExtractor: imageExtractor,
+                in: &enrichedMessages
+            )
+        }
+
+        return (enrichedMessages, audioErrorCount)
+    }
+
+    private func enrichAudioMessage(
+        messageIndex: Int,
+        messageId: String,
+        audioIndex: Int,
+        mediaInterceptor: WebViewMediaInterceptor,
+        in messages: inout [ChatMessage]
+    ) async -> Bool {
+        do {
+            if let capturedAudio = try await mediaInterceptor.consume(index: audioIndex, type: "audio/ogg") {
+                logStore.append(source: "Media", "Audio blob consumed index=\(audioIndex)")
+                guard let audioData = Data(base64Encoded: capturedAudio.base64) else {
+                    logStore.append(source: "Media", "Failed decoding audio blob for \(messageId).")
+                    return true
                 }
-                let relativePaths = try ChatMediaStorage.saveImageData(
-                    resolvedImages.map { ChatMediaImageData(data: $0.pngData, mimeType: $0.mimeType) },
+
+                let relativePaths = try ChatMediaStorage.saveAudioData(
+                    [ChatMediaData(data: audioData, mimeType: capturedAudio.mimeType)],
                     profileId: profileId,
                     forMessageId: messageId
                 )
-                enrichedMessages[index].localMediaPaths = relativePaths
-                logStore.append(source: "Media", "Saved \(relativePaths.count) local media file(s) for \(messageId).")
-                await enrichMessageTextWithAI(
-                    messageIndex: index,
+                messages[messageIndex].localMediaPaths = relativePaths
+                logStore.append(source: "Media", "Saved \(relativePaths.count) audio media file(s) for \(messageId).")
+                await enrichAudioMessageTextWithWhisper(
+                    messageIndex: messageIndex,
                     messageId: messageId,
-                    mediaKind: enrichedMessages[index].kind,
                     relativePaths: relativePaths,
-                    in: &enrichedMessages
+                    in: &messages
                 )
-            } catch {
-                logStore.append(source: "Media", "Failed extracting media for \(messageId): \(error.localizedDescription)")
+                return false
+            } else {
+                logStore.append(source: "Media", "No audio blob available for index=\(audioIndex) message=\(messageId).")
             }
+        } catch {
+            logStore.append(source: "Media", "Failed consuming audio blob for \(messageId): \(error.localizedDescription)")
+        }
+        return true
+    }
+
+    private func enrichImageMessage(
+        messageIndex: Int,
+        messageId: String,
+        mediaElementsByMessageId: [String: [WebViewInteractiveElement]],
+        imageExtractor: WebViewImageExtractor,
+        in messages: inout [ChatMessage]
+    ) async {
+        guard let mediaElements = mediaElementsByMessageId[messageId], !mediaElements.isEmpty else {
+            logStore.append(source: "Media", "No media handle available for \(messageId); saving message without local media.")
+            return
         }
 
-        return enrichedMessages
+        do {
+            let resolvedImages = try await imageExtractor.extractImages(from: mediaElements)
+            guard !resolvedImages.isEmpty else {
+                logStore.append(source: "Media", "Extraction returned no media for \(messageId); saving message without local media.")
+                return
+            }
+            let relativePaths = try ChatMediaStorage.saveImageData(
+                resolvedImages.map { ChatMediaImageData(data: $0.pngData, mimeType: $0.mimeType) },
+                profileId: profileId,
+                forMessageId: messageId
+            )
+            messages[messageIndex].localMediaPaths = relativePaths
+            logStore.append(source: "Media", "Saved \(relativePaths.count) local media file(s) for \(messageId).")
+            await enrichMessageTextWithAI(
+                messageIndex: messageIndex,
+                messageId: messageId,
+                mediaKind: messages[messageIndex].kind,
+                relativePaths: relativePaths,
+                in: &messages
+            )
+        } catch {
+            logStore.append(source: "Media", "Failed extracting media for \(messageId): \(error.localizedDescription)")
+        }
+    }
+
+    private func enrichAudioMessageTextWithWhisper(
+        messageIndex: Int,
+        messageId: String,
+        relativePaths: [String],
+        in messages: inout [ChatMessage]
+    ) async {
+        guard let firstAudioPath = relativePaths.first(where: { $0.lowercased().hasSuffix(".ogg") }) else {
+            return
+        }
+
+        let audioURL = ChatMediaStorage.absoluteURL(forRelativePath: firstAudioPath)
+        let service = audioTranscriptionServiceProvider()
+
+        do {
+            let text = try await service.transcribeAudio(at: audioURL)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+
+            guard !text.isEmpty else {
+                logStore.append(source: "Audio", "Whisper returned empty transcription for \(messageId).")
+                return
+            }
+
+            messages[messageIndex].text = text
+            logStore.append(source: "Audio", "Transcribed audio message \(messageId).")
+        } catch {
+            logStore.append(source: "Audio", "Failed transcribing audio message \(messageId): \(error.localizedDescription)")
+        }
     }
 
     func enrichMessageTextWithAI(

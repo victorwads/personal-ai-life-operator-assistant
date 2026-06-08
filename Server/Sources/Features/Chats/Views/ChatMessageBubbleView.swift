@@ -66,7 +66,11 @@ struct ChatMessageBubbleView: View {
         case .image, .sticker:
             mediaMessageContent
         case .audio:
-            Label(message.text ?? "Audio message", systemImage: "waveform")
+            if let audioURL = audioMediaURL {
+                audioMessageContent(audioURL: audioURL)
+            } else {
+                Label(message.text ?? "Audio message", systemImage: "waveform")
+            }
         case .video:
             Label(message.text ?? "Video message", systemImage: "video")
         case .unknown:
@@ -108,6 +112,12 @@ struct ChatMessageBubbleView: View {
         return text
     }
 
+    private var audioMediaURL: URL? {
+        message.localMediaPaths.first { relativePath in
+            URL(fileURLWithPath: relativePath).pathExtension.lowercased() == "ogg"
+        }.map(ChatMediaStorage.absoluteURL(forRelativePath:))
+    }
+
     private var mediaPlaceholder: String {
         switch message.kind {
         case .sticker:
@@ -140,6 +150,17 @@ struct ChatMessageBubbleView: View {
     private var mediaMessageContent: some View {
         VStack(alignment: .leading, spacing: 8) {
             mediaContentView
+
+            if let trimmedMessageText {
+                Text(trimmedMessageText)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func audioMessageContent(audioURL: URL) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            AudioMessageView(audioURL: audioURL)
 
             if let trimmedMessageText {
                 Text(trimmedMessageText)

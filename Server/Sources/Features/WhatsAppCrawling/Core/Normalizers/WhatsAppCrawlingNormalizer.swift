@@ -38,10 +38,10 @@ enum WhatsAppCrawlingNormalizer {
     }
 
     static func normalizeAuthor(messageAuthor: String?, messageDateTimeAndAuthor: String?) -> String? {
-        if let explicit = normalizeText(messageAuthor) {
+        if let explicit = parseAuthor(fromDateTimeAndAuthor: messageDateTimeAndAuthor) {
             return explicit
         }
-        return parseAuthor(fromDateTimeAndAuthor: messageDateTimeAndAuthor)
+        return normalizeText(messageAuthor)
     }
 
     static func normalizeMessageDateTime(

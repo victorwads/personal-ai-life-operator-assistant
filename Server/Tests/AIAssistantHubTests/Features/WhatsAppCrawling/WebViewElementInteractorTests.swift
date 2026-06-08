@@ -40,4 +40,19 @@ final class WebViewElementInteractorTests: XCTestCase {
         XCTAssertEqual(extracted?.width, 10)
         XCTAssertEqual(extracted?.height, 10)
     }
+
+    func testCapturedMediaFromAcceptsAudioRecord() {
+        let value: [String: Any] = [
+            "base64": "aGVsbG8=",
+            "mimeType": "audio/ogg; codecs=opus",
+            "size": 56077,
+            "timestamp": 123456789
+        ]
+
+        let captured = try? XCTUnwrap(WebViewCapturedMedia.from(value))
+        XCTAssertEqual(captured?.base64, "aGVsbG8=")
+        XCTAssertEqual(captured?.mimeType, "audio/ogg; codecs=opus")
+        XCTAssertEqual(captured?.size, 56077)
+        XCTAssertEqual(captured?.timestamp, 123456789)
+    }
 }

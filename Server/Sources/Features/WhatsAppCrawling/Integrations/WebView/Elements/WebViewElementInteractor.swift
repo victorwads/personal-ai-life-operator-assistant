@@ -94,6 +94,28 @@ final class WebViewElementInteractor {
         try await interact(with: element.id, action: "pressEnter", payload: nil)
     }
 
+    func executeShortcut(_ shortcut: ShortcutConfig) async throws -> Bool {
+        let keys = shortcut.modifiers + [shortcut.key]
+        guard !keys.isEmpty else { return false }
+
+        let command = ShortcutCommand(keys: keys)
+        let commandData = try JSONEncoder().encode(command)
+        guard let commandJSON = String(data: commandData, encoding: .utf8) else {
+            return false
+        }
+
+        let script = """
+        window.AssistantMCP.executeShortcut(\(commandJSON));
+        """
+
+        let value = try await evaluate(script: script)
+        return value as? Bool ?? false
+    }
+
+    func pressEscape() async throws -> Bool {
+        try await executeShortcut(ShortcutConfig(modifiers: [], key: "Escape"))
+    }
+
     func extractImage(_ element: WebViewInteractiveElement) async throws -> WebViewExtractedImage? {
         return try await extractImages([element]).first
     }
@@ -144,6 +166,10 @@ final class WebViewElementInteractor {
         """
 
         return try await evaluate(script: script)
+    }
+
+    private struct ShortcutCommand: Encodable {
+        let keys: [String]
     }
 
     private func evaluate(script: String) async throws -> Any? {

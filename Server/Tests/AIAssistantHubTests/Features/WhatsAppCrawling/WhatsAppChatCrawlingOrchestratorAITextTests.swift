@@ -74,11 +74,22 @@ final class WhatsAppChatCrawlingOrchestratorAITextTests: XCTestCase {
 
     private func makeOrchestrator(aiImageExtractor: any AIImageExtracting) -> WhatsAppChatCrawlingOrchestrator {
         let repository = StubChatRepository()
+        let settings = SettingsStore(
+            profileId: "profile-ai-text",
+            repository: InMemorySettingsRepository()
+        )
+        let clientVoiceSettings = ClientVoiceSettingsWrapper(settings: settings)
         return WhatsAppChatCrawlingOrchestrator(
             profileId: "profile-ai-text",
             chatRepositoryProvider: { repository },
             permissionModeProvider: { .allowAllExceptDenied },
             aiImageExtractorProvider: { aiImageExtractor },
+            audioTranscriptionServiceProvider: {
+                WhatsAppAudioTranscriptionService(
+                    profileId: "profile-ai-text",
+                    settingsProvider: { clientVoiceSettings }
+                )
+            },
             yamlText: "{}",
             logStore: WhatsAppCrawlingLogStore(),
             sharedLocks: SharedLockRegistry()
@@ -144,4 +155,47 @@ private final class StubChatRepository: ChatRepository {
     func deleteChatAndMessages(chatId _: String) async throws {}
     func countUnhandledMessages(chatId _: String) async throws -> Int { 0 }
     func updateUnhandledCount(chatId _: String, count _: Int?) async throws {}
+}
+
+@MainActor
+private final class InMemorySettingsRepository: SettingsRepository {
+    private var documents: [String: [String: String]] = [:]
+
+    func loadAllScopes() async throws -> [SettingsDocument] {
+        documents.map { SettingsDocument(scopeName: $0.key, values: $0.value) }
+    }
+
+    func loadScope(_ scopeName: String) async throws -> SettingsDocument {
+        SettingsDocument(scopeName: scopeName, values: documents[scopeName] ?? [:])
+    }
+
+    func saveScope(_ scopeName: String, values: [String: String]) async throws {
+        documents[scopeName] = values
+    }
+
+    func getValue(scopeName: String, key: String) async throws -> String? {
+        documents[scopeName]?[key]
+    }
+
+    func setValue(scopeName: String, key: String, value: String) async throws {
+        var values = documents[scopeName] ?? [:]
+        values[key] = value
+        documents[scopeName] = values
+    }
+
+    func deleteValue(scopeName: String, key: String) async throws {
+        var values = documents[scopeName] ?? [:]
+        values.removeValue(forKey: key)
+        documents[scopeName] = values
+    }
+
+    func observeScope(_ scopeName: String, listener: @escaping (SettingsDocument) -> Void) -> FirestoreListenerToken {
+        listener(SettingsDocument(scopeName: scopeName, values: documents[scopeName] ?? [:]))
+        return FirestoreListenerToken {}
+    }
+
+    func observeAllScopes(_ onChange: @escaping ([SettingsDocument]) -> Void) -> FirestoreListenerToken {
+        onChange(documents.map { SettingsDocument(scopeName: $0.key, values: $0.value) })
+        return FirestoreListenerToken {}
+    }
 }
