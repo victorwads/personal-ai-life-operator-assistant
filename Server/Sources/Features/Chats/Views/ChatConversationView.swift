@@ -11,12 +11,15 @@ struct ChatConversationView: View {
     let onToggleMessageHandled: (ChatMessage) -> Void
     let onMarkMessageAndOlderHandled: (ChatMessage) -> Void
     let onMarkMessageAndNewerUnhandled: (ChatMessage) -> Void
+    let onDeleteMessage: (ChatMessage) -> Void
     let onMarkSelectedMessagesHandled: ([String], Bool) -> Void
     let onMarkAllHandled: () -> Void
     let onToggleMessageSentByAssistant: (ChatMessage) -> Void
 
     @State private var isConfirmingDeleteMessages = false
     @State private var isConfirmingDeleteChat = false
+    @State private var messagePendingDeletion: ChatMessage?
+    @State private var isConfirmingDeleteMessage = false
     @State private var isSelectionModeEnabled = false
     @State private var selectedMessageIds: Set<String> = []
 
@@ -95,6 +98,25 @@ struct ChatConversationView: View {
             } message: {
                 Text("This deletes the selected chat and all of its messages from the local database.")
             }
+            .confirmationDialog(
+                "Delete this message?",
+                isPresented: $isConfirmingDeleteMessage,
+                titleVisibility: .visible
+            ) {
+                Button("Delete Message", role: .destructive) {
+                    if let messagePendingDeletion {
+                        onDeleteMessage(messagePendingDeletion)
+                    }
+                    isConfirmingDeleteMessage = false
+                    messagePendingDeletion = nil
+                }
+                Button("Cancel", role: .cancel) {
+                    isConfirmingDeleteMessage = false
+                    messagePendingDeletion = nil
+                }
+            } message: {
+                Text(deleteMessageConfirmationText)
+            }
 
             Divider()
 
@@ -156,6 +178,7 @@ struct ChatConversationView: View {
                                         onToggleHandled: onToggleMessageHandled,
                                         onMarkThisAndOlderHandled: onMarkMessageAndOlderHandled,
                                         onMarkThisAndNewerUnhandled: onMarkMessageAndNewerUnhandled,
+                                        onDeleteMessage: beginDeleteMessage,
                                         onSelectionChange: updateSelection(for:isSelected:),
                                         onToggleSentByAssistant: onToggleMessageSentByAssistant
                                     )
@@ -202,6 +225,11 @@ struct ChatConversationView: View {
         exitSelectionMode()
     }
 
+    private func beginDeleteMessage(_ message: ChatMessage) {
+        messagePendingDeletion = message
+        isConfirmingDeleteMessage = true
+    }
+
     private func exitSelectionMode() {
         isSelectionModeEnabled = false
         selectedMessageIds = []
@@ -210,5 +238,25 @@ struct ChatConversationView: View {
     private func pruneSelectionToVisibleMessages() {
         let visibleMessageIds = Set(messages.compactMap(\.id))
         selectedMessageIds = selectedMessageIds.intersection(visibleMessageIds)
+    }
+
+    private var deleteMessageConfirmationText: String {
+        guard let message = messagePendingDeletion else {
+            return "This deletes the selected chat message from the local database."
+        }
+
+        let author = message.author?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = message.text?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let summary: String
+
+        if let author, !author.isEmpty, let text, !text.isEmpty {
+            summary = "\(author): \(text)"
+        } else if let text, !text.isEmpty {
+            summary = text
+        } else {
+            summary = "this message"
+        }
+
+        return "This deletes \(summary) from the local database."
     }
 }

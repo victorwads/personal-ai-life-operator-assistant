@@ -55,4 +55,22 @@ final class FirestoreChatRepositoryIntegrationTests: FirestoreIntegrationTestCas
         XCTAssertNil(deletedChat)
         XCTAssertEqual(remainingMessages, [])
     }
+
+    func testDeleteMessageRefreshesChatSummaryFromRemainingMessages() async throws {
+        let repository = FirestoreChatRepository(scope: scope)
+
+        try await fixtureBuilder.importFixture(named: "chat-basic.json")
+
+        try await repository.deleteMessage(id: "message-3")
+
+        let remainingMessages = try await repository.listMessages(chatId: "chat-1", limit: 10)
+        let chat = try await repository.getChat(id: "chat-1")
+
+        XCTAssertEqual(remainingMessages.compactMap(\.id), ["message-2", "message-1"])
+        XCTAssertEqual(chat?.stateHash, "")
+        XCTAssertEqual(chat?.unhandledCount, 1)
+        XCTAssertEqual(chat?.lastMessagePreview, "Middle")
+        XCTAssertEqual(chat?.lastMessageLocalMediaPath, nil)
+        XCTAssertFalse(chat?.lastMessageTimeText?.isEmpty ?? true)
+    }
 }

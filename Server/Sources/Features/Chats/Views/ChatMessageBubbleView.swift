@@ -8,6 +8,7 @@ struct ChatMessageBubbleView: View {
     let onToggleHandled: (ChatMessage) -> Void
     let onMarkThisAndOlderHandled: (ChatMessage) -> Void
     let onMarkThisAndNewerUnhandled: (ChatMessage) -> Void
+    let onDeleteMessage: (ChatMessage) -> Void
     let onSelectionChange: (ChatMessage, Bool) -> Void
     let onToggleSentByAssistant: (ChatMessage) -> Void
 
@@ -80,6 +81,15 @@ struct ChatMessageBubbleView: View {
             Button(message.sentByAssistant == true ? "Remove assistant mark" : "Mark as assistant message") {
                 onToggleSentByAssistant(message)
             }
+
+            Divider()
+
+            Button(role: .destructive) {
+                onDeleteMessage(message)
+            } label: {
+                Label("Delete message", systemImage: "trash")
+            }
+            .disabled(message.id?.isEmpty ?? true)
         }
     }
 

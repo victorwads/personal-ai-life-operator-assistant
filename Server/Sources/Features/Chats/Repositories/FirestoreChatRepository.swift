@@ -17,6 +17,7 @@ private enum ChatField {
     static let unhandledCount = "unhandledCount"
     static let unreadCount = "unreadCount"
     static let lastMessagePreview = "lastMessagePreview"
+    static let lastMessageLocalMediaPath = "lastMessageLocalMediaPath"
     static let lastMessageTimeText = "lastMessageTimeText"
 }
 
@@ -259,7 +260,12 @@ final class FirestoreChatRepository: ChatRepository {
     }
 
     func deleteMessage(id: String) async throws {
+        guard let message = try await messageStore.getById(id) else {
+            return
+        }
+
         try await messageStore.delete(id)
+        try await refreshChatSummary(chatId: message.chatId)
     }
 
     func deleteChatMessages(chatId: String) async throws {
@@ -267,16 +273,7 @@ final class FirestoreChatRepository: ChatRepository {
             matching: [ChatMessageField.chatId: chatId]
         )
         try await messageStore.deleteAll(ids: Array(messageIds))
-        try await chatStore.update(
-            id: chatId,
-            data: [
-                ChatField.stateHash: "",
-                ChatField.unhandledCount: 0,
-                ChatField.unreadCount: 0,
-                ChatField.lastMessagePreview: NSNull(),
-                ChatField.lastMessageTimeText: NSNull()
-            ]
-        )
+        try await refreshChatSummary(chatId: chatId, resetUnreadCount: true)
     }
 
     func deleteChatAndMessages(chatId: String) async throws {
@@ -311,6 +308,48 @@ final class FirestoreChatRepository: ChatRepository {
             id: messageId,
             data: ["sentByAssistant": sentByAssistant]
         )
+    }
+
+    private func refreshChatSummary(chatId: String, resetUnreadCount: Bool = false) async throws {
+        let remainingMessages = try await messageStore.query(
+            matching: [ChatMessageField.chatId: chatId],
+            sortedBy: MessageSort.newestFirst,
+            limit: 1
+        )
+        let latestMessage = remainingMessages.first
+        let preview = latestMessage.map(previewText(for:))
+        let mediaPath = latestMessage?.localMediaPaths.first
+        let timeText = latestMessage?.dateTime?.formatted(date: .abbreviated, time: .shortened)
+        let unhandledCount = try await countUnhandledMessages(chatId: chatId)
+
+        var data: [String: Any] = [
+            ChatField.stateHash: "",
+            ChatField.unhandledCount: max(0, unhandledCount),
+            ChatField.lastMessagePreview: preview ?? NSNull(),
+            ChatField.lastMessageLocalMediaPath: mediaPath ?? NSNull(),
+            ChatField.lastMessageTimeText: timeText ?? NSNull()
+        ]
+
+        if resetUnreadCount {
+            data[ChatField.unreadCount] = 0
+        }
+
+        try await chatStore.update(id: chatId, data: data)
+    }
+
+    private func previewText(for message: ChatMessage) -> String? {
+        switch message.kind {
+        case .image:
+            return "[Image]"
+        case .sticker:
+            return "[Sticker]"
+        default:
+            let text = message.text?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let text, !text.isEmpty {
+                return text
+            }
+            return "[\(message.kind.rawValue)]"
+        }
     }
 
     private func compareChatsForListOrder(_ lhs: Chat, _ rhs: Chat) -> Bool {

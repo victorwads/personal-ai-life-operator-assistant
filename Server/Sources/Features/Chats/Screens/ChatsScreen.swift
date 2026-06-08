@@ -11,6 +11,7 @@ struct ChatsScreen: View {
     @State private var loadingMessagesChatId: String?
     @State private var isDeletingAllChats = false
     @State private var deletingChatId: String?
+    @State private var deletingMessageId: String?
     @State private var errorMessage: String?
 
     var body: some View {
@@ -29,7 +30,7 @@ struct ChatsScreen: View {
             ChatConversationView(
                 chat: selectedChat,
                 messages: selectedMessages,
-                isLoading: isLoadingMessages || isDeletingSelectedChat,
+                isLoading: isLoadingMessages || isDeletingSelectedChat || isDeletingSelectedMessage,
                 errorMessage: errorMessage,
                 onDeleteMessages: beginDeleteSelectedChatMessages,
                 onDeleteChat: beginDeleteSelectedChatAndMessages,
@@ -37,6 +38,7 @@ struct ChatsScreen: View {
                 onToggleMessageHandled: beginToggleMessageHandled,
                 onMarkMessageAndOlderHandled: beginMarkMessageAndOlderHandled,
                 onMarkMessageAndNewerUnhandled: beginMarkMessageAndNewerUnhandled,
+                onDeleteMessage: beginDeleteSelectedMessage,
                 onMarkSelectedMessagesHandled: beginMarkSelectedMessagesHandled,
                 onMarkAllHandled: beginMarkAllSelectedChatMessagesHandled,
                 onToggleMessageSentByAssistant: beginToggleMessageSentByAssistant
@@ -72,6 +74,10 @@ struct ChatsScreen: View {
         return deletingChatId == selectedChatId
     }
 
+    private var isDeletingSelectedMessage: Bool {
+        deletingMessageId != nil
+    }
+
     private func requestLoadChats() {
         Task { await loadChats() }
     }
@@ -86,6 +92,10 @@ struct ChatsScreen: View {
 
     private func beginDeleteSelectedChatMessages() {
         Task { await deleteSelectedChatMessages() }
+    }
+
+    private func beginDeleteSelectedMessage(_ message: ChatMessage) {
+        Task { await deleteSelectedMessage(message) }
     }
 
     private func beginSetSelectedChatPermission(_ permission: ChatPermission?) {
@@ -191,6 +201,7 @@ struct ChatsScreen: View {
                 chats[chatIndex].unhandledCount = 0
                 chats[chatIndex].unreadCount = 0
                 chats[chatIndex].lastMessagePreview = nil
+                chats[chatIndex].lastMessageLocalMediaPath = nil
                 chats[chatIndex].lastMessageTimeText = nil
             }
 
@@ -200,6 +211,27 @@ struct ChatsScreen: View {
             let message = "Failed to delete messages for chat \(chatId): \(error.localizedDescription)"
             print(message)
             errorMessage = message
+        }
+    }
+
+    @MainActor
+    private func deleteSelectedMessage(_ message: ChatMessage) async {
+        guard let chatId = selectedChatId, let messageId = message.id, !messageId.isEmpty else { return }
+
+        deletingMessageId = messageId
+        errorMessage = nil
+        defer {
+            if deletingMessageId == messageId {
+                deletingMessageId = nil
+            }
+        }
+
+        do {
+            try await feature.repository.deleteMessage(id: messageId)
+            await loadMessages(chatId: chatId, force: true)
+            await loadChats(autoSelect: false)
+        } catch {
+            errorMessage = "Failed to delete message: \(error.localizedDescription)"
         }
     }
 
