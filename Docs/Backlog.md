@@ -1155,3 +1155,71 @@ Criar uma MCP tool para adicionar informações contextuais a um chat, permitind
 
 **Por que isso entra no backlog**  
 Isso dá ao assistente uma camada de memória relacional por chat/pessoa, deixando o atendimento mais inteligente e consistente ao reconhecer quem é cada interlocutor.
+
+---
+
+## 67) Reforçar no prompt a prevenção de issues duplicadas
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R2 - Baixo`
+Risco da Feature: `R1 - Baixíssimo`
+Score de Execução: `0.71`
+
+**Descrição**  
+Ajustar o prompt operacional para deixar explícito que o agente não deve criar várias issues para a mesma situação. Antes de abrir uma nova issue, ele deve revalidar o contexto do chat, as issues já abertas e o estado atual da conversa para confirmar se aquilo já não existe em andamento. A mesma regra deve valer antes de `send_message` e de qualquer ação repetida: o agente precisa revisar o histórico do chat para não entrar em ciclo de duplicação ou reenviar conteúdo que já foi tratado. O prompt também precisa proibir invenção de fatos: o agente só pode afirmar o que foi lido nas mensagens, nas issues, nas memórias ou em ferramentas reais, sem completar lacunas com suposições.
+
+**Dependências**  
+- `66) Associar contexto/memórias a um chat ou pessoa via MCP tool`
+- `4) Ações de handled por mensagem e em lote no chat`
+
+**Comportamento desejado**  
+- Instruir o agente a checar issues já abertas antes de criar uma nova.
+- Instruir o agente a reler o contexto do chat antes de enviar mensagem.
+- Reduzir a chance de entrar em loop de duplicação de issue ou mensagem.
+- Deixar claro no prompt que uma mesma situação não deve gerar múltiplos registros paralelos.
+- Reforçar a necessidade de respeitar o histórico e o estado atual antes de agir.
+- Proibir o agente de inventar datas, intenções, compromissos ou confirmações não presentes no contexto real.
+
+**Notas técnicas**  
+- O ajuste principal deve viver no `system prompt` e nos trechos de bootstrap/contexto operacional que alimentam a sessão.
+- O prompt precisa mencionar explicitamente a ordem de decisão: ler contexto, validar histórico, checar issues abertas, só então criar ou enviar.
+- Essa regra deve ser curta, direta e difícil de interpretar errado.
+- Vale revisar também se os trechos de pending work e wait events não estão empurrando o modelo para reabrir o mesmo assunto sem necessidade.
+- O texto do prompt deve deixar claro que “não saber” é preferível a adivinhar.
+
+**Por que isso entra no backlog**  
+Isso reduz duplicação, evita retrabalho operacional e deixa o assistente mais confiável ao agir sobre o mesmo assunto apenas uma vez.
+
+---
+
+## 68) Suspensão de issues por chat, data e alarme
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R4 - Alto`
+Risco da Feature: `R3 - Médio`
+Score de Execução: `0.46`
+
+**Descrição**  
+Reforçar e consolidar a lógica de suspensão de issues para que uma issue possa ficar suspensa até um chat ser reativado por nova mensagem, até uma data específica chegar, ou até um alarme/scheduler disparar um evento do sistema. A suspensão não deve ser apenas um estado visual: ela precisa virar um mecanismo operacional que acorda automaticamente quando o gatilho correto acontecer. Isso também precisa conversar com o `wait_for_event`, para que a suspensão seja uma fonte real de wake event.
+
+**Dependências**  
+- `58) Suspensão de issues por tempo ou por chat`
+- `30) Gmail, Calendar e alarmes de subject com wake events`
+- `42) wait_for_event com fontes de evento ampliadas`
+
+**Comportamento desejado**  
+- Suspender uma issue até uma data/hora específica.
+- Suspender uma issue até um chat receber nova mensagem.
+- Suspender uma issue até um alarme/scheduler local disparar.
+- Gerar evento claro quando a suspensão terminar.
+- Integrar esse desbloqueio ao fluxo de `wait_for_event`.
+- Manter rastreabilidade do motivo da suspensão e do motivo do desbloqueio.
+
+**Notas técnicas**  
+- O sistema precisa de uma API/serviço de alarme ou scheduler persistido para acordar o runtime no horário certo.
+- A lógica deve conversar com o modelo de `Issue`, com a timeline e com o mecanismo de eventos do runtime.
+- O ideal é que o gatilho de reativação seja explícito, para que a IA saiba por que aquela issue voltou a ser relevante.
+- Essa feature precisa evitar ambiguidade entre suspensão por prazo, suspensão por chat e suspensão por evento do sistema.
+
+**Por que isso entra no backlog**  
+Isso fecha a parte de orquestração temporal do assistente e deixa a suspensão de issues realmente útil para pausar trabalho até a hora ou o evento certo.

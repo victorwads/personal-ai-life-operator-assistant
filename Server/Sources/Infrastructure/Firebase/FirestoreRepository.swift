@@ -100,8 +100,8 @@ open class FirestoreRepository<Model: PersistableModel> {
             snapshot = try await query.getDocuments(source: .cache)
         }
 
-        let records = try snapshot.documents.map { document in
-            try decode(document: document)
+        let records = snapshot.documents.compactMap { document in
+            decodeIfPossible(document: document)
         }
 
         if includeDeleted {
@@ -157,7 +157,9 @@ open class FirestoreRepository<Model: PersistableModel> {
             return nil
         }
 
-        let record = try decode(document: snapshot)
+        guard let record = decodeIfPossible(document: snapshot) else {
+            return nil
+        }
         guard !record.isDeleted else {
             return nil
         }
@@ -370,6 +372,7 @@ open class FirestoreRepository<Model: PersistableModel> {
             let model = try document.data(as: Model.self)
             return (model: model, isDeleted: isDeleted(from: document.data()))
         } catch {
+            logDecodingFailure(documentId: document.documentID, data: document.data(), error: error)
             throw FirestoreRepositoryError.decodingFailed(entity: entityName)
         }
     }
@@ -380,8 +383,64 @@ open class FirestoreRepository<Model: PersistableModel> {
             let data = document.data() ?? [:]
             return (model: model, isDeleted: isDeleted(from: data))
         } catch {
+            logDecodingFailure(documentId: document.documentID, data: document.data() ?? [:], error: error)
             throw FirestoreRepositoryError.decodingFailed(entity: entityName)
         }
+    }
+
+    private func decodeIfPossible(document: QueryDocumentSnapshot) -> (model: Model, isDeleted: Bool)? {
+        do {
+            return try decode(document: document)
+        } catch {
+            return nil
+        }
+    }
+
+    private func decodeIfPossible(document: DocumentSnapshot) -> (model: Model, isDeleted: Bool)? {
+        do {
+            return try decode(document: document)
+        } catch {
+            return nil
+        }
+    }
+
+    private func logDecodingFailure(
+        documentId: String,
+        data: [String: Any],
+        error: Error
+    ) {
+        let payload = serializedLogPayload(from: data)
+        print("FirestoreRepository decode failure for \(entityName) document \(documentId): \(error.localizedDescription). Payload: \(payload)")
+    }
+
+    private func serializedLogPayload(from data: [String: Any]) -> String {
+        let normalized = normalizeLogValue(data)
+        guard JSONSerialization.isValidJSONObject(normalized),
+              let jsonData = try? JSONSerialization.data(withJSONObject: normalized, options: [.prettyPrinted]),
+              let jsonString = String(data: jsonData, encoding: .utf8) else {
+            return String(describing: data)
+        }
+        return jsonString
+    }
+
+    private func normalizeLogValue(_ value: Any) -> Any {
+        if let dictionary = value as? [String: Any] {
+            return dictionary.mapValues(normalizeLogValue)
+        }
+
+        if let array = value as? [Any] {
+            return array.map(normalizeLogValue)
+        }
+
+        if let date = value as? Date {
+            return ISO8601DateFormatter().string(from: date)
+        }
+
+        if value is NSNull || value is String || value is NSNumber {
+            return value
+        }
+
+        return String(describing: value)
     }
 
     private func makePayload(
