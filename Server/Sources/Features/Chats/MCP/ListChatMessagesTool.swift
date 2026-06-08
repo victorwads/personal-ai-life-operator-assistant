@@ -58,7 +58,8 @@ struct ListChatMessagesTool: MCPToolDefinition {
             return .string(renderedMessages)
         }
 
-        guard let lastMessageId = messages.last?.id, !lastMessageId.isEmpty else {
+        // First is the newer in the repository default order
+        guard let lastMessageId = messages.first?.id, !lastMessageId.isEmpty else {
             throw MCPServerError.invalidArguments("Unable to create a read receipt for chat '\(chatId)'.")
         }
 
