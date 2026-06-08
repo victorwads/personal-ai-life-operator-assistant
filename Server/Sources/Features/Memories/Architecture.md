@@ -16,7 +16,12 @@ The model is data-only. It must not contain repository, upsert, merge, Firebase 
 
 `FirestoreMemoryRepository` extends `FirestoreRepository<Memory>` and stores records under the profile-scoped `Memories` collection.
 
-No custom persistence behavior exists yet. Generic CRUD from `FirestoreRepository` is enough for now. Firebase SDK types and metadata remain behind Infrastructure-owned repository abstractions.
+The repository also owns the memory-specific upsert rule for durable `key` uniqueness:
+
+- saving through the assistant-facing path must look up an existing memory by `key`
+- if the `key` already exists, it must update that document instead of creating a duplicate
+
+Firebase SDK types and metadata remain behind Infrastructure-owned repository abstractions.
 
 ## Surfaces
 

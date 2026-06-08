@@ -38,7 +38,7 @@ struct CreateMemoryTool: MCPToolDefinition {
     ) async throws -> MCPJSONValue {
         let key = try MCPSupport.string("key", from: call)
         let value = try MCPSupport.string("value", from: call)
-        let memory = try await repository.save(Memory(id: nil, key: key, value: value))
+        let memory = try await repository.saveByKey(key: key, value: value)
 
         return .object(["memory": MemoryMCPToolSupport.memoryObject(memory)])
     }
