@@ -1,0 +1,24 @@
+{
+  "collections": {
+    "Chats": [],
+    "ChatMessages": [],
+    "Issues": [],
+    "ClientInteractionRequests": [
+      {
+        "id": "request-1",
+        "issueId": "issue-1",
+        "kind": "ask",
+        "status": "waitingUser",
+        "promptText": "Existing",
+        "responseText": null,
+        "device": "desktop",
+        "_createdAt": "2026-06-08T08:00:00Z",
+        "_updatedAt": "2026-06-08T08:00:00Z"
+      }
+    ],
+    "Memories": [],
+    "SensitiveData": [],
+    "SensitiveDataUsage": [],
+    "Subjects": []
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "collections": {
+    "Chats": [],
+    "ChatMessages": [],
+    "Issues": [
+      {
+        "id": "issue-1",
+        "title": "First",
+        "description": "Desc",
+        "initialRequest": "Req",
+        "resolutionCondition": "Done",
+        "priority": 3,
+        "status": "pending",
+        "finished": false,
+        "suspendUntil": null,
+        "_createdAt": "2026-06-08T09:00:00Z",
+        "_updatedAt": "2026-06-08T09:10:00Z"
+      },
+      {
+        "id": "issue-2",
+        "title": "Second",
+        "description": "Desc",
+        "initialRequest": "Req",
+        "resolutionCondition": "Done",
+        "priority": 4,
+        "status": "pending",
+        "finished": false,
+        "suspendUntil": null,
+        "_createdAt": "2026-06-08T09:20:00Z",
+        "_updatedAt": "2026-06-08T09:30:00Z"
+      },
+      {
+        "id": "issue-3",
+        "title": "Finished",
+        "description": "Desc",
+        "initialRequest": "Req",
+        "resolutionCondition": "Done",
+        "priority": 2,
+        "status": "resolved",
+        "finished": true,
+        "suspendUntil": null,
+        "_createdAt": "2026-06-08T09:40:00Z",
+        "_updatedAt": "2026-06-08T09:50:00Z"
+      }
+    ],
+    "ClientInteractionRequests": [],
+    "Memories": [],
+    "SensitiveData": [],
+    "SensitiveDataUsage": [],
+    "Subjects": []
+  }
+}

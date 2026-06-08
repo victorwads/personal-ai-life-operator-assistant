@@ -16,6 +16,8 @@ Fixture convention:
 - For scenario-driven parsing tests, prefer one scenario folder per test method.
 - Put the raw variants directly in that scenario folder unless the scenario truly needs sub-groups of files.
 - Keep fixture files raw and close to what the app/provider really receives. Prefer `.json`, `.sse`, or `.txt` based on the payload shape instead of forcing one extension.
+- `FirestoreFixtureBuilder` is the single entry point for Firestore repository test setup. It should load fixtures, import them into an isolated profile scope, and clear them after the test.
+- Firestore fixture files should stay generic at the collection level so future repository-backed collections can be added without creating a new importer class per entity.
 
 Goal:
 

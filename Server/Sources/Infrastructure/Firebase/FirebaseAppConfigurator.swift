@@ -6,6 +6,7 @@ import Foundation
 
 public enum FirebaseAppConfigurator {
     private static let emulatorFlagValues = Set(["1", "true", "yes", "on"])
+    private static var firestoreConfigured = false
 
     public static func configure() {
         if FirebaseApp.app() == nil {
@@ -18,27 +19,31 @@ public enum FirebaseAppConfigurator {
     }
 
     private static func configureFirestore() {
-        let firestore = Firestore.firestore()
-        let settings = firestore.settings
-
-        if let emulator = emulatorEnvironment() {
-            // Important: configure emulator host through Firestore settings before any runtime
-            // interaction with the instance to avoid "settings can no longer be changed" errors.
-            settings.host = "\(emulator.host):\(emulator.firestorePort)"
-            settings.isSSLEnabled = false
-            print("Firestore emulator configured at \(emulator.host):\(emulator.firestorePort).")
+        guard !firestoreConfigured else {
+            return
         }
 
-        // Firestore uses a persistent local cache by default on Apple platforms with the current
-        // SDK, but we still set PersistentCacheSettings explicitly so startup behavior is clear and
-        // stays local-first unless we intentionally change it.
-        //
-        // Local persistence/cache enables offline behavior and cached reads across app launches.
-        // Persistent cache indexes improve local filtered/cache-only query execution over already
-        // cached documents. They do not replace remote Firestore composite indexes required for
-        // server/default reads when Firestore enforces them.
+        let firestore = Firestore.firestore()
+        let settings = firestore.settings
+        
+        if RuntimeEnvironment.isTestingRuntime {
+            settings.host = "localhost:4010"
+            settings.isSSLEnabled = false
+            settings.cacheSettings = MemoryCacheSettings()
+            firestore.settings = settings
+            firestoreConfigured = true
+            return
+        }
+
+        if let emulator = emulatorEnvironment() {
+            settings.host = "\(emulator.host):\(emulator.firestore)"
+            settings.isSSLEnabled = false
+            print("Firestore emulator configured at \(emulator.host):\(emulator.firestore).")
+        }
+
         settings.cacheSettings = PersistentCacheSettings()
         firestore.settings = settings
+        firestoreConfigured = true
         print("Firestore local persistence configured.")
 
         if let indexManager = firestore.persistentCacheIndexManager {
@@ -49,24 +54,27 @@ public enum FirebaseAppConfigurator {
     }
 
     private static func configureRealtimeDatabase() {
+        if RuntimeEnvironment.isTestingRuntime { return }
         guard let emulator = emulatorEnvironment() else {
             return
         }
 
-        Database.database().useEmulator(withHost: emulator.host, port: emulator.databasePort)
-        print("Realtime Database emulator configured at \(emulator.host):\(emulator.databasePort).")
+        Database.database().useEmulator(withHost: emulator.host, port: emulator.database)
+        print("Realtime Database emulator configured at \(emulator.host):\(emulator.database).")
     }
 
     private static func configureAuth() {
+        if RuntimeEnvironment.isTestingRuntime { return }
         guard let emulator = emulatorEnvironment() else {
             return
         }
 
-        Auth.auth().useEmulator(withHost: emulator.host, port: emulator.authPort)
-        print("Firebase Auth emulator enabled at \(emulator.host):\(emulator.authPort).")
+        Auth.auth().useEmulator(withHost: emulator.host, port: emulator.auth)
+        print("Firebase Auth emulator enabled at \(emulator.host):\(emulator.auth).")
     }
 
-    private static func emulatorEnvironment() -> (host: String, firestorePort: Int, authPort: Int, databasePort: Int)? {
+    private static func emulatorEnvironment() -> (host: String, firestore: Int, auth: Int, database: Int)? {
+        
         let environment = ProcessInfo.processInfo.environment
         let useEmulatorRaw = environment["FIREBASE_USE_EMULATORS"]?
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -80,9 +88,9 @@ public enum FirebaseAppConfigurator {
         let hostValue = environment["FIREBASE_EMULATOR_HOST"]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let host = hostValue.isEmpty ? "localhost" : hostValue
 
-        let firestorePort = Int(environment["FIRESTORE_EMULATOR_PORT"] ?? "") ?? 8080
-        let authPort = Int(environment["FIREBASE_AUTH_EMULATOR_PORT"] ?? "") ?? 9099
-        let databasePort = Int(environment["FIREBASE_DATABASE_EMULATOR_PORT"] ?? "") ?? 9000
-        return (host: host, firestorePort: firestorePort, authPort: authPort, databasePort: databasePort)
+        let firestore = Int(environment["FIRESTORE_EMULATOR_PORT"] ?? "") ?? 8080
+        let auth = Int(environment["FIREBASE_AUTH_EMULATOR_PORT"] ?? "") ?? 9099
+        let database = Int(environment["FIREBASE_DATABASE_EMULATOR_PORT"] ?? "") ?? 9000
+        return (host: host, firestore: firestore, auth: auth, database: database)
     }
 }

@@ -1,0 +1,26 @@
+{
+  "collections": {
+    "Chats": [
+      {
+        "id": "chat-local",
+        "title": "Local",
+        "listOrder": 1,
+        "lastMessagePreview": "Local preview",
+        "lastMessageTimeText": "10:00",
+        "unreadCount": 0,
+        "unhandledCount": 0,
+        "stateHash": "local-state",
+        "lastDigestedAt": "2026-06-08T10:00:00Z",
+        "_createdAt": "2026-06-08T10:00:00Z",
+        "_updatedAt": "2026-06-08T10:00:00Z"
+      }
+    ],
+    "ChatMessages": [],
+    "Issues": [],
+    "ClientInteractionRequests": [],
+    "Memories": [],
+    "SensitiveData": [],
+    "SensitiveDataUsage": [],
+    "Subjects": []
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "collections": {
+    "Chats": [
+      {
+        "id": "chat-1",
+        "title": "Fixture Chat",
+        "listOrder": 1,
+        "lastMessagePreview": "Latest",
+        "lastMessageTimeText": "10:03",
+        "unreadCount": 2,
+        "unhandledCount": 2,
+        "stateHash": "fixture-state",
+        "lastDigestedAt": "2026-06-08T10:03:00Z",
+        "_createdAt": "2026-06-08T10:03:00Z",
+        "_updatedAt": "2026-06-08T10:03:00Z"
+      }
+    ],
+    "ChatMessages": [
+      {
+        "id": "message-1",
+        "chatId": "chat-1",
+        "author": "Alice",
+        "text": "Oldest",
+        "kind": "text",
+        "direction": "received",
+        "listOrder": 1,
+        "dateTime": "2026-06-08T10:01:00Z",
+        "localMediaPaths": [],
+        "handled": true,
+        "sentByAssistant": false,
+        "_createdAt": "2026-06-08T10:01:00Z",
+        "_updatedAt": "2026-06-08T10:01:00Z"
+      },
+      {
+        "id": "message-2",
+        "chatId": "chat-1",
+        "author": "Alice",
+        "text": "Middle",
+        "kind": "text",
+        "direction": "received",
+        "listOrder": 2,
+        "dateTime": "2026-06-08T10:02:00Z",
+        "localMediaPaths": [],
+        "handled": false,
+        "sentByAssistant": false,
+        "_createdAt": "2026-06-08T10:02:00Z",
+        "_updatedAt": "2026-06-08T10:02:00Z"
+      },
+      {
+        "id": "message-3",
+        "chatId": "chat-1",
+        "author": "Alice",
+        "text": "Newest",
+        "kind": "text",
+        "direction": "received",
+        "listOrder": 3,
+        "dateTime": "2026-06-08T10:03:00Z",
+        "localMediaPaths": [],
+        "handled": false,
+        "sentByAssistant": false,
+        "_createdAt": "2026-06-08T10:03:00Z",
+        "_updatedAt": "2026-06-08T10:03:00Z"
+      }
+    ],
+    "Issues": [],
+    "ClientInteractionRequests": [],
+    "Memories": [],
+    "SensitiveData": [],
+    "SensitiveDataUsage": [],
+    "Subjects": []
+  }
+}

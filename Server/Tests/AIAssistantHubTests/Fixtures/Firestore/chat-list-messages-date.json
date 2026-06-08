@@ -1,0 +1,44 @@
+{
+  "collections": {
+    "Chats": [
+      {
+        "id": "chat-4",
+        "title": "Chat 4",
+        "listOrder": 1,
+        "lastMessagePreview": "Olá boa noite",
+        "lastMessageTimeText": "01:31",
+        "unreadCount": 0,
+        "unhandledCount": 0,
+        "stateHash": "hash-4",
+        "lastDigestedAt": "2026-06-05T01:31:00Z",
+        "_createdAt": "2026-06-05T01:31:00Z",
+        "_updatedAt": "2026-06-05T01:31:00Z"
+      }
+    ],
+    "ChatMessages": [
+      {
+        "id": "m1",
+        "chatId": "chat-4",
+        "author": null,
+        "text": "Olá boa noite",
+        "kind": "text",
+        "direction": "received",
+        "listOrder": 1,
+        "dateTime": "2026-06-05T01:31:00Z",
+        "quotedMessageText": "Mensagem anterior",
+        "quotedMessageAuthor": "DRAKE PIZZAS",
+        "localMediaPaths": [],
+        "handled": true,
+        "sentByAssistant": false,
+        "_createdAt": "2026-06-05T01:31:00Z",
+        "_updatedAt": "2026-06-05T01:31:00Z"
+      }
+    ],
+    "Issues": [],
+    "ClientInteractionRequests": [],
+    "Memories": [],
+    "SensitiveData": [],
+    "SensitiveDataUsage": [],
+    "Subjects": []
+  }
+}

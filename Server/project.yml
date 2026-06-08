@@ -7,6 +7,7 @@ fileGroups:
   - ../firestore.indexes.json
   - ../firebase.rules
   - ../firebase.json
+  - ../firebase.tests.json
   - ../Docs
   - ../AGENTS.md
   - AGENTS.md
@@ -114,8 +115,13 @@ schemes:
       config: Debug
     test:
       config: Debug
+      gatherCoverageData: true
+      coverageTargets:
+        - AIAssistantHub
       targets:
-        - AIAssistantHubTests
+        - name: AIAssistantHubTests
+          parallelizable: true
+          randomExecutionOrder: true
   AIAssistantHubDesignSystemPreview:
     build:
       targets:

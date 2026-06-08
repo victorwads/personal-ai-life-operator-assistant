@@ -1,46 +1,31 @@
 import XCTest
 @testable import AIAssistantHub
 
-final class MarkChatMessagesAsHandledToolTests: XCTestCase {
-    func testExecuteMarksMessagesAndReturnsIssueAwareMessage() async throws {
-        let repository = ChatRepositorySpy()
-        repository.markedThroughReturnCount = 3
+final class MarkChatMessagesAsHandledToolTests: FirestoreIntegrationTestCase {
+    func testExecuteMarksMessagesAndReturnsIssueAwareMessageUsingRealFirestoreState() async throws {
+        let repository = FirestoreChatRepository(scope: scope)
+
+        try await fixtureBuilder.importFixture(named: "chat-message-range-selector.json")
 
         let tool = MarkChatMessagesAsHandledTool(repository: repository)
         let call = MCPToolCall(name: "mark_chat_messages_as_handled", arguments: [
             "issueId": .string("issue-42"),
             "readReceipt": .string(try ChatMessagesReadReceiptCoder.encode(
-                chatId: "chat-1",
-                lastChatMessageId: "message-9"
+                chatId: "chat-range",
+                lastChatMessageId: "m6"
             ))
         ])
 
         let result = try await tool.execute(call, context: MCPServerContext())
 
-        XCTAssertEqual(repository.markedThroughChatId, "chat-1")
-        XCTAssertEqual(repository.markedThroughLastChatMessageId, "message-9")
-        XCTAssertEqual(result, .string("Marked 3 chat messages as handled for issue issue-42."))
-    }
+        XCTAssertEqual(result, .string("Marked 6 chat messages as handled for issue issue-42."))
 
-    func testExecuteReturnsNoMessagesWhenRepositoryMarksNothing() async throws {
-        let repository = ChatRepositorySpy()
-
-        let tool = MarkChatMessagesAsHandledTool(repository: repository)
-        let call = MCPToolCall(name: "mark_chat_messages_as_handled", arguments: [
-            "issueId": .string("issue-42"),
-            "readReceipt": .string(try ChatMessagesReadReceiptCoder.encode(
-                chatId: "chat-1",
-                lastChatMessageId: "message-9"
-            ))
-        ])
-
-        let result = try await tool.execute(call, context: MCPServerContext())
-
-        XCTAssertEqual(result, .string("No chat messages were marked as handled."))
+        let updatedMessages = try await repository.listMessages(chatId: "chat-range", limit: 10)
+        XCTAssertEqual(updatedMessages.filter { ["m6", "m5", "m4", "m3", "m2", "m1"].contains($0.id ?? "") }.map(\.handled), Array(repeating: true, count: 6))
     }
 
     func testExecuteThrowsForInvalidReadReceipt() async {
-        let repository = ChatRepositorySpy()
+        let repository = FirestoreChatRepository(scope: scope)
         let tool = MarkChatMessagesAsHandledTool(repository: repository)
         let call = MCPToolCall(name: "mark_chat_messages_as_handled", arguments: [
             "issueId": .string("issue-42"),
@@ -53,11 +38,11 @@ final class MarkChatMessagesAsHandledToolTests: XCTestCase {
     }
 
     func testExecuteThrowsForEmptyIssueId() async throws {
-        let repository = ChatRepositorySpy()
+        let repository = FirestoreChatRepository(scope: scope)
         let tool = MarkChatMessagesAsHandledTool(repository: repository)
         let readReceipt = try ChatMessagesReadReceiptCoder.encode(
-            chatId: "chat-1",
-            lastChatMessageId: "message-9"
+            chatId: "chat-range",
+            lastChatMessageId: "m6"
         )
         let call = MCPToolCall(name: "mark_chat_messages_as_handled", arguments: [
             "issueId": .string("   "),
@@ -67,36 +52,6 @@ final class MarkChatMessagesAsHandledToolTests: XCTestCase {
         await XCTAssertThrowsErrorAsync {
             _ = try await tool.execute(call, context: MCPServerContext())
         }
-    }
-
-    private final class ChatRepositorySpy: ChatRepository {
-        var markedThroughChatId: String?
-        var markedThroughLastChatMessageId: String?
-        var markedThroughReturnCount: Int = 0
-
-        func markMessagesHandledThrough(chatId: String, lastChatMessageId: String) async throws -> Int {
-            markedThroughChatId = chatId
-            markedThroughLastChatMessageId = lastChatMessageId
-            return markedThroughReturnCount
-        }
-
-        func getChat(id _: String) async throws -> Chat? { nil }
-        func listChats() async throws -> [Chat] { [] }
-        func upsertChat(_: Chat) async throws {}
-        func updateChatPermission(chatId _: String, permission _: ChatPermission?) async throws {}
-        func deleteChat(id _: String) async throws {}
-        func deleteAllChatsAndMessages() async throws {}
-        func listUnhandledChats(limit _: Int?, permissionMode _: ChatPermissionMode) async throws -> [Chat] { [] }
-        func listMessages(chatId _: String, limit _: Int?) async throws -> [ChatMessage] { [] }
-        func insertMessages(_: [ChatMessage]) async throws -> [ChatMessage] { [] }
-        func markMessagesHandled(ids _: [String]) async throws {}
-        func markMessagesUnhandledFrom(chatId _: String, firstChatMessageId _: String) async throws -> Int { 0 }
-        func existingMessageIds(chatId _: String) async throws -> Set<String> { [] }
-        func deleteMessage(id _: String) async throws {}
-        func deleteChatMessages(chatId _: String) async throws {}
-        func deleteChatAndMessages(chatId _: String) async throws {}
-        func countUnhandledMessages(chatId _: String) async throws -> Int { 0 }
-        func updateUnhandledCount(chatId _: String, count _: Int?) async throws {}
     }
 }
 

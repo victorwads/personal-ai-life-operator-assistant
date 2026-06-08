@@ -20,3 +20,33 @@ Test style:
 - One scenario should map to one test method.
 - If a scenario has multiple input variations, loop only over that scenario's fixtures inside the method.
 - Avoid one test method iterating over many unrelated scenarios, because failures become harder to read in Xcode.
+
+# Firestore Integration Testing
+
+Before running repository tests, start the Firestore test emulator from the repo root:
+
+```sh
+firebase emulators:start --project tests --config firebase.tests.json
+```
+
+1. Repository integration tests use the Firestore Emulator.
+2. Tests use `FirebaseProfileScope.testScope()`.
+3. Fixtures are inserted directly into Firestore.
+4. Fixtures never use repositories.
+5. Fixture insertion order is randomized.
+6. Tests must never rely on insertion order.
+7. Collection names must match production names.
+8. Every fixture document must contain `_createdAt`.
+9. Repository tests validate real Firestore behavior.
+10. Repository CRUD fakes are forbidden.
+
+# Parallel Test Execution
+
+1. All tests must support parallel execution.
+2. All tests must support random execution order.
+3. Tests must never depend on execution order.
+4. Tests must never depend on shared Firebase profile ids.
+5. Tests must never depend on shared Firestore collections.
+6. Tests must never depend on state created by another test.
+7. Every Firestore integration test must use `FirebaseProfileScope.testScope()`.
+8. Test failures caused by execution order are considered bugs.

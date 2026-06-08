@@ -1,0 +1,11 @@
+{
+  "collections": {
+    "BogusThings": [
+      {
+        "id": "bogus-1",
+        "_createdAt": "2026-06-08T07:00:00Z",
+        "name": "Should fail fast"
+      }
+    ]
+  }
+}

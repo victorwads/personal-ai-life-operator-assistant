@@ -45,7 +45,10 @@ echo "==> Building"
 xcodebuild "${XCODEBUILD_ARGS[@]}" build
 
 echo "==> Running unit tests"
-xcodebuild "${XCODEBUILD_ARGS[@]}" -destination "$TEST_DESTINATION" test
+xcodebuild "${XCODEBUILD_ARGS[@]}" -destination "$TEST_DESTINATION" \
+  -parallel-testing-enabled YES \
+  -parallel-testing-worker-count 0 \
+  test
 
 if [[ ! -d "$APP_PATH" ]]; then
   echo "Built app not found at: $APP_PATH" >&2

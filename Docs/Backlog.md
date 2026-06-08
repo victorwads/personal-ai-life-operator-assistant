@@ -1363,3 +1363,36 @@ Revisar a forma como as mensagens do WhatsApp são ordenadas e persistidas duran
 
 **Por que isso entra no backlog**  
 Esse bug distorce a timeline das mensagens e pode fazer o assistente tratar coisa antiga como recente, então ele precisa ser corrigido na base para a ordenação voltar a refletir a realidade do chat.
+
+---
+
+## 65) Adicionar campo `extraction` em `ChatMessage`
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R3 - Médio`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.57`
+
+**Descrição**  
+Adicionar um novo campo estrutural em `ChatMessage` chamado `extraction` para guardar o dado extraído da mensagem separadamente do texto original. Hoje, quando uma imagem ou outra mídia vem acompanhada de texto extraível, parte dessa informação acaba sendo misturada ou perdida no fluxo atual. O objetivo é preservar o conteúdo extraído de forma explícita, sem depender apenas de sobrescrever `text`, para que a mensagem possa carregar tanto o conteúdo original quanto o conteúdo derivado da extração.
+
+**Dependências**  
+- `55) Extrair imagem em alta resolução na mensagem`
+- `56) Incluir imagens no contexto de IA durante o tool calling`
+- `60) Persistir hash da imagem para deduplicar extração de texto`
+
+**Comportamento desejado**  
+- Guardar o texto ou dado extraído em um campo separado de `text`.
+- Preservar a mensagem original mesmo quando houver enriquecimento por OCR ou parsing de mídia.
+- Permitir que imagens com texto junto mantenham tanto o conteúdo visual quanto o conteúdo textual derivado.
+- Evitar perda de informação quando a extração vier junto com a mídia.
+- Manter esse campo disponível para usos futuros de busca, contexto e reprocessamento.
+
+**Notas técnicas**  
+- O campo deve viver no modelo `ChatMessage`, porque a extração faz parte do conteúdo persistido da mensagem e não só de um enriquecimento transitório.
+- O ideal é que `text` continue representando o texto original/visível, enquanto `extraction` armazena o material derivado da mídia ou do parser.
+- Vale revisar os pontos de crawl, persistência e renderização para decidir quando usar o conteúdo original e quando usar o conteúdo extraído.
+- Esse item também ajuda a preparar o sistema para futuros fluxos multimodais, sem depender de sobrecarregar `text` com tudo ao mesmo tempo.
+
+**Por que isso entra no backlog**  
+Isso evita perda de informação quando a mensagem traz texto embutido na mídia e deixa a modelagem mais clara para o resto do sistema consumir depois.

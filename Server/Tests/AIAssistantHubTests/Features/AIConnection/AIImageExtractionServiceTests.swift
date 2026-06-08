@@ -117,17 +117,11 @@ final class AIImageExtractionServiceTests: XCTestCase {
         XCTAssertEqual(
             extractedText,
             """
-            <image1>
             cached one
-            </image1>
 
-            <image2>
             live two
-            </image2>
 
-            <image3>
             cached three
-            </image3>
             """
         )
         XCTAssertEqual(streamingService.recordedRequests.count, 1)
@@ -179,7 +173,7 @@ final class AIImageExtractionServiceTests: XCTestCase {
         XCTAssertTrue(imageURL.hasPrefix("data:image/png;base64,"))
     }
 
-    func testImageRequestIncludesExtractionPromptTextPart() async throws {
+    func testImageRequestIncludesOnlyImagePayloadForImages() async throws {
         let prompt = "Prompt from bundle"
         let image = try makeTempImageURL(fileName: "image-content.png", contents: Data("image-content".utf8))
         let cacheRepository = FakeAIImageExtractionCacheRepository()
@@ -211,9 +205,8 @@ final class AIImageExtractionServiceTests: XCTestCase {
 
         let request = try XCTUnwrap(streamingService.recordedRequests.first)
         let contentParts = try XCTUnwrap(request.messages[1].contentParts)
-        XCTAssertEqual(contentParts.count, 2)
-        XCTAssertEqual(contentParts[0], .text("Extract the visible text and describe the image."))
-        guard case let .imageURL(imageURL) = contentParts[1] else {
+        XCTAssertEqual(contentParts.count, 1)
+        guard case let .imageURL(imageURL) = contentParts[0] else {
             return XCTFail("Expected image payload to include the image URL.")
         }
         XCTAssertTrue(imageURL.hasPrefix("data:image/png;base64,"))
@@ -265,12 +258,10 @@ private final class FakeAIImageExtractionStreamingService: AIConnectionStreaming
     func streamEvents(for request: AIProviderRequest) -> AsyncThrowingStream<AIStreamEvent, Error> {
         recordedRequests.append(request)
         return AsyncThrowingStream { continuation in
-            Task {
-                for event in responseEvents {
-                    continuation.yield(event)
-                }
-                continuation.finish()
+            for event in responseEvents {
+                continuation.yield(event)
             }
+            continuation.finish()
         }
     }
 
