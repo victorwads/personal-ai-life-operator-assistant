@@ -12,6 +12,7 @@ Future features such as Sensitive Data, Sent Messages, Client Voice, and WhatsAp
 - `IssueStatus` values are `pending`, `suspended`, `resolved`, and `cancelled`.
 - The UI may label `pending` as `Active`, but the persisted status stays `pending` for compatibility.
 - `IssuePriority` is numeric (`1...5`) to keep priority handling stable across tools and persistence.
+- `Issue.relatedChatIds` stores chat ids explicitly associated to an issue when handled chat context is linked back to that issue.
 - Timeline items record lifecycle changes and issue updates using `issueId`, `kind`, and `description`.
 - Manual lifecycle transitions append auditable timeline entries with `reason`, `changedAt`, `previousStatus`, and `suspendUntil` when applicable.
 

@@ -3,10 +3,22 @@ import Foundation
 struct GetIssueTool: MCPToolDefinition {
     private let repository: FirestoreIssueRepository
     private let timelineRepository: FirestoreIssueTimelineRepository
+    private let sentMessagesProvider: (String) async throws -> [SentMessage]
+    private let clientInteractionRequestsProvider: (String) async throws -> [ClientInteractionRequest]
+    private let chatProvider: (String) async throws -> Chat?
 
-    init(repository: FirestoreIssueRepository, timelineRepository: FirestoreIssueTimelineRepository) {
+    init(
+        repository: FirestoreIssueRepository,
+        timelineRepository: FirestoreIssueTimelineRepository,
+        sentMessagesProvider: @escaping (String) async throws -> [SentMessage],
+        clientInteractionRequestsProvider: @escaping (String) async throws -> [ClientInteractionRequest],
+        chatProvider: @escaping (String) async throws -> Chat?
+    ) {
         self.repository = repository
         self.timelineRepository = timelineRepository
+        self.sentMessagesProvider = sentMessagesProvider
+        self.clientInteractionRequestsProvider = clientInteractionRequestsProvider
+        self.chatProvider = chatProvider
     }
 
     let name = "get_issue"
@@ -33,11 +45,33 @@ struct GetIssueTool: MCPToolDefinition {
         guard let issue = try await repository.getById(id) else {
             throw IssueMCPToolError.issueNotFound(id)
         }
-        let timelineItems = try await timelineRepository.listItems(for: issue.id ?? id)
 
-        return .object([
-            "issue": IssueMCPToolSupport.issueObject(issue),
-            "timelineItems": IssueMCPToolSupport.timelineItemsObject(timelineItems)
-        ])
+        async let timelineItems = timelineRepository.listItems(for: issue.id ?? id)
+        async let sentMessages = sentMessagesProvider(id)
+        async let clientInteractionRequests = clientInteractionRequestsProvider(id)
+        async let relatedChats = loadRelatedChats(for: issue)
+        let relatedData = try await IssueMCPToolSupport.DetailedIssueData(
+            timelineItems: timelineItems,
+            relatedChats: relatedChats,
+            sentMessages: sentMessages,
+            clientInteractionRequests: clientInteractionRequests
+        )
+
+        return IssueMCPToolSupport.detailedIssueText(
+            issue: issue,
+            relatedData: relatedData
+        )
+    }
+
+    private func loadRelatedChats(for issue: Issue) async throws -> [IssueMCPToolSupport.RelatedChatSummary] {
+        let relatedChatIds = issue.relatedChatIds ?? []
+        var chats: [IssueMCPToolSupport.RelatedChatSummary] = []
+
+        for chatId in relatedChatIds {
+            let chat = try await chatProvider(chatId)
+            chats.append(.init(id: chatId, title: chat?.title))
+        }
+
+        return chats
     }
 }

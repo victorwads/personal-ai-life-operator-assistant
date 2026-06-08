@@ -1,0 +1,160 @@
+{
+  "collections": {
+    "Chats": [
+      {
+        "id": "chat-linked-1",
+        "title": "Budget Chat",
+        "listOrder": 1,
+        "lastMessagePreview": "Client asked about the invoice",
+        "lastMessageTimeText": "10:10",
+        "unreadCount": 0,
+        "unhandledCount": 0,
+        "stateHash": "budget-chat-state",
+        "lastDigestedAt": "2026-06-08T10:10:00Z",
+        "_createdAt": "2026-06-08T10:10:00Z",
+        "_updatedAt": "2026-06-08T10:10:00Z"
+      },
+      {
+        "id": "chat-linked-2",
+        "title": "Voice Follow-up",
+        "listOrder": 2,
+        "lastMessagePreview": "Waiting for the callback",
+        "lastMessageTimeText": "10:20",
+        "unreadCount": 0,
+        "unhandledCount": 0,
+        "stateHash": "voice-chat-state",
+        "lastDigestedAt": "2026-06-08T10:20:00Z",
+        "_createdAt": "2026-06-08T10:20:00Z",
+        "_updatedAt": "2026-06-08T10:20:00Z"
+      }
+    ],
+    "ChatMessages": [],
+    "Issues": [
+      {
+        "id": "issue-xml-1",
+        "title": "Escalate billing mismatch",
+        "description": "Client says the invoice total does not match the signed proposal and wants a corrected amount before paying. Additional context exists here only to force the active issue list to truncate the description cleanly.",
+        "initialRequest": "The client asked us to review the latest invoice and explain the mismatch.",
+        "resolutionCondition": "The invoice is corrected and the client confirms the new total is right.",
+        "priority": 5,
+        "status": "pending",
+        "finished": false,
+        "suspendUntil": null,
+        "relatedChatIds": [
+          "chat-linked-1",
+          "chat-linked-2"
+        ],
+        "_createdAt": "2026-06-08T09:00:00Z",
+        "_updatedAt": "2026-06-08T09:30:00Z"
+      },
+      {
+        "id": "issue-xml-2",
+        "title": "Prepare renewal summary",
+        "description": "Summarize the renewal terms before the Friday meeting.",
+        "initialRequest": "Prepare a short briefing for the renewal call.",
+        "resolutionCondition": "The summary is ready and shared before the meeting.",
+        "priority": 2,
+        "status": "pending",
+        "finished": false,
+        "suspendUntil": null,
+        "_createdAt": "2026-06-08T09:40:00Z",
+        "_updatedAt": "2026-06-08T09:50:00Z"
+      },
+      {
+        "id": "issue-xml-3",
+        "title": "Closed issue",
+        "description": "Should not appear in the active list.",
+        "initialRequest": "Already done.",
+        "resolutionCondition": "Already done.",
+        "priority": 3,
+        "status": "resolved",
+        "finished": true,
+        "suspendUntil": null,
+        "_createdAt": "2026-06-08T08:00:00Z",
+        "_updatedAt": "2026-06-08T08:10:00Z"
+      }
+    ],
+    "IssueTimelineItems": [
+      {
+        "id": "timeline-1",
+        "issueId": "issue-xml-1",
+        "kind": "issueCreated",
+        "description": "Opened after the client reported a mismatch in the billed amount.",
+        "_createdAt": "2026-06-08T09:01:00Z",
+        "_updatedAt": "2026-06-08T09:01:00Z"
+      },
+      {
+        "id": "timeline-2",
+        "issueId": "issue-xml-1",
+        "kind": "analysis",
+        "description": "Confirmed the proposal total and started invoice comparison.",
+        "_createdAt": "2026-06-08T09:15:00Z",
+        "_updatedAt": "2026-06-08T09:15:00Z"
+      }
+    ],
+    "ClientInteractionRequests": [
+      {
+        "id": "request-1",
+        "issueId": "issue-xml-1",
+        "kind": "ask",
+        "status": "waitingAgent",
+        "promptText": "Can you call me after lunch?",
+        "responseText": "I can call you at 14:00.",
+        "device": "desktop",
+        "_createdAt": "2026-06-08T10:30:00Z",
+        "_updatedAt": "2026-06-08T10:30:00Z"
+      },
+      {
+        "id": "request-2",
+        "issueId": "issue-xml-1",
+        "kind": "speak",
+        "status": "completed",
+        "promptText": "The invoice was corrected.",
+        "responseText": null,
+        "device": null,
+        "_createdAt": "2026-06-08T10:35:00Z",
+        "_updatedAt": "2026-06-08T10:35:00Z"
+      }
+    ],
+    "SentMessages": [
+      {
+        "id": "sent-1",
+        "issueId": "issue-xml-1",
+        "chatId": "chat-linked-1",
+        "chatTitle": "Budget Chat",
+        "messages": [
+          "Sent the corrected invoice summary.",
+          "Asked the client to confirm the new total."
+        ],
+        "status": "sent",
+        "chatMessageIds": [
+          "wa-1",
+          "wa-2"
+        ],
+        "errorMessage": null,
+        "sentAt": "2026-06-08T10:05:00Z",
+        "_createdAt": "2026-06-08T10:05:00Z",
+        "_updatedAt": "2026-06-08T10:05:00Z"
+      },
+      {
+        "id": "sent-2",
+        "issueId": "issue-xml-1",
+        "chatId": "chat-linked-1",
+        "chatTitle": "Budget Chat",
+        "messages": [
+          "Tried to send the payment link again."
+        ],
+        "status": "failed",
+        "chatMessageIds": [],
+        "errorMessage": "WhatsApp Web was offline.",
+        "sentAt": null,
+        "_createdAt": "2026-06-08T10:15:00Z",
+        "_updatedAt": "2026-06-08T10:15:00Z"
+      }
+    ],
+    "Memories": [],
+    "SensitiveData": [],
+    "SensitiveDataUsage": [],
+    "Subjects": []
+  }
+}

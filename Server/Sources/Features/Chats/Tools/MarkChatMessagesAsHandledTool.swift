@@ -2,9 +2,14 @@ import Foundation
 
 struct MarkChatMessagesAsHandledTool: MCPToolDefinition {
     private let repository: any ChatRepository
+    private let issueRepositoryProvider: @MainActor () -> IssueRepository
 
-    init(repository: any ChatRepository) {
+    init(
+        repository: any ChatRepository,
+        issueRepositoryProvider: @escaping @MainActor () -> IssueRepository
+    ) {
         self.repository = repository
+        self.issueRepositoryProvider = issueRepositoryProvider
     }
 
     let name = "mark_chat_messages_as_handled"
@@ -59,6 +64,12 @@ struct MarkChatMessagesAsHandledTool: MCPToolDefinition {
         if changedCount == 0 {
             return .string("No chat messages were marked as handled.")
         }
+
+        let issueRepository = await issueRepositoryProvider()
+        try await issueRepository.addRelatedChat(
+            issueId: issueId,
+            chatId: readReceipt.chatId
+        )
 
         return .string("Marked \(changedCount) chat messages as handled for issue \(issueId).")
     }

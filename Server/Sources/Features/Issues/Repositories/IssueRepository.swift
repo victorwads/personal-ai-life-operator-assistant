@@ -5,6 +5,7 @@ protocol IssueRepository {
     func listAllIssues() async throws -> [Issue]
     func getById(_ id: String) async throws -> Issue?
     func validateIssueId(_ issueId: String) async throws -> Issue
+    func addRelatedChat(issueId: String, chatId: String) async throws
     func resolveIssue(issueId: String, reason: String) async throws
     func cancelIssue(issueId: String, reason: String) async throws
     func suspendIssue(issueId: String, suspendUntil: Date, reason: String?) async throws
@@ -64,6 +65,28 @@ final class FirestoreIssueRepository: FirestoreRepository<Issue> {
 //        }
 
         return issue
+    }
+
+    func addRelatedChat(issueId: String, chatId: String) async throws {
+        guard let issue = try await getById(issueId) else {
+            throw IssueRepositoryError.issueNotFound(issueId)
+        }
+
+        let trimmedChatId = chatId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedChatId.isEmpty else {
+            return
+        }
+
+        var relatedChatIds = issue.relatedChatIds ?? []
+        guard relatedChatIds.contains(trimmedChatId) == false else {
+            return
+        }
+
+        relatedChatIds.append(trimmedChatId)
+        try await update(
+            id: issueId,
+            data: ["relatedChatIds": relatedChatIds]
+        )
     }
 
     func resolveIssue(issueId: String, reason: String) async throws {

@@ -10,6 +10,7 @@ struct Issue: PersistableModel, Equatable, Sendable {
     var status: IssueStatus
     var finished: Bool
     var suspendUntil: Date?
+    var relatedChatIds: [String]? = nil
 }
 
 enum IssueStatus: String, Codable, Equatable, Sendable, CaseIterable {

@@ -38,7 +38,10 @@ final class ChatsFeature: FeatureRuntime {
                 assistantNameProvider: { sentMessagesSettings.assistantName }
             ),
             MarkChatMessagesAsHandledTool(
-                repository: repository
+                repository: repository,
+                issueRepositoryProvider: {
+                    context.feature(IssuesFeature.self).repository
+                }
             )
         ])
     }

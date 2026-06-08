@@ -177,7 +177,8 @@ private actor IssueIdValidatorTestDouble: IssueReferenceValidating {
             priority: .medium,
             status: .pending,
             finished: false,
-            suspendUntil: nil
+            suspendUntil: nil,
+            relatedChatIds: nil
         )
     }
 }

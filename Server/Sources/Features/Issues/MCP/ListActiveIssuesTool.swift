@@ -22,6 +22,6 @@ struct ListActiveIssuesTool: MCPToolDefinition {
         context _: MCPServerContext
     ) async throws -> MCPJSONValue {
         let issues = try await repository.getActiveIssues()
-        return IssueMCPToolSupport.issueList(issues)
+        return IssueMCPToolSupport.activeIssueListText(issues)
     }
 }

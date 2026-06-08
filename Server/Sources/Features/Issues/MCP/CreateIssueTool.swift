@@ -50,7 +50,8 @@ struct CreateIssueTool: MCPToolDefinition {
                 priority: IssueMCPToolSupport.optionalPriority("priority", from: call) ?? .medium,
                 status: .pending,
                 finished: false,
-                suspendUntil: nil
+                suspendUntil: nil,
+                relatedChatIds: nil
             )
         )
 

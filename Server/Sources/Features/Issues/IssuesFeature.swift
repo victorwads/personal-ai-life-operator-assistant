@@ -59,7 +59,19 @@ final class IssuesFeature: FeatureRuntime, IssueReferenceValidating, IssueRelate
         context.mcp.toolRegistry.register([
             CreateIssueTool(repository: repository),
             UpdateIssueTool(repository: repository, timelineRepository: timelineRepository),
-            GetIssueTool(repository: repository, timelineRepository: timelineRepository),
+            GetIssueTool(
+                repository: repository,
+                timelineRepository: timelineRepository,
+                sentMessagesProvider: { issueId in
+                    try await context.feature(SentMessagesFeature.self).listByIssueId(issueId)
+                },
+                clientInteractionRequestsProvider: { issueId in
+                    try await context.feature(ClientVoiceFeature.self).listByIssueId(issueId)
+                },
+                chatProvider: { chatId in
+                    try await context.feature(ChatsFeature.self).repository.getChat(id: chatId)
+                }
+            ),
             ListActiveIssuesTool(repository: repository),
             SuspendIssueTool(repository: repository, timelineRepository: timelineRepository),
             ResolveIssueTool(repository: repository, timelineRepository: timelineRepository),

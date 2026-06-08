@@ -1115,3 +1115,43 @@ Adicionar um novo campo estrutural em `ChatMessage` chamado `extraction` para gu
 
 **Por que isso entra no backlog**  
 Isso evita perda de informação quando a mensagem traz texto embutido na mídia e deixa a modelagem mais clara para o resto do sistema consumir depois.
+
+---
+
+## 66) Associar contexto/memórias a um chat ou pessoa via MCP tool
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R4 - Alto`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.53`
+
+**Descrição**  
+Criar uma MCP tool para adicionar informações contextuais a um chat, permitindo que o assistente associe memórias, identidade e notas operacionais a uma pessoa ou conversa específica. A ideia é que, ao listar mensagens ou abrir uma conversa, a IA também consiga ver quem é aquele chat, qual o contexto daquela pessoa e quais fatos duráveis já foram ligados àquele contato. Isso transforma o chat em algo mais rico do que só uma sequência de mensagens, ajudando o assistente a lembrar quem é o Léo, o que ele representa e como deve tratar aquele fluxo.
+
+**Dependências**  
+- `37) Memórias categorizadas e `list_memories` filtrável`
+- `40) Revisar ordenação real da lista de chats com inferência contextual`
+
+**Comportamento desejado**  
+- Permitir anexar contexto durável a um chat específico.
+- Permitir que a IA associe memórias a uma pessoa/conversa durante o uso normal.
+- Fazer a listagem de mensagens trazer também o contexto relevante daquele chat.
+- Manter esse contexto disponível para o runtime sem misturar com a mensagem em si.
+- Permitir atualização progressiva desse contexto ao longo do tempo.
+
+**Nomes possíveis para a MCP tool**  
+- `add_chat_context_info`
+- `append_chat_context`
+- `save_chat_context`
+- `add_chat_memory`
+- `attach_chat_context`
+
+**Notas técnicas**  
+- O contrato da tool deve deixar claro se o vínculo é por `chatId`, por pessoa/contato ou ambos.
+- O contexto precisa ser persistido de forma durável, não apenas em memória do runtime.
+- A tool deve permitir guardar fatos curtos e objetivos, não só texto solto sem estrutura.
+- Vale pensar em separar “contexto da conversa” de “memória da pessoa” para evitar mistura de escopo.
+- A listagem de mensagens e a UI de chat devem conseguir exibir esse contexto sem poluir o conteúdo principal.
+
+**Por que isso entra no backlog**  
+Isso dá ao assistente uma camada de memória relacional por chat/pessoa, deixando o atendimento mais inteligente e consistente ao reconhecer quem é cada interlocutor.
