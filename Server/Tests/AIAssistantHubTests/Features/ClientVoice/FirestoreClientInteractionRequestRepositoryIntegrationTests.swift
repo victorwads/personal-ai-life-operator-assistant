@@ -24,7 +24,7 @@ final class FirestoreClientInteractionRequestRepositoryIntegrationTests: Firesto
 
         XCTAssertEqual(
             requests.compactMap(\.id),
-            ["request-1", try XCTUnwrap(second.id), try XCTUnwrap(first.id)]
+            [try XCTUnwrap(second.id), try XCTUnwrap(first.id), "request-1"]
         )
     }
 

@@ -1,0 +1,16 @@
+{
+  "collections": {
+    "ClientInteractionRequests": [
+      {
+        "id": "ask-1",
+        "issueId": null,
+        "kind": "ask",
+        "status": "waitingAgent",
+        "promptText": "Eu vi que voce me chamou, o que voce precisa?",
+        "responseText": "Preciso que voce veja meu pedido.",
+        "device": "desktop",
+        "_createdAt": "2026-06-08T08:00:00Z"
+      }
+    ]
+  }
+}

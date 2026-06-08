@@ -1,0 +1,16 @@
+{
+  "collections": {
+    "ClientInteractionRequests": [
+      {
+        "id": "done-1",
+        "issueId": "issue-1",
+        "kind": "ask",
+        "status": "completed",
+        "promptText": "Done",
+        "responseText": "Done",
+        "device": "desktop",
+        "_createdAt": "2026-06-08T08:00:00Z"
+      }
+    ]
+  }
+}

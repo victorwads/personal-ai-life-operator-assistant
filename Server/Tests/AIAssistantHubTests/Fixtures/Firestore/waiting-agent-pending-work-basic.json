@@ -1,0 +1,26 @@
+{
+  "collections": {
+    "ClientInteractionRequests": [
+      {
+        "id": "ask-1",
+        "issueId": "issue-1",
+        "kind": "ask",
+        "status": "waitingAgent",
+        "promptText": "Can I go tomorrow?",
+        "responseText": "Yes.",
+        "device": "desktop",
+        "_createdAt": "2026-06-08T08:00:00Z"
+      },
+      {
+        "id": "done-1",
+        "issueId": "issue-2",
+        "kind": "ask",
+        "status": "completed",
+        "promptText": "Ignored",
+        "responseText": "Ignored",
+        "device": "desktop",
+        "_createdAt": "2026-06-08T08:01:00Z"
+      }
+    ]
+  }
+}

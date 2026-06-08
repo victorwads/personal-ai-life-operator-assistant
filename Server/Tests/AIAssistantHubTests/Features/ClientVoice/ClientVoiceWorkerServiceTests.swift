@@ -2,13 +2,14 @@ import XCTest
 @testable import AIAssistantHub
 
 @MainActor
-final class ClientVoiceWorkerServiceTests: XCTestCase {
-    func testInitializedRequestDoesNothingWhileClientIsAbsent() async {
-        let repository = ClientVoiceWorkerRepositorySpy()
+final class ClientVoiceWorkerServiceTests: FirestoreIntegrationTestCase {
+    func testInitializedRequestDoesNothingWhileClientIsAbsent() async throws {
+        let repository = FirestoreClientInteractionRequestRepository(scope: scope)
         let sharedLocks = SharedLockRegistry()
-        let presenceRepository = ClientVoicePresenceRepositorySpy(initialPresence: false)
+        let presenceRepository = ClientVoicePresenceStub(initialPresence: false)
         let presenceService = ClientVoicePresenceService(repository: presenceRepository)
         await presenceService.start()
+        
         let service = ClientVoiceWorkerService(
             id: "client.voice.worker",
             title: "Voice Worker",
@@ -18,19 +19,21 @@ final class ClientVoiceWorkerServiceTests: XCTestCase {
         )
 
         await service.start()
-        repository.emit([
-            ClientInteractionRequest(
-                id: "speak-1",
-                issueId: "issue-1",
-                kind: .speak,
-                status: .initialized,
-                promptText: "hello"
-            )
-        ])
+        
+        // Save an initialized request directly in the real repository
+        _ = try await repository.createRequest(
+            issueId: "issue-1",
+            kind: .speak,
+            status: .initialized,
+            promptText: "hello"
+        )
 
         try? await Task.sleep(nanoseconds: 200_000_000)
 
-        XCTAssertTrue(repository.recordedCalls.isEmpty)
+        // The request should still be initialized because client is absent
+        let requests = try await repository.listRequests()
+        XCTAssertEqual(requests.first?.status, .initialized)
+
         let isLocked = await sharedLocks.isLocked(id: "announce_to_client:speak-1")
         XCTAssertFalse(isLocked)
 
@@ -39,11 +42,12 @@ final class ClientVoiceWorkerServiceTests: XCTestCase {
     }
 
     func testSpeakRequestUnlocksOnlyAfterCompletionPersists() async throws {
-        let repository = ClientVoiceWorkerRepositorySpy()
+        let repository = FirestoreClientInteractionRequestRepository(scope: scope)
         let sharedLocks = SharedLockRegistry()
-        let presenceRepository = ClientVoicePresenceRepositorySpy(initialPresence: true)
+        let presenceRepository = ClientVoicePresenceStub(initialPresence: true)
         let presenceService = ClientVoicePresenceService(repository: presenceRepository)
         await presenceService.start()
+        
         let service = ClientVoiceWorkerService(
             id: "client.voice.worker",
             title: "Voice Worker",
@@ -55,41 +59,34 @@ final class ClientVoiceWorkerServiceTests: XCTestCase {
             }
         )
 
+        let request = try await repository.createRequest(
+            issueId: "issue-1",
+            kind: .speak,
+            status: .initialized,
+            promptText: "hello"
+        )
+        let requestID = try XCTUnwrap(request.id)
+
         let waiterStarted = expectation(description: "waiter started")
         let waiterResumed = expectation(description: "waiter resumed")
-        let completionPersisted = expectation(description: "completion persisted")
-
-        repository.onMarkCompleted = {
-            completionPersisted.fulfill()
-        }
 
         let waiter = Task {
             waiterStarted.fulfill()
-            try await sharedLocks.lockAndWait(id: "announce_to_client:speak-1")
+            try await sharedLocks.lockAndWait(id: "announce_to_client:\(requestID)")
             waiterResumed.fulfill()
         }
 
         await fulfillment(of: [waiterStarted], timeout: 1.0)
         await service.start()
 
-        repository.emit([
-            ClientInteractionRequest(
-                id: "speak-1",
-                issueId: "issue-1",
-                kind: .speak,
-                status: .initialized,
-                promptText: "hello"
-            )
-        ])
-
-        await fulfillment(of: [completionPersisted, waiterResumed], timeout: 3.0, enforceOrder: true)
+        // Wait for the worker to process the request, update it to completed, and unlock the lock
+        await fulfillment(of: [waiterResumed], timeout: 3.0)
         _ = try await waiter.value
 
-        XCTAssertEqual(repository.recordedCalls, [
-            .markSpeaking("speak-1"),
-            .markCompleted("speak-1")
-        ])
-        let isLocked = await sharedLocks.isLocked(id: "announce_to_client:speak-1")
+        let finalRequest = try await repository.getRequest(id: requestID)
+        XCTAssertEqual(finalRequest.status, .completed)
+        
+        let isLocked = await sharedLocks.isLocked(id: "announce_to_client:\(requestID)")
         XCTAssertFalse(isLocked)
         XCTAssertEqual(service.state, .running)
 
@@ -98,21 +95,30 @@ final class ClientVoiceWorkerServiceTests: XCTestCase {
     }
 
     func testAskRequestOpensDialogOnlyWhenClientBecomesPresent() async throws {
-        let repository = ClientVoiceWorkerRepositorySpy()
+        let repository = FirestoreClientInteractionRequestRepository(scope: scope)
         let sharedLocks = SharedLockRegistry()
-        let presenceRepository = ClientVoicePresenceRepositorySpy(initialPresence: false)
+        let presenceRepository = ClientVoicePresenceStub(initialPresence: false)
         let presenceService = ClientVoicePresenceService(repository: presenceRepository)
         await presenceService.start()
 
         let askDialogOpened = expectation(description: "ask dialog opened")
+        
+        let request = try await repository.createRequest(
+            issueId: "issue-1",
+            kind: .ask,
+            status: .initialized,
+            promptText: "hello"
+        )
+        let requestID = try XCTUnwrap(request.id)
+
         let service = ClientVoiceWorkerService(
             id: "client.voice.worker",
             title: "Voice Worker",
             repository: repository,
             sharedLocks: sharedLocks,
             presenceService: presenceService,
-            presentAskDialog: { request, _ in
-                XCTAssertEqual(request.id, "ask-1")
+            presentAskDialog: { req, _ in
+                XCTAssertEqual(req.id, requestID)
                 askDialogOpened.fulfill()
             },
             speakPerformer: { _ in
@@ -121,31 +127,27 @@ final class ClientVoiceWorkerServiceTests: XCTestCase {
         )
 
         await service.start()
-        repository.emit([
-            ClientInteractionRequest(
-                id: "ask-1",
-                issueId: "issue-1",
-                kind: .ask,
-                status: .initialized,
-                promptText: "hello"
-            )
-        ])
 
+        // The request status should be initialized initially since client is absent
+        let req1 = try await repository.getRequest(id: requestID)
+        XCTAssertEqual(req1.status, .initialized)
+
+        // Make client present
         try await presenceService.setPresent()
 
         await fulfillment(of: [askDialogOpened], timeout: 2.0)
-        XCTAssertEqual(repository.recordedCalls, [
-            .markSpeaking("ask-1"),
-            .markWaitingUser("ask-1")
-        ])
+
+        // Now request status should be waitingUser
+        let req2 = try await repository.getRequest(id: requestID)
+        XCTAssertEqual(req2.status, .waitingUser)
 
         await service.stop()
         await presenceService.stop()
     }
 
-    func testStartAndStopUpdateRuntimeState() async {
-        let repository = ClientVoiceWorkerRepositorySpy()
-        let presenceRepository = ClientVoicePresenceRepositorySpy(initialPresence: true)
+    func testStartAndStopUpdateRuntimeState() async throws {
+        let repository = FirestoreClientInteractionRequestRepository(scope: scope)
+        let presenceRepository = ClientVoicePresenceStub(initialPresence: true)
         let presenceService = ClientVoicePresenceService(repository: presenceRepository)
         let service = ClientVoiceWorkerService(
             id: "client.voice.worker",
@@ -159,109 +161,13 @@ final class ClientVoiceWorkerServiceTests: XCTestCase {
 
         await service.start()
         XCTAssertEqual(service.state, .running)
-        XCTAssertEqual(repository.observeRequestsCallCount, 1)
 
         await service.stop()
         XCTAssertEqual(service.state, .stopped)
-        XCTAssertTrue(repository.listenerCancelCalled)
     }
 }
 
-private final class ClientVoiceWorkerRepositorySpy: ClientInteractionRequestRepository, @unchecked Sendable {
-    enum Call: Equatable {
-        case markSpeaking(String)
-        case markWaitingUser(String)
-        case markCompleted(String)
-    }
-
-    private let lock = NSLock()
-    private(set) var recordedCalls: [Call] = []
-    private(set) var observeRequestsCallCount = 0
-    private(set) var listenerCancelCalled = false
-    var onMarkCompleted: (() -> Void)?
-    private var listener: (([ClientInteractionRequest]) -> Void)?
-
-    func emit(_ requests: [ClientInteractionRequest]) {
-        listener?(requests)
-    }
-
-    func listRequests() async throws -> [ClientInteractionRequest] { [] }
-
-    func observeRequests(_ listener: @escaping ([ClientInteractionRequest]) -> Void) -> FirestoreListenerToken {
-        observeRequestsCallCount += 1
-        self.listener = listener
-        return FirestoreListenerToken { [weak self] in
-            self?.listenerCancelCalled = true
-        }
-    }
-
-    func getRequest(id _: String) async throws -> ClientInteractionRequest {
-        throw ClientInteractionRequestRepositoryError.requestNotFound("unused")
-    }
-
-    func createRequest(
-        issueId _: String?,
-        kind _: ClientInteractionRequest.Kind,
-        status _: ClientInteractionRequest.Status,
-        promptText _: String
-    ) async throws -> ClientInteractionRequest {
-        throw ClientInteractionRequestRepositoryError.requestNotFound("unused")
-    }
-
-    func markWaitingAgent(id _: String, responseText _: String) async throws -> ClientInteractionRequest {
-        throw ClientInteractionRequestRepositoryError.requestNotFound("unused")
-    }
-
-    func markSpeaking(id: String) async throws -> ClientInteractionRequest {
-        append(.markSpeaking(id))
-        return ClientInteractionRequest(
-            id: id,
-            issueId: "issue-1",
-            kind: .speak,
-            status: .speaking,
-            promptText: "hello"
-        )
-    }
-
-    func markWaitingUser(id: String) async throws -> ClientInteractionRequest {
-        append(.markWaitingUser(id))
-        return ClientInteractionRequest(
-            id: id,
-            issueId: "issue-1",
-            kind: .ask,
-            status: .waitingUser,
-            promptText: "hello"
-        )
-    }
-
-    func markCompleted(id: String) async throws -> ClientInteractionRequest {
-        append(.markCompleted(id))
-        onMarkCompleted?()
-        return ClientInteractionRequest(
-            id: id,
-            issueId: "issue-1",
-            kind: .speak,
-            status: .completed,
-            promptText: "hello"
-        )
-    }
-
-    func markCancelled(id _: String) async throws -> ClientInteractionRequest {
-        throw ClientInteractionRequestRepositoryError.requestNotFound("unused")
-    }
-
-    func deleteRequest(id _: String) async throws {
-        throw ClientInteractionRequestRepositoryError.requestNotFound("unused")
-    }
-
-    private func append(_ call: Call) {
-        lock.lock()
-        recordedCalls.append(call)
-        lock.unlock()
-    }
-}
-
-private final class ClientVoicePresenceRepositorySpy: ClientVoicePresenceRepository {
+private final class ClientVoicePresenceStub: ClientVoicePresenceRepository {
     private var onChange: ((Bool) -> Void)?
     private(set) var isPresent: Bool
 

@@ -150,7 +150,7 @@ Isso não muda a lógica principal do assistente, mas melhora bastante a percep�
 
 ---
 
-## 10) Testes automatizados de integração com MCP server
+## 10) Testes automatizados de integração com MCP server @deprecated
 
 Valor: `V5 - Altíssimo`
 Risco de Desenvolvimento: `R3 - Médio`
@@ -496,7 +496,7 @@ Isso torna o contexto durável muito mais útil e evita que o assistente misture
 
 ---
 
-## 39) Desativar extração de imagem e sticker por chat - doing
+## 39) Desativar extração de imagem e sticker por chat - doing @deprecated
 
 Valor: `V3 - Médio`
 Risco de Desenvolvimento: `R3 - Médio`

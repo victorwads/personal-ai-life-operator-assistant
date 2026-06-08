@@ -2,28 +2,11 @@ import XCTest
 @testable import AIAssistantHub
 
 @MainActor
-final class WaitingAgentPendingWorkProviderTests: XCTestCase {
+final class WaitingAgentPendingWorkProviderTests: FirestoreIntegrationTestCase {
     func testPendingWorkSectionReturnsWaitingAgentRequestsAndConsumesThem() async throws {
-        let repository = WaitingAgentPendingWorkRepositorySpy(
-            requests: [
-                ClientInteractionRequest(
-                    id: "ask-1",
-                    issueId: "issue-1",
-                    kind: .ask,
-                    status: .waitingAgent,
-                    promptText: "Can I go tomorrow?",
-                    responseText: "Yes."
-                ),
-                ClientInteractionRequest(
-                    id: "done-1",
-                    issueId: "issue-2",
-                    kind: .ask,
-                    status: .completed,
-                    promptText: "Ignored",
-                    responseText: "Ignored"
-                )
-            ]
-        )
+        try await FirestoreFixture.importFixture(scope, "waiting-agent-pending-work-basic.json")
+
+        let repository = FirestoreClientInteractionRequestRepository(scope: scope)
         let provider = WaitingAgentPendingWorkProvider(
             repository: repository,
             issueTitleProvider: { issueId in
@@ -43,22 +26,16 @@ final class WaitingAgentPendingWorkProviderTests: XCTestCase {
                 ]
             )
         )
-        XCTAssertEqual(repository.markCompletedCalls, ["ask-1"])
+
+        // Verify that the request has been marked as completed in real repository
+        let updatedRequest = try await repository.getRequest(id: "ask-1")
+        XCTAssertEqual(updatedRequest.status, .completed)
     }
 
     func testPendingWorkSectionReturnsNilWhenNoWaitingAgentRequestsExist() async throws {
-        let repository = WaitingAgentPendingWorkRepositorySpy(
-            requests: [
-                ClientInteractionRequest(
-                    id: "done-1",
-                    issueId: "issue-1",
-                    kind: .ask,
-                    status: .completed,
-                    promptText: "Done",
-                    responseText: "Done"
-                )
-            ]
-        )
+        try await FirestoreFixture.importFixture(scope, "waiting-agent-pending-work-empty.json")
+
+        let repository = FirestoreClientInteractionRequestRepository(scope: scope)
         let provider = WaitingAgentPendingWorkProvider(
             repository: repository,
             issueTitleProvider: { _ in
@@ -70,22 +47,12 @@ final class WaitingAgentPendingWorkProviderTests: XCTestCase {
         let section = try await provider.pendingWorkSection()
 
         XCTAssertNil(section)
-        XCTAssertTrue(repository.markCompletedCalls.isEmpty)
     }
 
     func testPendingWorkSectionHandlesManualRequestsWithoutIssueId() async throws {
-        let repository = WaitingAgentPendingWorkRepositorySpy(
-            requests: [
-                ClientInteractionRequest(
-                    id: "ask-1",
-                    issueId: nil,
-                    kind: .ask,
-                    status: .waitingAgent,
-                    promptText: "Eu vi que voce me chamou, o que voce precisa?",
-                    responseText: "Preciso que voce veja meu pedido."
-                )
-            ]
-        )
+        try await FirestoreFixture.importFixture(scope, "waiting-agent-pending-work-no-issue.json")
+
+        let repository = FirestoreClientInteractionRequestRepository(scope: scope)
         let provider = WaitingAgentPendingWorkProvider(
             repository: repository,
             issueTitleProvider: { _ in
@@ -105,71 +72,9 @@ final class WaitingAgentPendingWorkProviderTests: XCTestCase {
                 ]
             )
         )
-        XCTAssertEqual(repository.markCompletedCalls, ["ask-1"])
-    }
-}
 
-private final class WaitingAgentPendingWorkRepositorySpy: ClientInteractionRequestRepository {
-    let requests: [ClientInteractionRequest]
-    private(set) var markCompletedCalls: [String] = []
-
-    init(requests: [ClientInteractionRequest]) {
-        self.requests = requests
-    }
-
-    func listRequests() async throws -> [ClientInteractionRequest] {
-        requests
-    }
-
-    func observeRequests(_: @escaping ([ClientInteractionRequest]) -> Void) -> FirestoreListenerToken {
-        FirestoreListenerToken {}
-    }
-
-    func getRequest(id: String) async throws -> ClientInteractionRequest {
-        throw ClientInteractionRequestRepositoryError.requestNotFound(id)
-    }
-
-    func createRequest(
-        issueId _: String?,
-        kind _: ClientInteractionRequest.Kind,
-        status _: ClientInteractionRequest.Status,
-        promptText _: String
-    ) async throws -> ClientInteractionRequest {
-        throw ClientInteractionRequestRepositoryError.requestNotFound("unused")
-    }
-
-    func markWaitingAgent(id _: String, responseText _: String) async throws -> ClientInteractionRequest {
-        throw ClientInteractionRequestRepositoryError.requestNotFound("unused")
-    }
-
-    func markSpeaking(id _: String) async throws -> ClientInteractionRequest {
-        throw ClientInteractionRequestRepositoryError.requestNotFound("unused")
-    }
-
-    func markWaitingUser(id _: String) async throws -> ClientInteractionRequest {
-        throw ClientInteractionRequestRepositoryError.requestNotFound("unused")
-    }
-
-    func markCompleted(id: String) async throws -> ClientInteractionRequest {
-        markCompletedCalls.append(id)
-        guard let request = requests.first(where: { $0.id == id }) else {
-            throw ClientInteractionRequestRepositoryError.requestNotFound(id)
-        }
-        return ClientInteractionRequest(
-            id: id,
-            issueId: request.issueId,
-            kind: request.kind,
-            status: .completed,
-            promptText: request.promptText,
-            responseText: request.responseText
-        )
-    }
-
-    func markCancelled(id _: String) async throws -> ClientInteractionRequest {
-        throw ClientInteractionRequestRepositoryError.requestNotFound("unused")
-    }
-
-    func deleteRequest(id _: String) async throws {
-        throw ClientInteractionRequestRepositoryError.requestNotFound("unused")
+        // Verify request was marked as completed
+        let updatedRequest = try await repository.getRequest(id: "ask-1")
+        XCTAssertEqual(updatedRequest.status, .completed)
     }
 }

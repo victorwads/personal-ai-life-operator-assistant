@@ -30,10 +30,10 @@ final class FirestoreWhatsAppAudioTranscriptionCacheRepository: FirestoreReposit
     init(profileId: String) {
         self.profileId = profileId
         super.init(
-            entityName: "WhatsAppAudioTranscriptionCacheDocument",
+            entityName: "AudioTranscriptionCaches",
             path: .profileScoped(
                 scope: FirebaseProfileScope(profileId: profileId),
-                collection: "whatsAppAudioTranscriptionCache"
+                collection: "AudioTranscriptionCaches"
             ),
             readSource: .cacheOnly,
             warmCacheOnInit: false

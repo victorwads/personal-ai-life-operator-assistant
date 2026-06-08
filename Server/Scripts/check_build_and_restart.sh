@@ -47,7 +47,7 @@ xcodebuild "${XCODEBUILD_ARGS[@]}" build
 echo "==> Running unit tests"
 xcodebuild "${XCODEBUILD_ARGS[@]}" -destination "$TEST_DESTINATION" \
   -parallel-testing-enabled YES \
-  -parallel-testing-worker-count 0 \
+  -parallel-testing-worker-count 6 \
   test
 
 if [[ ! -d "$APP_PATH" ]]; then

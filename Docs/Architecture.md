@@ -205,6 +205,12 @@ That separation is important because the assistant now needs to behave different
 
 Firebase SDK imports and SDK types are isolated under `Server/Sources/Infrastructure`. Feature code uses infrastructure repositories and services instead of importing Firebase modules or exposing Firebase SDK types directly. Generic Firestore-backed persistence is provided by `FirestoreRepository`, while feature repositories stay thin and keep Firebase details behind Infrastructure abstractions.
 
+## Testing and Test Doubles
+
+- Repository spies are forbidden in tests when a real Firestore repository exists.
+- Use Firestore emulator integration tests instead.
+- Small non-repository test doubles are allowed only for external side effects such as speech, webview, process execution, or presence if no emulator-backed repository exists yet.
+
 ## Future shape
 
 Likely next steps in the architecture are:

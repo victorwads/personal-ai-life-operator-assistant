@@ -124,7 +124,7 @@ final class IssueStatusTransitionServiceIntegrationTests: FirestoreIntegrationTe
         do {
             try await service.suspendIssue(
                 issueId: "issue-1",
-                suspendUntil: Date(timeIntervalSinceNow: -60),
+                suspendUntil: Date(timeIntervalSince1970: 1_728_000_000 - 60),
                 reason: "This should fail"
             )
             XCTFail("Expected suspendUntil validation to throw.")

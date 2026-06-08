@@ -120,7 +120,7 @@ schemes:
         - AIAssistantHub
       targets:
         - name: AIAssistantHubTests
-          parallelizable: true
+          parallelizable: false
           randomExecutionOrder: true
   AIAssistantHubDesignSystemPreview:
     build:

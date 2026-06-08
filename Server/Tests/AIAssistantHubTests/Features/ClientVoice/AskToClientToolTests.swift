@@ -1,9 +1,9 @@
 import XCTest
 @testable import AIAssistantHub
 
-final class AskToClientToolTests: XCTestCase {
+final class AskToClientToolTests: FirestoreIntegrationTestCase {
     func testReturnsPendingMessageWhenUnlockedWithoutResponse() async throws {
-        let repository = AskToClientRepositorySpy()
+        let repository = FirestoreClientInteractionRequestRepository(scope: scope)
         let sharedLocks = SharedLockRegistry()
         let tool = AskToClientTool(
             repository: repository,
@@ -25,82 +25,104 @@ final class AskToClientToolTests: XCTestCase {
         }
 
         try? await Task.sleep(nanoseconds: 200_000_000)
-        await sharedLocks.unlock(id: "ask_to_client:ask-1")
+
+        // Verify request was created in real repository
+        let requests = try await repository.listRequests()
+        XCTAssertEqual(requests.count, 1)
+        let request = try XCTUnwrap(requests.first)
+        XCTAssertEqual(request.issueId, "issue-1")
+        XCTAssertEqual(request.promptText, "Can you answer?")
+        XCTAssertEqual(request.status, .initialized)
+        let requestID = try XCTUnwrap(request.id)
+
+        // Unlock the tool execution without setting responseText
+        await sharedLocks.unlock(id: "ask_to_client:\(requestID)")
         let result = try await task.value
 
         XCTAssertEqual(
             result,
             .string("pending: question registered for the client. The client could not answer now. Continue autonomously if possible or wait for an event. You will be notified when the client responds.")
         )
-        XCTAssertEqual(repository.markCompletedCallCount, 0)
-    }
-}
 
-private final class AskToClientRepositorySpy: ClientInteractionRequestRepository {
-    private(set) var markCompletedCallCount = 0
-
-    func observeRequests(_ listener: @escaping ([ClientInteractionRequest]) -> Void) -> FirestoreListenerToken {
-        FirestoreListenerToken {}
+        // Verify request was NOT marked completed because there was no responseText
+        let finalRequest = try await repository.getRequest(id: requestID)
+        XCTAssertEqual(finalRequest.status, .initialized)
     }
 
-    func getRequest(id: String) async throws -> ClientInteractionRequest {
-        ClientInteractionRequest(
-            id: id,
-            issueId: "issue-1",
-            kind: .ask,
-            status: .speaking,
-            promptText: "Can you answer?",
-            responseText: nil
+    func testReturnsResponseTextWhenUnlockedWithResponse() async throws {
+        let repository = FirestoreClientInteractionRequestRepository(scope: scope)
+        let sharedLocks = SharedLockRegistry()
+        let tool = AskToClientTool(
+            repository: repository,
+            sharedLocks: sharedLocks,
+            isClientPresentProvider: { true }
         )
+
+        let task = Task {
+            try await tool.execute(
+                MCPToolCall(
+                    name: "ask_to_client",
+                    arguments: [
+                        "issueId": .string("issue-1"),
+                        "text": .string("Can you answer?")
+                    ]
+                ),
+                context: MCPServerContext()
+            )
+        }
+
+        try? await Task.sleep(nanoseconds: 200_000_000)
+
+        // Verify request was created
+        let requests = try await repository.listRequests()
+        XCTAssertEqual(requests.count, 1)
+        let request = try XCTUnwrap(requests.first)
+        let requestID = try XCTUnwrap(request.id)
+
+        // Set response and lock wait will complete
+        _ = try await repository.markWaitingAgent(id: requestID, responseText: "Yes, I can.")
+
+        await sharedLocks.unlock(id: "ask_to_client:\(requestID)")
+        let result = try await task.value
+
+        XCTAssertEqual(result, .string("Yes, I can."))
+
+        // Verify request was marked completed
+        let finalRequest = try await repository.getRequest(id: requestID)
+        XCTAssertEqual(finalRequest.status, .completed)
     }
 
-    func createRequest(
-        issueId: String?,
-        kind: ClientInteractionRequest.Kind,
-        status: ClientInteractionRequest.Status,
-        promptText: String
-    ) async throws -> ClientInteractionRequest {
-        ClientInteractionRequest(
-            id: "ask-1",
-            issueId: issueId,
-            kind: kind,
-            status: status,
-            promptText: promptText
+    func testReturnsPendingMessageWhenClientAbsent() async throws {
+        let repository = FirestoreClientInteractionRequestRepository(scope: scope)
+        let sharedLocks = SharedLockRegistry()
+        let tool = AskToClientTool(
+            repository: repository,
+            sharedLocks: sharedLocks,
+            isClientPresentProvider: { false }
         )
-    }
 
-    func markWaitingAgent(id: String, responseText: String) async throws -> ClientInteractionRequest {
-        throw ClientInteractionRequestRepositoryError.requestNotFound(id)
-    }
-
-    func markSpeaking(id: String) async throws -> ClientInteractionRequest {
-        throw ClientInteractionRequestRepositoryError.requestNotFound(id)
-    }
-
-    func markWaitingUser(id: String) async throws -> ClientInteractionRequest {
-        throw ClientInteractionRequestRepositoryError.requestNotFound(id)
-    }
-
-    func markCompleted(id: String) async throws -> ClientInteractionRequest {
-        markCompletedCallCount += 1
-        return ClientInteractionRequest(
-            id: id,
-            issueId: "issue-1",
-            kind: .ask,
-            status: .completed,
-            promptText: "Can you answer?"
+        let result = try await tool.execute(
+            MCPToolCall(
+                name: "ask_to_client",
+                arguments: [
+                    "issueId": .string("issue-1"),
+                    "text": .string("Can you answer?")
+                ]
+            ),
+            context: MCPServerContext()
         )
-    }
 
-    func markCancelled(id: String) async throws -> ClientInteractionRequest {
-        throw ClientInteractionRequestRepositoryError.requestNotFound(id)
-    }
+        XCTAssertEqual(
+            result,
+            .string("pending: question registered for the client. The client will answer when available. Continue autonomously if possible or wait for an event. You will be notified when the client responds.")
+        )
 
-    func deleteRequest(id: String) async throws {
-        throw ClientInteractionRequestRepositoryError.requestNotFound(id)
-    }
-
-    func listRequests() async throws -> [ClientInteractionRequest] {
-        []
+        // Verify request was created in real repository
+        let requests = try await repository.listRequests()
+        XCTAssertEqual(requests.count, 1)
+        let request = try XCTUnwrap(requests.first)
+        XCTAssertEqual(request.issueId, "issue-1")
+        XCTAssertEqual(request.promptText, "Can you answer?")
+        XCTAssertEqual(request.status, .initialized)
     }
 }
