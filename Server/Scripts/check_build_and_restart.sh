@@ -44,11 +44,30 @@ APP_PATH="$target_build_dir/$full_product_name"
 echo "==> Building"
 xcodebuild "${XCODEBUILD_ARGS[@]}" build
 
+echo "==> Unit Tests"
+
+cleanup() {
+    if [ -n "${FIREBASE_PID:-}" ]; then
+        kill "$FIREBASE_PID" 2>/dev/null || true
+        wait "$FIREBASE_PID" 2>/dev/null || true
+    fi
+}
+trap cleanup EXIT
+echo "==> Init Firebase Emulators"
+firebase emulators:start \
+  --project tests \
+  --config ../firebase.tests.json \
+  > firebase.log 2>&1 &
+FIREBASE_PID=$!
+echo "==> Firebase PID: $FIREBASE_PID"
+
 echo "==> Running unit tests"
 xcodebuild "${XCODEBUILD_ARGS[@]}" -destination "$TEST_DESTINATION" \
   -parallel-testing-enabled YES \
-  -parallel-testing-worker-count 6 \
+  -parallel-testing-worker-count 2 \
   test
+
+kill "$FIREBASE_PID"
 
 if [[ ! -d "$APP_PATH" ]]; then
   echo "Built app not found at: $APP_PATH" >&2

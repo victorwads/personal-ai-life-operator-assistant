@@ -3,33 +3,47 @@ import XCTest
 
 @MainActor
 final class AIConnectionRuntimeServiceTests: XCTestCase {
-    func testStartRunKeepsCyclingWithFreshContextAfterEmptyProviderCompletion() async throws {
+    func testStartRunKeepsCyclingWithFreshContextAfterWaitForEventCompletion() async throws {
+        let waitToolCall1 = AIRequestedToolCall(
+            id: "tool-wait-1",
+            name: "wait_for_event",
+            argumentsJSON: "{}"
+        )
+        let waitToolCall2 = AIRequestedToolCall(
+            id: "tool-wait-2",
+            name: "wait_for_event",
+            argumentsJSON: "{}"
+        )
         let streamingService = FakeAIConnectionStreamingService(
             streamPlans: [
                 .events([
+                    .toolCallStarted(id: waitToolCall1.id, name: waitToolCall1.name),
+                    .toolCallCompleted(waitToolCall1),
                     .completed(
                         AIProviderResponse(
                             id: "response-1",
                             model: "model-1",
                             provider: .openRouter,
-                            finishReason: "stop",
+                            finishReason: "tool_calls",
                             text: "",
                             reasoning: "",
-                            toolCalls: [],
+                            toolCalls: [waitToolCall1],
                             usage: nil
                         )
                     )
                 ]),
                 .events([
+                    .toolCallStarted(id: waitToolCall2.id, name: waitToolCall2.name),
+                    .toolCallCompleted(waitToolCall2),
                     .completed(
                         AIProviderResponse(
                             id: "response-2",
                             model: "model-1",
                             provider: .openRouter,
-                            finishReason: "stop",
+                            finishReason: "tool_calls",
                             text: "",
                             reasoning: "",
-                            toolCalls: [],
+                            toolCalls: [waitToolCall2],
                             usage: nil
                         )
                     )
@@ -203,10 +217,9 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
         XCTAssertEqual(recordedRequests[1].messages[2].role, .assistant)
         XCTAssertEqual(recordedRequests[1].messages[2].content, invalidAssistantText)
         XCTAssertEqual(recordedRequests[1].messages[3].role, .user)
-        XCTAssertTrue(recordedRequests[1].messages[3].content?.contains("Runtime correction:") == true)
-        XCTAssertTrue(recordedRequests[1].messages[3].content?.contains(invalidAssistantText) == true)
+        XCTAssertTrue(recordedRequests[1].messages[3].content?.contains("You ended your completion without calling a required terminal action") == true)
         XCTAssertEqual(recordedRequests[2].messages.count, 6)
-        XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "assistant.invalid_text.detected" }))
+        XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "runtime.autocorrection.missing_terminal_action" }))
         XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "assistant.correction.user_message_appended" }))
         XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "assistant.correction.retry_started" }))
         XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "assistant.correction.context_preserved" }))
@@ -447,7 +460,7 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
         XCTAssertTrue(service.state.debugEvents.contains(where: { $0.kind == "context.cleared.error" }))
         XCTAssertEqual(
             service.state.errors.last,
-            "Model returned invalid plain assistant text after 2 corrective retries: \(invalidAssistantTexts[2])"
+            "Model completed without calling a terminal action after 2 corrective retries."
         )
 
         service.cancelRun()
@@ -552,6 +565,250 @@ final class AIConnectionRuntimeServiceTests: XCTestCase {
                 && $0.inputPayload?.contains("# Client memories") == true
                 && $0.inputPayload?.contains("Pending work is already available at startup.") == true
         }))
+
+        service.cancelRun()
+    }
+
+    func testCompletionWithWaitForEvent() async throws {
+        let waitToolCall = AIRequestedToolCall(
+            id: "tool-wait",
+            name: "wait_for_event",
+            argumentsJSON: "{}"
+        )
+        let streamingService = FakeAIConnectionStreamingService(
+            streamPlans: [
+                .events([
+                    .toolCallStarted(id: waitToolCall.id, name: waitToolCall.name),
+                    .toolCallCompleted(waitToolCall),
+                    .completed(
+                        AIProviderResponse(
+                            id: "response-1",
+                            model: "model-1",
+                            provider: .openRouter,
+                            finishReason: "tool_calls",
+                            text: "",
+                            reasoning: "",
+                            toolCalls: [waitToolCall],
+                            usage: nil
+                        )
+                    )
+                ]),
+                .waitUntilCancelled
+            ]
+        )
+        let service = AIConnectionRuntimeService(streamingService: streamingService)
+
+        service.startRun()
+
+        try await waitUntil {
+            streamingService.recordedRequestCount() >= 1
+        }
+
+        try await Task.sleep(nanoseconds: 100_000_000)
+
+        XCTAssertFalse(service.state.debugEvents.contains(where: {
+            $0.kind == "runtime.autocorrection.missing_terminal_action"
+        }))
+
+        service.cancelRun()
+    }
+
+    func testCompletionWithPlainAssistantTextAndNoToolCall() async throws {
+        let invalidAssistantText = "Hello client, I will look this up."
+        let streamingService = FakeAIConnectionStreamingService(
+            streamPlans: [
+                .events([
+                    .textDelta(invalidAssistantText),
+                    .completed(
+                        AIProviderResponse(
+                            id: "response-1",
+                            model: "model-1",
+                            provider: .openRouter,
+                            finishReason: "stop",
+                            text: invalidAssistantText,
+                            reasoning: "",
+                            toolCalls: [],
+                            usage: nil
+                        )
+                    )
+                ]),
+                .waitUntilCancelled
+            ]
+        )
+        let service = AIConnectionRuntimeService(streamingService: streamingService)
+
+        service.startRun()
+
+        try await waitUntil {
+            streamingService.recordedRequestCount() >= 2
+        }
+
+        let recordedRequests = streamingService.recordedRequestsSnapshot()
+        XCTAssertEqual(recordedRequests[0].messages.count, 2)
+        XCTAssertEqual(recordedRequests[1].messages.count, 4)
+        XCTAssertEqual(recordedRequests[1].messages[2].role, .assistant)
+        XCTAssertEqual(recordedRequests[1].messages[2].content, invalidAssistantText)
+        XCTAssertEqual(recordedRequests[1].messages[3].role, .user)
+        XCTAssertTrue(recordedRequests[1].messages[3].content?.contains("You ended your completion without calling a required terminal action") == true)
+
+        XCTAssertTrue(service.state.debugEvents.contains(where: {
+            $0.kind == "runtime.autocorrection.missing_terminal_action"
+        }))
+
+        service.cancelRun()
+    }
+
+    func testCompletionWithNonTerminalToolCallsOnly() async throws {
+        let nonTerminalToolCall = AIRequestedToolCall(
+            id: "tool-non-terminal",
+            name: "get_current_datetime",
+            argumentsJSON: "{\"timezone\":\"UTC\"}"
+        )
+        let streamingService = FakeAIConnectionStreamingService(
+            streamPlans: [
+                .events([
+                    .toolCallStarted(id: nonTerminalToolCall.id, name: nonTerminalToolCall.name),
+                    .toolCallCompleted(nonTerminalToolCall),
+                    .completed(
+                        AIProviderResponse(
+                            id: "response-1",
+                            model: "model-1",
+                            provider: .openRouter,
+                            finishReason: "tool_calls",
+                            text: "",
+                            reasoning: "",
+                            toolCalls: [nonTerminalToolCall],
+                            usage: nil
+                        )
+                    )
+                ]),
+                .events([
+                    .completed(
+                        AIProviderResponse(
+                            id: "response-2",
+                            model: "model-1",
+                            provider: .openRouter,
+                            finishReason: "stop",
+                            text: "",
+                            reasoning: "",
+                            toolCalls: [],
+                            usage: nil
+                        )
+                    )
+                ]),
+                .waitUntilCancelled
+            ]
+        )
+        let service = AIConnectionRuntimeService(streamingService: streamingService)
+
+        service.startRun()
+
+        try await waitUntil {
+            streamingService.recordedRequestCount() >= 3
+        }
+
+        let recordedRequests = streamingService.recordedRequestsSnapshot()
+        XCTAssertEqual(recordedRequests[0].messages.count, 2)
+        XCTAssertEqual(recordedRequests[1].messages.count, 4)
+        XCTAssertEqual(recordedRequests[2].messages.count, 6)
+
+        XCTAssertTrue(service.state.debugEvents.contains(where: {
+            $0.kind == "runtime.autocorrection.missing_terminal_action"
+        }))
+
+        service.cancelRun()
+    }
+
+    func testCompletionEndingNaturallyWithEmptyOutputAndNoToolCalls() async throws {
+        let streamingService = FakeAIConnectionStreamingService(
+            streamPlans: [
+                .events([
+                    .completed(
+                        AIProviderResponse(
+                            id: "response-1",
+                            model: "model-1",
+                            provider: .openRouter,
+                            finishReason: "stop",
+                            text: "",
+                            reasoning: "",
+                            toolCalls: [],
+                            usage: nil
+                        )
+                    )
+                ]),
+                .waitUntilCancelled
+            ]
+        )
+        let service = AIConnectionRuntimeService(streamingService: streamingService)
+
+        service.startRun()
+
+        try await waitUntil {
+            streamingService.recordedRequestCount() >= 2
+        }
+
+        let recordedRequests = streamingService.recordedRequestsSnapshot()
+        XCTAssertEqual(recordedRequests[0].messages.count, 2)
+        XCTAssertEqual(recordedRequests[1].messages.count, 4)
+        XCTAssertEqual(recordedRequests[1].messages[2].role, .assistant)
+        XCTAssertEqual(recordedRequests[1].messages[2].content, nil)
+        XCTAssertEqual(recordedRequests[1].messages[3].role, .user)
+        XCTAssertTrue(recordedRequests[1].messages[3].content?.contains("You ended your completion without calling a required terminal action") == true)
+
+        XCTAssertTrue(service.state.debugEvents.contains(where: {
+            $0.kind == "runtime.autocorrection.missing_terminal_action"
+        }))
+
+        service.cancelRun()
+    }
+
+    func testContextPreservationDuringMissingTerminalActionCorrection() async throws {
+        let bootstrapMessage = AIConversationMessage(
+            role: .user,
+            content: "# Memories\n- client present"
+        )
+        let streamingService = FakeAIConnectionStreamingService(
+            streamPlans: [
+                .events([
+                    .completed(
+                        AIProviderResponse(
+                            id: "response-1",
+                            model: "model-1",
+                            provider: .openRouter,
+                            finishReason: "stop",
+                            text: "",
+                            reasoning: "",
+                            toolCalls: [],
+                            usage: nil
+                        )
+                    )
+                ]),
+                .waitUntilCancelled
+            ]
+        )
+        let service = AIConnectionRuntimeService(
+            streamingService: streamingService,
+            memoryBootstrapProvider: { [bootstrapMessage] in bootstrapMessage }
+        )
+
+        service.startRun()
+
+        try await waitUntil {
+            streamingService.recordedRequestCount() >= 2
+        }
+
+        let recordedRequests = streamingService.recordedRequestsSnapshot()
+        XCTAssertEqual(recordedRequests.count, 2)
+        XCTAssertEqual(recordedRequests[0].messages.count, 3)
+        XCTAssertEqual(recordedRequests[0].messages[1].content, "# Memories\n- client present")
+
+        XCTAssertEqual(recordedRequests[1].messages.count, 5)
+        XCTAssertEqual(recordedRequests[1].messages[0].role, .system)
+        XCTAssertEqual(recordedRequests[1].messages[1].content, "# Memories\n- client present")
+        XCTAssertEqual(recordedRequests[1].messages[2].role, .user)
+        XCTAssertEqual(recordedRequests[1].messages[3].role, .assistant)
+        XCTAssertEqual(recordedRequests[1].messages[4].role, .user)
+        XCTAssertTrue(recordedRequests[1].messages[4].content?.contains("You ended your completion without calling a required terminal action") == true)
 
         service.cancelRun()
     }

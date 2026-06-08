@@ -64,6 +64,13 @@ struct AIConnectionConversationContextBuilder {
         )
     }
 
+    func missingTerminalActionCorrectionMessage() -> AIConversationMessage {
+        AIConversationMessage(
+            role: .user,
+            content: "You ended your completion without calling a required terminal action. You must not finish this turn without deciding what happens next. Continue from the current context and do not repeat work unnecessarily."
+        )
+    }
+
     func toolResultMessage(result: AIToolExecutionResult) -> String {
         var lines: [String] = [
             "Tool: \(result.toolName)",

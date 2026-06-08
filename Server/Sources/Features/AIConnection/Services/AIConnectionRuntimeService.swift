@@ -256,6 +256,7 @@ final class AIConnectionRuntimeService: ObservableObject {
         }
         var requestIndex = 0
         var correctionRetryCount = 0
+        var hasCalledTerminalAction = false
 
         while !Task.isCancelled {
             requestIndex += 1
@@ -281,7 +282,13 @@ final class AIConnectionRuntimeService: ObservableObject {
             }
             conversationMessages.append(assistantMessage)
 
+            let terminalActionTools: Set<String> = ["wait_for_event", "ask_to_client", "send_message", "announce_to_client"]
+
             if !toolCalls.isEmpty {
+                if toolCalls.contains(where: { terminalActionTools.contains($0.name) }) {
+                    hasCalledTerminalAction = true
+                }
+
                 let toolOutcome = await executeToolCalls(
                     toolCalls,
                     conversationMessages: conversationMessages
@@ -289,6 +296,49 @@ final class AIConnectionRuntimeService: ObservableObject {
                 conversationMessages = toolOutcome.conversationMessages
                 if toolOutcome.endsCycleAtIdleBoundary {
                     return .waitedForEvent
+                }
+                continue
+            }
+
+            if !hasCalledTerminalAction {
+                await MainActor.run {
+                    appendDebug(
+                        kind: "runtime.autocorrection.missing_terminal_action",
+                        summary: "The model completed without calling wait_for_event or another terminal action. Continuing same session with correction."
+                    )
+                }
+
+                if correctionRetryCount >= Self.maxCorrectionRetriesPerCycle {
+                    await MainActor.run {
+                        appendDebug(
+                            kind: "assistant.correction.retry_exhausted",
+                            summary: "Cycle \(cycleNumber) exhausted \(Self.maxCorrectionRetriesPerCycle) corrective retr\(Self.maxCorrectionRetriesPerCycle == 1 ? "y" : "ies")."
+                        )
+                    }
+                    throw AIConnectionRuntimeLoopError.missingTerminalAction(
+                        retriesExhausted: correctionRetryCount
+                    )
+                }
+
+                correctionRetryCount += 1
+                let correctiveMessage = await MainActor.run {
+                    conversationBuilder.missingTerminalActionCorrectionMessage()
+                }
+                conversationMessages.append(correctiveMessage)
+
+                await MainActor.run {
+                    appendDebug(
+                        kind: "assistant.correction.context_preserved",
+                        summary: "Preserving the current conversation context for corrective retry \(correctionRetryCount)."
+                    )
+                    appendDebug(
+                        kind: "assistant.correction.user_message_appended",
+                        summary: "Appended runtime correction message after missing terminal action."
+                    )
+                    appendDebug(
+                        kind: "assistant.correction.retry_started",
+                        summary: "Starting corrective retry \(correctionRetryCount) in the same conversation context."
+                    )
                 }
                 continue
             }

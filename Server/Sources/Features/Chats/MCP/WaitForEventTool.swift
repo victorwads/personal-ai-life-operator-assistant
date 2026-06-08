@@ -33,20 +33,24 @@ struct WaitForEventTool: MCPToolDefinition {
         _ = call
         let initialSnapshot = try await snapshotLoader.load()
         if !initialSnapshot.isEmpty {
-            return .string(
-                PendingWorkTextRenderer.waitForEventMessage(
-                    for: initialSnapshot,
-                    trigger: .pendingAlreadyExists
-                )
-            )
+            return .string("Restart Session")
+// TODO: stop losing user prompts
+//            return .string(
+//                PendingWorkTextRenderer.waitForEventMessage(
+//                    for: initialSnapshot,
+//                    trigger: .pendingAlreadyExists
+//                )
+//            )
         }
 
         try await sharedLocks.lockAndWait(id: SharedLockIDs.globalEvent)
-        return .string(
-            PendingWorkTextRenderer.waitForEventMessage(
-                for: try await snapshotLoader.load(),
-                trigger: .globalEventUnlocked
-            )
-        )
+        return .string("Restart Session")
+// TODO: stop losing user prompts
+//        return .string(
+//            PendingWorkTextRenderer.waitForEventMessage(
+//                for: try await snapshotLoader.load(),
+//                trigger: .globalEventUnlocked
+//            )
+//        )
     }
 }
