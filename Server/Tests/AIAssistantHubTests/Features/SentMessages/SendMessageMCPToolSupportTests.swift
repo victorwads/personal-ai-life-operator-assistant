@@ -7,7 +7,7 @@ final class SendMessageMCPToolSupportTests: XCTestCase {
             name: "send_message",
             arguments: [
                 "issueId": .string("Mqa6MrQAz5PiaDxCE42T"),
-                "chatId": .string("whatsapp-d951c84c4d86f507"),
+                "chatIdentification": .string("whatsapp-d951c84c4d86f507"),
                 "messages": .array([
                     .string("Oi! Tudo bem? Aqui e o assistente do Victor. Ele aprovou o pedido de R$ 100,00 e gostaria de finalizar a encomenda com as seguintes especificacoes:"),
                     .string(""),
@@ -39,7 +39,7 @@ final class SendMessageMCPToolSupportTests: XCTestCase {
             name: "send_message",
             arguments: [
                 "issueId": .string("Mqa6MrQAz5PiaDxCE42T"),
-                "chatId": .string("whatsapp-d951c84c4d86f507"),
+                "chatIdentification": .string("whatsapp-d951c84c4d86f507"),
                 "messages": .array([
                     .string("Oi! Tudo bem? Aqui e o assistente do Victor. Ele aprovou o pedido de R$ 100,00 e gostaria de finalizar a encomenda com as seguintes especificacoes:"),
                     .string("• **Pizza Media (Meio a Meio):**"),

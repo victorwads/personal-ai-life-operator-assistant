@@ -26,7 +26,7 @@ final class SendMessageExecutor {
 
     func execute(
         issueId: String,
-        chatId: String,
+        chatIdentification: String,
         messages: [String]
     ) async throws -> SentMessageSendOutcome {
         let (prefix, postfix, header, footer) = await MainActor.run {
@@ -50,13 +50,19 @@ final class SendMessageExecutor {
             throw SendMessageMCPToolError.emptyMessages
         }
 
+        let chatRepository = await MainActor.run { chatRepositoryProvider() }
+        let resolvedDestination = try await resolveDestination(
+            chatIdentification: chatIdentification,
+            chatRepository: chatRepository
+        )
+
         var pendingRecord = try await repository.save(
             SentMessage(
                 id: nil,
                 issueId: issueId,
                 // TODO: Resolve chat title from ChatsFeature when audit/detail views
                 // need a stable human-readable target label.
-                chatId: chatId,
+                chatId: resolvedDestination.auditChatId,
                 chatTitle: nil,
                 messages: formattedMessages,
                 status: .pending,
@@ -68,16 +74,19 @@ final class SendMessageExecutor {
         )
 
         let sender = await MainActor.run { senderProvider() }
-        let chatRepository = await MainActor.run { chatRepositoryProvider() }
 
         do {
             let result = try await sender.sendMessages(
-                WhatsAppMessageSendRequest(chatId: chatId, messages: formattedMessages)
+                WhatsAppMessageSendRequest(
+                    chatId: resolvedDestination.chatId,
+                    phone: resolvedDestination.phone,
+                    messages: formattedMessages
+                )
             )
 
             let observedMessages = assistantMessages(
                 from: result.receipts,
-                destinationChatId: chatId
+                destinationChatId: result.chatId
             )
             if !observedMessages.isEmpty {
                 _ = try await chatRepository.insertMessages(observedMessages)
@@ -85,6 +94,7 @@ final class SendMessageExecutor {
 
             let chatMessageIds = result.receipts.compactMap(\.chatMessageId)
             let missingReceiptCount = max(0, result.receipts.count - chatMessageIds.count)
+            pendingRecord.chatId = result.chatId
             pendingRecord.status = missingReceiptCount == 0 ? .sent : .partiallySent
             pendingRecord.chatMessageIds = chatMessageIds
             pendingRecord.errorMessage = missingReceiptCount == 0
@@ -108,6 +118,29 @@ final class SendMessageExecutor {
             _ = try await repository.save(pendingRecord, merge: true)
             throw error
         }
+    }
+
+    private func resolveDestination(
+        chatIdentification: String,
+        chatRepository: any ChatRepository
+    ) async throws -> SendDestination {
+        if let chat = try await chatRepository.getChat(id: chatIdentification), let chatId = chat.id?.trimmedNonEmpty {
+            return SendDestination(chatId: chatId, phone: nil, auditChatId: chatId)
+        }
+
+        let normalizedPhone = chatIdentification.filter(\.isNumber)
+        guard !normalizedPhone.isEmpty else {
+            throw MCPToolExtractionError.invalidField(
+                "chatIdentification",
+                reason: "provide either a real chat ID from chat listings or a phone number using digits only."
+            )
+        }
+
+        return SendDestination(
+            chatId: nil,
+            phone: normalizedPhone,
+            auditChatId: normalizedPhone
+        )
     }
 
     private func assistantMessages(
@@ -136,4 +169,10 @@ final class SendMessageExecutor {
             )
         }
     }
+}
+
+private struct SendDestination {
+    let chatId: String?
+    let phone: String?
+    let auditChatId: String
 }

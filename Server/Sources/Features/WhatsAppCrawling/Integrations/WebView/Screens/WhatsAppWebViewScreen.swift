@@ -10,6 +10,7 @@ struct WhatsAppWebViewScreen: View {
 
 private struct WhatsAppWebViewServiceContent: View {
     @ObservedObject var service: WebViewWhatsAppCrawlingService
+    @State private var phoneNumber = ""
 
     @ViewBuilder
     private func content(for service: WebViewWhatsAppCrawlingService) -> some View {
@@ -40,25 +41,62 @@ private struct WhatsAppWebViewServiceContent: View {
                 )
             } else if let webView = service.webView {
                 VStack(spacing: 0) {
-                    HStack {
-                        Text("WhatsApp Web")
-                            .font(.headline)
-                        Spacer()
-                        Button {
-                            service.detach()
-                        } label: {
-                            Image(systemName: "rectangle.on.rectangle")
-                        }
-                        .buttonStyle(.borderless)
-                        .controlSize(.small)
-                        .help("Open WebView in separate window")
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("WhatsApp Web")
+                                .font(.headline)
+                            Spacer()
+                            Button {
+                                service.detach()
+                            } label: {
+                                Image(systemName: "rectangle.on.rectangle")
+                            }
+                            .buttonStyle(.borderless)
+                            .controlSize(.small)
+                            .help("Open WebView in separate window")
 
-                        Button("Stop") {
+                            Button("Stop") {
+                                Task { @MainActor in
+                                    await service.stop()
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                        }
+
+                        DSSettingsTextField(
+                            title: "Test phone",
+                            prompt: "5511983227673",
+                            helperText: "Temporary test helper. Press Enter for JS URL change without reload, or use the buttons below.",
+                            text: $phoneNumber
+                        )
+                        .onSubmit {
                             Task { @MainActor in
-                                await service.stop()
+                                await service.navigateToPhoneUsingJavaScript(phoneNumber)
                             }
                         }
-                        .buttonStyle(.bordered)
+
+                        HStack(spacing: 8) {
+                            Button("JS URL Change") {
+                                Task { @MainActor in
+                                    await service.navigateToPhoneUsingJavaScript(phoneNumber)
+                                }
+                            }
+                            .buttonStyle(.borderedProminent)
+
+                            Button("Reload URL") {
+                                Task { @MainActor in
+                                    await service.navigateToPhoneUsingReload(phoneNumber)
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                        }
+
+                        if let message = service.navigationStatusMessage, !message.isEmpty {
+                            Text(message)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                        }
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)

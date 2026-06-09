@@ -46,8 +46,19 @@ final class SendMessageExecutorTests: FirestoreIntegrationTestCase {
 
         let outcome = try await executor.execute(
             issueId: "issue-1",
-            chatId: "chat-1",
+            chatIdentification: "chat-1",
             messages: ["Hello from the assistant"]
+        )
+
+        XCTAssertEqual(
+            sender.receivedRequests,
+            [
+                WhatsAppMessageSendRequest(
+                    chatId: "chat-1",
+                    phone: nil,
+                    messages: ["Hello from the assistant"]
+                )
+            ]
         )
 
         XCTAssertEqual(outcome.sentMessage.status, .sent)
@@ -107,7 +118,7 @@ final class SendMessageExecutorTests: FirestoreIntegrationTestCase {
 
         let outcome = try await executor.execute(
             issueId: "issue-1",
-            chatId: "chat-1",
+            chatIdentification: "chat-1",
             messages: ["Still waiting"]
         )
 
@@ -127,12 +138,63 @@ final class SendMessageExecutorTests: FirestoreIntegrationTestCase {
 
         await settingsStore.stop(flushPendingSaves: false)
     }
+
+    @MainActor
+    func testExecuteForwardsOptionalPhoneToWhatsAppSender() async throws {
+        try await FirestoreFixture.importFixture(scope, "chat-basic.json")
+
+        let settingsStore = SettingsStore(scope: scope)
+        try await settingsStore.start()
+        let settings = SentMessagesSettingsWrapper(settings: settingsStore)
+
+        let sentMessageRepository = FirestoreSentMessageRepository(scope: scope)
+        let chatRepository = FirestoreChatRepository(scope: scope)
+        let sender = StubWhatsAppMessageSender(
+            result: WhatsAppMessageSendResult(
+                chatId: "chat-1",
+                receipts: []
+            )
+        )
+
+        let executor = SendMessageExecutor(
+            repository: sentMessageRepository,
+            chatRepositoryProvider: { chatRepository },
+            settings: settings,
+            senderProvider: { sender }
+        )
+
+        _ = try await executor.execute(
+            issueId: "issue-1",
+            chatIdentification: "5511983227673",
+            messages: ["Testing phone selection"]
+        )
+
+        XCTAssertEqual(
+            sender.receivedRequests,
+            [
+                WhatsAppMessageSendRequest(
+                    chatId: nil,
+                    phone: "5511983227673",
+                    messages: ["Testing phone selection"]
+                )
+            ]
+        )
+
+        await settingsStore.stop(flushPendingSaves: false)
+    }
 }
 
-private struct StubWhatsAppMessageSender: WhatsAppMessageSending {
+@MainActor
+final class StubWhatsAppMessageSender: WhatsAppMessageSending, @unchecked Sendable {
     let result: WhatsAppMessageSendResult
+    private(set) var receivedRequests: [WhatsAppMessageSendRequest] = []
 
-    func sendMessages(_: WhatsAppMessageSendRequest) async throws -> WhatsAppMessageSendResult {
+    init(result: WhatsAppMessageSendResult) {
+        self.result = result
+    }
+
+    func sendMessages(_ request: WhatsAppMessageSendRequest) async throws -> WhatsAppMessageSendResult {
+        receivedRequests.append(request)
         result
     }
 }

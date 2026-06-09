@@ -29,12 +29,15 @@ final class WebViewMessageSender: WhatsAppMessageSending {
     func sendMessages(_ request: WhatsAppMessageSendRequest) async throws -> WhatsAppMessageSendResult {
         logStore.append(
             source: "Send",
-            "Started chatId=\(request.chatId) messageCount=\(request.messages.count)"
+            "Started chatId=\(request.chatId ?? "nil") phone=\(request.phone ?? "nil") messageCount=\(request.messages.count)"
         )
 
         guard !request.messages.isEmpty else {
             logStore.append(source: "Send", "No messages requested")
-            return WhatsAppMessageSendResult(chatId: request.chatId, receipts: [])
+            return WhatsAppMessageSendResult(
+                chatId: request.chatId ?? request.phone ?? "",
+                receipts: []
+            )
         }
 
         guard let webView = webViewService.webView else {
@@ -50,12 +53,13 @@ final class WebViewMessageSender: WhatsAppMessageSending {
             }
         }
 
-        let baselineChat = try await ensureChatSelected(chatId: request.chatId, in: webView)
+        let baselineChat = try await ensureChatSelected(request: request, in: webView)
+        let resolvedChatId = baselineChat.chat.chatId
         let baselineMessageIds = Set(baselineChat.chat.messages.compactMap(\.id))
         let interactor = WebViewElementInteractor(webView: webView)
 
         for message in request.messages {
-            let currentChatContext = try await ensureChatSelected(chatId: request.chatId, in: webView)
+            let currentChatContext = try await ensureResolvedChatSelected(chatId: resolvedChatId, in: webView)
             guard let input = currentChatContext.inputElement else {
                 logStore.append(source: "Send", "Failed: compose box unavailable")
                 throw WhatsAppMessageSendingError.webViewUnavailable
@@ -73,13 +77,24 @@ final class WebViewMessageSender: WhatsAppMessageSending {
         }
 
         let result = try await waitForObservedReceipts(
-            chatId: request.chatId,
+            chatId: resolvedChatId,
             expectedMessages: request.messages,
             baselineMessageIds: baselineMessageIds,
             in: webView
         )
         logStore.append(source: "Send", "Observed receiptCount=\(result.receipts.count)")
         return result
+    }
+
+    private func ensureChatSelected(request: WhatsAppMessageSendRequest, in webView: WKWebView) async throws -> ChatContext {
+        if let phone = request.phone?.trimmedNonEmpty {
+            return try await ensureChatSelected(phone: phone, in: webView)
+        }
+        guard let chatId = request.chatId?.trimmedNonEmpty else {
+            logStore.append(source: "Send", "Missing destination identifier")
+            throw WhatsAppMessageSendingError.chatNotFound("missing destination")
+        }
+        return try await ensureChatSelected(chatId: chatId, in: webView)
     }
 
     private func ensureChatSelected(chatId: String, in webView: WKWebView) async throws -> ChatContext {
@@ -114,6 +129,68 @@ final class WebViewMessageSender: WhatsAppMessageSending {
         }
 
         logStore.append(source: "Send", "Timed out selecting chatId=\(chatId)")
+        throw WhatsAppMessageSendingError.timeout
+    }
+
+    private func ensureChatSelected(phone: String, in webView: WKWebView) async throws -> ChatContext {
+        try await dismissCurrentChatIfNeeded(in: webView)
+        await webViewService.navigateToPhoneUsingJavaScript(phone)
+
+        for attempt in 1...24 {
+            if let currentChat = try await extractCurrentChatContext(in: webView) {
+                logStore.append(
+                    source: "Send",
+                    "Selected by phone=\(phone) chatId=\(currentChat.chat.chatId) attempt=\(attempt)"
+                )
+                return currentChat
+            }
+            try? await Task.sleep(nanoseconds: 250_000_000)
+        }
+
+        logStore.append(source: "Send", "Phone not found or did not enter currentChat phone=\(phone)")
+        throw WhatsAppMessageSendingError.chatNotFound(phone)
+    }
+
+    private func dismissCurrentChatIfNeeded(in webView: WKWebView) async throws {
+        guard try await extractCurrentChatContext(in: webView) != nil else {
+            logStore.append(source: "Send", "Phone flow precondition already outside currentChat")
+            return
+        }
+
+        let interactor = WebViewElementInteractor(webView: webView)
+
+        for attempt in 1...8 {
+            let escaped = try await interactor.pressEscape()
+            logStore.append(source: "Send", "Pressed Escape before phone navigation attempt=\(attempt) escaped=\(escaped)")
+
+            for waitAttempt in 1...8 {
+                if try await extractCurrentChatContext(in: webView) == nil {
+                    logStore.append(
+                        source: "Send",
+                        "Confirmed exit from currentChat after Escape attempt=\(attempt) waitAttempt=\(waitAttempt)"
+                    )
+                    return
+                }
+                try? await Task.sleep(nanoseconds: 150_000_000)
+            }
+        }
+
+        logStore.append(source: "Send", "Timed out leaving currentChat before phone navigation")
+        throw WhatsAppMessageSendingError.timeout
+    }
+
+    private func ensureResolvedChatSelected(chatId: String, in webView: WKWebView) async throws -> ChatContext {
+        for attempt in 1...20 {
+            if let currentChat = try await extractCurrentChatContext(in: webView), currentChat.chat.chatId == chatId {
+                if attempt > 1 {
+                    logStore.append(source: "Send", "Reconfirmed selected chatId=\(chatId) attempt=\(attempt)")
+                }
+                return currentChat
+            }
+            try? await Task.sleep(nanoseconds: 250_000_000)
+        }
+
+        logStore.append(source: "Send", "Timed out confirming selected chatId=\(chatId)")
         throw WhatsAppMessageSendingError.timeout
     }
 

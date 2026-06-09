@@ -19,23 +19,26 @@ struct SendMessageTool: MCPToolDefinition {
 
     let name = "send_message"
     let icon = "paperplane"
-    let description = "Sends one or more outbound assistant messages, records a pending audit entry first, and updates the audit status from observed WhatsApp send receipts."
+    let description = "Sends one or more outbound assistant messages. Use `chatIdentification` with either a chat ID from chat listings or a phone number containing digits only."
     let group = "sentMessages"
     let inputSchema: MCPJSONValue = .object([
         "type": .string("object"),
         "properties": .object([
             "issueId": .object(["type": .string("string")]),
-            "chatId": .object(["type": .string("string")]),
+            "chatIdentification": .object([
+                "type": .string("string"),
+                "description": .string("Either a chat ID returned by chat-list tools or a phone number using digits only.")
+            ]),
             "messages": .object([
                 "type": .string("array"),
                 "items": .object(["type": .string("string")])
             ])
         ]),
-        "required": .array([.string("issueId"), .string("chatId"), .string("messages")])
+        "required": .array([.string("issueId"), .string("chatIdentification"), .string("messages")])
     ])
     let exampleParameters: [MCPToolExampleParameter] = [
         .init(name: "issueId", value: .string("issue-1")),
-        .init(name: "chatId", value: .string("chat-1")),
+        .init(name: "chatIdentification", value: .string("chat-1")),
         .init(name: "messages", value: .array([
             .string("Testing send_message from the tools browser."),
             .string("Another batch message")
@@ -48,11 +51,11 @@ struct SendMessageTool: MCPToolDefinition {
         context _: MCPServerContext
     ) async throws -> MCPJSONValue {
         let issueId = try MCPSupport.string("issueId", from: call)
-        let chatId = try MCPSupport.string("chatId", from: call)
+        let chatIdentification = try MCPSupport.string("chatIdentification", from: call)
         let messages = try SentMessageMCPToolSupport.messages(from: call)
         let outcome = try await executor.execute(
             issueId: issueId,
-            chatId: chatId,
+            chatIdentification: chatIdentification,
             messages: messages
         )
         return SentMessageMCPToolSupport.sendResultObject(outcome)

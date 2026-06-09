@@ -18,6 +18,7 @@ final class WebViewWhatsAppCrawlingService: ObservableObject, WhatsAppCrawlingSe
     @Published private(set) var presentationMode: WebViewPresentationMode = .embedded
     let activeIntegration: WhatsAppCrawlingActiveIntegration = .webView
     @Published private(set) var webView: WKWebView?
+    @Published private(set) var navigationStatusMessage: String?
     var statusText: String? { nil }
 
     var integration: (any WhatsAppCrawlingIntegration)? {
@@ -106,9 +107,80 @@ final class WebViewWhatsAppCrawlingService: ObservableObject, WhatsAppCrawlingSe
         presentationMode = .embedded
     }
 
+    func navigateToPhoneUsingJavaScript(_ rawPhone: String) async {
+        guard state == .started, let webView else {
+            navigationStatusMessage = "WebView unavailable."
+            return
+        }
+
+        do {
+            let targetURL = try makeSendURL(from: rawPhone)
+            let script = """
+            (() => {
+                const url = \(javaScriptStringLiteral(targetURL.absoluteString));
+                const anchor = document.createElement("a");
+                anchor.href = url;
+                anchor.target = "_self";
+                anchor.rel = "noopener noreferrer";
+                anchor.style.display = "none";
+                document.body.appendChild(anchor);
+                anchor.click();
+                anchor.remove();
+                return {
+                    href: window.location.href,
+                    clickedURL: url
+                };
+            })();
+            """
+            let result = try await evaluateJavaScript(script, in: webView)
+            let payload = result as? [String: Any]
+            let currentURL = payload?["href"] as? String ?? targetURL.absoluteString
+            navigationStatusMessage = "Anchor click to \(currentURL)"
+            logNavigationEvent("navigateToPhoneUsingJavaScript -> \(currentURL)")
+        } catch {
+            navigationStatusMessage = error.localizedDescription
+            logNavigationEvent("navigateToPhoneUsingJavaScript failed: \(error.localizedDescription)")
+        }
+    }
+
+    func navigateToPhoneUsingReload(_ rawPhone: String) async {
+        guard state == .started, let webView else {
+            navigationStatusMessage = "WebView unavailable."
+            return
+        }
+
+        do {
+            let targetURL = try makeSendURL(from: rawPhone)
+            navigationStatusMessage = "Loading \(targetURL.absoluteString)"
+            logNavigationEvent("navigateToPhoneUsingReload -> \(targetURL.absoluteString)")
+            webView.load(URLRequest(url: targetURL))
+            startInitialWarmup(webView)
+        } catch {
+            navigationStatusMessage = error.localizedDescription
+            logNavigationEvent("navigateToPhoneUsingReload failed: \(error.localizedDescription)")
+        }
+    }
+
     private var isFailed: Bool {
         if case .failed = state { return true }
         return false
+    }
+
+    private func makeSendURL(from rawPhone: String) throws -> URL {
+        let normalizedPhone = rawPhone.filter(\.isNumber)
+        guard !normalizedPhone.isEmpty else {
+            throw WebViewWhatsAppCrawlingServiceError.invalidPhone(rawPhone)
+        }
+
+        guard var components = URLComponents(string: "https://web.whatsapp.com/send") else {
+            throw WebViewWhatsAppCrawlingServiceError.invalidURL("https://web.whatsapp.com/send")
+        }
+        components.queryItems = [.init(name: "phone", value: normalizedPhone)]
+
+        guard let url = components.url else {
+            throw WebViewWhatsAppCrawlingServiceError.invalidPhone(rawPhone)
+        }
+        return url
     }
 
     private func makeWebView() throws -> WKWebView {
@@ -259,11 +331,17 @@ final class WebViewWhatsAppCrawlingService: ObservableObject, WhatsAppCrawlingSe
     fileprivate func logNavigationEvent(_ message: String) {
         print("WebViewWhatsAppCrawlingService[\(profileId)]: \(message)")
     }
+
+    private func javaScriptStringLiteral(_ value: String) -> String {
+        let data = try? JSONEncoder().encode(value)
+        return data.flatMap { String(data: $0, encoding: .utf8) } ?? "\"\""
+    }
 }
 
 private enum WebViewWhatsAppCrawlingServiceError: LocalizedError {
     case missingWebsiteDataStoreIdentifier(profileId: String)
     case invalidURL(String)
+    case invalidPhone(String)
 
     var errorDescription: String? {
         switch self {
@@ -271,6 +349,8 @@ private enum WebViewWhatsAppCrawlingServiceError: LocalizedError {
             return "Missing WhatsApp WebView data store identifier for profile \(profileId)."
         case .invalidURL(let value):
             return "Invalid WhatsApp WebView URL: \(value)"
+        case .invalidPhone(let value):
+            return "Invalid phone for WhatsApp send URL: \(value)"
         }
     }
 }
