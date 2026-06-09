@@ -143,7 +143,7 @@ final class AIImageExtractionService: AIImageExtracting {
         var providerUsage: AIUsage?
         var provider: AIConnectionProviderKind?
         var model: String?
-        for try await event in streamingService.streamEvents(for: request) {
+        for try await event in streamingService.streamEvents(for: request, overrideConfiguration: configuration) {
             switch event {
             case let .requestStarted(eventProvider, eventModel):
                 provider = eventProvider

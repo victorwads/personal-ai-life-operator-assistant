@@ -66,6 +66,11 @@ final class AIImageExtractionServiceTests: XCTestCase {
 
         XCTAssertEqual(extractedText, "Visible text")
         XCTAssertEqual(streamingService.recordedRequests.count, 1)
+        XCTAssertEqual(streamingService.recordedOverrideConfigurations.count, 1)
+        let overrideConfig = try XCTUnwrap(streamingService.recordedOverrideConfigurations.first)
+        XCTAssertEqual(overrideConfig?.model, "image-model")
+        XCTAssertEqual(overrideConfig?.baseURL, "https://example.com/v1")
+        XCTAssertEqual(overrideConfig?.apiKey, "secret")
         let request = try XCTUnwrap(streamingService.recordedRequests.first)
         XCTAssertFalse(request.loadAvailableTools)
         XCTAssertEqual(cacheRepository.getRequests.count, 1)
@@ -352,13 +357,18 @@ final class AIImageExtractionServiceTests: XCTestCase {
 private final class FakeAIImageExtractionStreamingService: AIConnectionStreamingServing {
     private let responseEvents: [AIStreamEvent]
     private(set) var recordedRequests: [AIProviderRequest] = []
+    private(set) var recordedOverrideConfigurations: [AIConnectionProviderConfiguration?] = []
 
     init(responseEvents: [AIStreamEvent]) {
         self.responseEvents = responseEvents
     }
 
-    func streamEvents(for request: AIProviderRequest) -> AsyncThrowingStream<AIStreamEvent, Error> {
+    func streamEvents(
+        for request: AIProviderRequest,
+        overrideConfiguration: AIConnectionProviderConfiguration?
+    ) -> AsyncThrowingStream<AIStreamEvent, Error> {
         recordedRequests.append(request)
+        recordedOverrideConfigurations.append(overrideConfiguration)
         return AsyncThrowingStream { continuation in
             for event in responseEvents {
                 continuation.yield(event)

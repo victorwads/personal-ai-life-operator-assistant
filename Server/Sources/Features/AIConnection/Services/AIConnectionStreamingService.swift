@@ -23,12 +23,18 @@ final class AIConnectionStreamingService: AIConnectionStreamingServing {
     }
 
     func streamEvents(
-        for request: AIProviderRequest
+        for request: AIProviderRequest,
+        overrideConfiguration: AIConnectionProviderConfiguration? = nil
     ) -> AsyncThrowingStream<AIStreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    let configuration = await settingsProvider()
+                    let configuration: AIConnectionProviderConfiguration
+                    if let overrideConfiguration {
+                        configuration = overrideConfiguration
+                    } else {
+                        configuration = await settingsProvider()
+                    }
                     let normalizedRequest = AIProviderRequest(
                         model: request.model.isEmpty ? configuration.model : request.model,
                         messages: request.messages,

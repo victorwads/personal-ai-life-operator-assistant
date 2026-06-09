@@ -844,7 +844,10 @@ private final class FakeAIConnectionStreamingService: AIConnectionStreamingServi
         self.executeToolCallHandler = executeToolCallHandler
     }
 
-    func streamEvents(for request: AIProviderRequest) -> AsyncThrowingStream<AIStreamEvent, Error> {
+    func streamEvents(
+        for request: AIProviderRequest,
+        overrideConfiguration: AIConnectionProviderConfiguration?
+    ) -> AsyncThrowingStream<AIStreamEvent, Error> {
         lock.lock()
         recordedRequests.append(request)
         let plan = streamPlanForNextRequest()

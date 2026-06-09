@@ -35,7 +35,10 @@ private final class IdleAIConnectionStreamingService: AIConnectionStreamingServi
     private let lock = NSLock()
     private var recordedRequests: [AIProviderRequest] = []
 
-    func streamEvents(for request: AIProviderRequest) -> AsyncThrowingStream<AIStreamEvent, Error> {
+    func streamEvents(
+        for request: AIProviderRequest,
+        overrideConfiguration: AIConnectionProviderConfiguration?
+    ) -> AsyncThrowingStream<AIStreamEvent, Error> {
         lock.lock()
         recordedRequests.append(request)
         lock.unlock()
