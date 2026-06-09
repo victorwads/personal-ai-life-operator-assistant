@@ -22,7 +22,7 @@ struct ChatListView: View {
                 DSRefreshButton(isLoading: isLoading, action: onRefresh)
 
                 Button(action: onMarkAllAsRead) {
-                    Label("Mark All as Read", systemImage: "checkmark.circle")
+                    Label("Mark All as Handled", systemImage: "checkmark.circle")
                 }
                 .disabled(isLoading || !hasUnhandledChats)
                 .help("Mark all unhandled messages from every chat as handled")
