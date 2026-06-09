@@ -29,10 +29,8 @@ struct CommandCenterScreenRegistry {
             ClientVoiceScreen(feature: appFeatures.feature(ClientVoiceFeature.self))
         case .sentMessages:
             SentMessagesScreen(feature: appFeatures.feature(SentMessagesFeature.self))
-        case .email:
-            EmailIntegrationScreen()
-        case .calendar:
-            CalendarIntegrationScreen()
+        case .email, .calendar:
+            GoogleWorkspaceScreen(feature: appFeatures.feature(GoogleWorkspaceFeature.self))
         case .whatsappWebView:
             WhatsAppWebViewScreen(feature: appFeatures.feature(WhatsAppCrawlingFeature.self))
         case .whatsappWebYAMLDebug:
