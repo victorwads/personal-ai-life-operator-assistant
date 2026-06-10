@@ -58,6 +58,7 @@ struct ChatListRowView: View {
             }
         }
         .padding(.vertical, 4)
+        .contentShape(Rectangle())
     }
 
     private func previewImage() -> NSImage? {
