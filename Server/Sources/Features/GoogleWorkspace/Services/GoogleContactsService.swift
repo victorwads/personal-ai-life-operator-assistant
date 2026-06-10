@@ -101,6 +101,39 @@ final class GoogleContactsService {
             return Array(filtered.prefix(pageSize))
         }
     }
+
+    func getContact(resourceName: String) async throws -> GoogleContact? {
+        var normalizedName = resourceName
+        if !normalizedName.hasPrefix("people/") {
+            normalizedName = "people/" + normalizedName
+        }
+
+        let queryItems = [
+            URLQueryItem(name: "personFields", value: "names,emailAddresses,phoneNumbers,organizations,photos")
+        ]
+
+        let url = "https://people.googleapis.com/v1/\(normalizedName)"
+        let conn: GoogleConnectionsResponse.Connection = try await httpClient.get(url, queryItems: queryItems)
+
+        let nameObj = conn.names?.first
+        let emailList = conn.emailAddresses?.compactMap { $0.value } ?? []
+        let phoneList = conn.phoneNumbers?.compactMap { $0.value } ?? []
+        let orgName = conn.organizations?.first?.name
+        let photoUrl = conn.photos?.first?.url
+
+        let displayName = nameObj?.displayName ?? emailList.first ?? conn.resourceName
+
+        return GoogleContact(
+            resourceName: conn.resourceName,
+            displayName: displayName,
+            givenName: nameObj?.givenName,
+            familyName: nameObj?.familyName,
+            emailAddresses: emailList,
+            phoneNumbers: phoneList,
+            organizationName: orgName,
+            photoUrl: photoUrl
+        )
+    }
 }
 
 // MARK: - Decodable Helpers

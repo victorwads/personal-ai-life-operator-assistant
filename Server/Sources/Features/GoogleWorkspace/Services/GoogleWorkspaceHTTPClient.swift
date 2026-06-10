@@ -9,27 +9,27 @@ final class GoogleWorkspaceHTTPClient {
     }
 
     func get<T: Decodable>(_ urlString: String, queryItems: [URLQueryItem] = []) async throws -> T {
-        guard var components = URLComponents(string: urlString) else {
-            throw NSError(domain: "GoogleWorkspaceHTTPClient", code: 201, userInfo: [
-                NSLocalizedDescriptionKey: "Invalid URL string."
-            ])
-        }
-        if !queryItems.isEmpty {
-            components.queryItems = (components.queryItems ?? []) + queryItems
-        }
-        guard let url = components.url else {
-            throw NSError(domain: "GoogleWorkspaceHTTPClient", code: 202, userInfo: [
-                NSLocalizedDescriptionKey: "Failed to generate URL with query parameters."
-            ])
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        
-        return try await performRequest(request)
+        try await request(method: "GET", urlString: urlString, body: nil as String?, queryItems: queryItems)
     }
 
     func post<T: Decodable, B: Encodable>(_ urlString: String, body: B?, queryItems: [URLQueryItem] = []) async throws -> T {
+        try await request(method: "POST", urlString: urlString, body: body, queryItems: queryItems)
+    }
+
+    func patch<T: Decodable, B: Encodable>(_ urlString: String, body: B?, queryItems: [URLQueryItem] = []) async throws -> T {
+        try await request(method: "PATCH", urlString: urlString, body: body, queryItems: queryItems)
+    }
+
+    func delete<T: Decodable>(_ urlString: String, queryItems: [URLQueryItem] = []) async throws -> T {
+        try await request(method: "DELETE", urlString: urlString, body: nil as String?, queryItems: queryItems)
+    }
+
+    func request<T: Decodable, B: Encodable>(
+        method: String,
+        urlString: String,
+        body: B?,
+        queryItems: [URLQueryItem] = []
+    ) async throws -> T {
         guard var components = URLComponents(string: urlString) else {
             throw NSError(domain: "GoogleWorkspaceHTTPClient", code: 201, userInfo: [
                 NSLocalizedDescriptionKey: "Invalid URL string."
@@ -45,7 +45,7 @@ final class GoogleWorkspaceHTTPClient {
         }
 
         var request = URLRequest(url: url)
-        request.httpMethod = "POST"
+        request.httpMethod = method
         
         if let body = body {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -81,15 +81,31 @@ final class GoogleWorkspaceHTTPClient {
                     ])
                 }
 
-                if retryHttpResponse.statusCode != 200 {
+                if !(200...299).contains(retryHttpResponse.statusCode) {
                     throw makeAPIError(statusCode: retryHttpResponse.statusCode, data: retryData)
+                }
+
+                if retryHttpResponse.statusCode == 204 || retryData.isEmpty {
+                    if let empty = GoogleEmptyResponse() as? T {
+                        return empty
+                    }
+                    let emptyData = "{}".data(using: .utf8)!
+                    return try JSONDecoder().decode(T.self, from: emptyData)
                 }
 
                 return try JSONDecoder().decode(T.self, from: retryData)
             }
 
-            if httpResponse.statusCode != 200 {
+            if !(200...299).contains(httpResponse.statusCode) {
                 throw makeAPIError(statusCode: httpResponse.statusCode, data: data)
+            }
+
+            if httpResponse.statusCode == 204 || data.isEmpty {
+                if let empty = GoogleEmptyResponse() as? T {
+                    return empty
+                }
+                let emptyData = "{}".data(using: .utf8)!
+                return try JSONDecoder().decode(T.self, from: emptyData)
             }
 
             return try JSONDecoder().decode(T.self, from: data)
@@ -136,3 +152,5 @@ final class GoogleWorkspaceHTTPClient {
         return redacted
     }
 }
+
+struct GoogleEmptyResponse: Codable, Sendable {}

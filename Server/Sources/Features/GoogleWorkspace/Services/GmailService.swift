@@ -64,6 +64,7 @@ final class GmailService {
         let bccValue = findHeader(name: "Bcc", in: headers)
         let subjectValue = findHeader(name: "Subject", in: headers)
         let dateValue = findHeader(name: "Date", in: headers)
+        let messageIdHeader = findHeader(name: "Message-ID", in: headers)
 
         var plainText = ""
         var html = ""
@@ -86,7 +87,8 @@ final class GmailService {
             plainTextBody: plainText,
             htmlBody: html,
             attachmentsMetadata: attachments,
-            internalDate: response.internalDate ?? "0"
+            internalDate: response.internalDate ?? "0",
+            internetMessageId: messageIdHeader.isEmpty ? nil : messageIdHeader
         )
     }
 
@@ -107,6 +109,7 @@ final class GmailService {
             let bccValue = self.findHeader(name: "Bcc", in: headers)
             let subjectValue = self.findHeader(name: "Subject", in: headers)
             let dateValue = self.findHeader(name: "Date", in: headers)
+            let messageIdHeader = self.findHeader(name: "Message-ID", in: headers)
 
             var plainText = ""
             var html = ""
@@ -129,7 +132,8 @@ final class GmailService {
                 plainTextBody: plainText,
                 htmlBody: html,
                 attachmentsMetadata: attachments,
-                internalDate: msg.internalDate ?? "0"
+                internalDate: msg.internalDate ?? "0",
+                internetMessageId: messageIdHeader.isEmpty ? nil : messageIdHeader
             )
         }
 
@@ -192,6 +196,133 @@ final class GmailService {
         let modifyUrl = "https://gmail.googleapis.com/gmail/v1/users/me/messages/\(messageId)/modify"
         let body = ModifyMessageLabelsRequest(addLabelIds: ["UNREAD"], removeLabelIds: [])
         let _: GmailMessageDetailResponse = try await httpClient.post(modifyUrl, body: body)
+    }
+
+    func createDraftEmail(
+        to: String,
+        cc: String? = nil,
+        bcc: String? = nil,
+        subject: String,
+        body: String
+    ) async throws -> GoogleEmailDraft {
+        let mime = buildMimeMessage(
+            to: to,
+            cc: cc,
+            bcc: bcc,
+            subject: subject,
+            body: body
+        )
+        let raw = mime.data(using: .utf8)?.base64UrlEncodedString() ?? ""
+        let bodyPayload = CreateDraftRequest(message: CreateDraftRequest.Message(raw: raw, threadId: nil))
+        
+        let url = "https://gmail.googleapis.com/gmail/v1/users/me/drafts"
+        let response: GmailDraftResponse = try await httpClient.post(url, body: bodyPayload)
+        
+        guard let draftId = response.id else {
+            throw NSError(domain: "GmailService", code: 501, userInfo: [
+                NSLocalizedDescriptionKey: "Failed to retrieve draft ID from Google response."
+            ])
+        }
+        
+        return GoogleEmailDraft(
+            draftId: draftId,
+            threadId: response.message?.threadId,
+            to: to,
+            cc: cc,
+            bcc: bcc,
+            subject: subject,
+            body: body,
+            draftCreatedAt: Date()
+        )
+    }
+
+    func createDraftReply(
+        threadId: String,
+        messageId: String,
+        body: String
+    ) async throws -> GoogleEmailDraft {
+        // Fetch original message content to construct headers correctly
+        let original = try await getEmailContent(messageId: messageId)
+        
+        // Reply to is the sender of the original message
+        let to = original.from
+        
+        // Subject prefixing
+        var subject = original.subject
+        if !subject.lowercased().hasPrefix("re:") {
+            subject = "Re: " + subject
+        }
+        
+        // Build references/in-reply-to headers
+        let internetMessageId = original.internetMessageId ?? ""
+        
+        let mime = buildMimeMessage(
+            to: to,
+            cc: nil,
+            bcc: nil,
+            subject: subject,
+            body: body,
+            threadId: threadId,
+            messageId: internetMessageId
+        )
+        
+        let raw = mime.data(using: .utf8)?.base64UrlEncodedString() ?? ""
+        let bodyPayload = CreateDraftRequest(message: CreateDraftRequest.Message(raw: raw, threadId: threadId))
+        
+        let url = "https://gmail.googleapis.com/gmail/v1/users/me/drafts"
+        let response: GmailDraftResponse = try await httpClient.post(url, body: bodyPayload)
+        
+        guard let draftId = response.id else {
+            throw NSError(domain: "GmailService", code: 501, userInfo: [
+                NSLocalizedDescriptionKey: "Failed to retrieve draft ID from Google response."
+            ])
+        }
+        
+        return GoogleEmailDraft(
+            draftId: draftId,
+            threadId: response.message?.threadId ?? threadId,
+            to: to,
+            cc: nil,
+            bcc: nil,
+            subject: subject,
+            body: body,
+            draftCreatedAt: Date()
+        )
+    }
+
+    private func buildMimeMessage(
+        to: String,
+        cc: String?,
+        bcc: String?,
+        subject: String,
+        body: String,
+        threadId: String? = nil,
+        messageId: String? = nil
+    ) -> String {
+        var headers = [String]()
+        headers.append("To: \(to)")
+        if let cc = cc, !cc.isEmpty {
+            headers.append("Cc: \(cc)")
+        }
+        if let bcc = bcc, !bcc.isEmpty {
+            headers.append("Bcc: \(bcc)")
+        }
+        headers.append("Subject: \(subject)")
+        
+        if let messageId = messageId, !messageId.isEmpty {
+            headers.append("In-Reply-To: \(messageId)")
+            headers.append("References: \(messageId)")
+        }
+        
+        headers.append("Content-Type: text/plain; charset=utf-8")
+        headers.append("Content-Transfer-Encoding: base64")
+        headers.append("") // Empty line separating headers from body
+        
+        let bodyData = body.data(using: .utf8) ?? Data()
+        let base64Body = bodyData.base64EncodedString()
+        headers.append(base64Body)
+        
+        return headers.joined(separator: "\r\n")
     }
 
     // MARK: - Private Helpers
@@ -381,4 +512,32 @@ struct GmailThreadResponse: Decodable {
 
 struct GmailLabelsListResponse: Decodable {
     let labels: [GoogleGmailLabel]?
+}
+
+struct CreateDraftRequest: Encodable {
+    struct Message: Encodable {
+        let raw: String
+        let threadId: String?
+    }
+    let message: Message
+}
+
+struct GmailDraftResponse: Decodable {
+    struct Message: Decodable {
+        let id: String?
+        let threadId: String?
+        let labelIds: [String]?
+    }
+    let id: String?
+    let message: Message?
+}
+
+extension Data {
+    fileprivate func base64UrlEncodedString() -> String {
+        var base64 = self.base64EncodedString()
+        base64 = base64.replacingOccurrences(of: "+", with: "-")
+        base64 = base64.replacingOccurrences(of: "/", with: "_")
+        base64 = base64.trimmingCharacters(in: CharacterSet(charactersIn: "="))
+        return base64
+    }
 }

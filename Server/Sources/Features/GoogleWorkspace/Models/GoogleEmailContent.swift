@@ -17,4 +17,5 @@ struct GoogleEmailContent: Codable, Equatable, Sendable, Identifiable {
     let htmlBody: String
     let attachmentsMetadata: [GoogleAttachmentMetadata]
     let internalDate: String
+    let internetMessageId: String?
 }
