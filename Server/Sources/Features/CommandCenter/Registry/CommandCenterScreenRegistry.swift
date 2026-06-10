@@ -29,7 +29,7 @@ struct CommandCenterScreenRegistry {
             ClientVoiceScreen(feature: appFeatures.feature(ClientVoiceFeature.self))
         case .sentMessages:
             SentMessagesScreen(feature: appFeatures.feature(SentMessagesFeature.self))
-        case .email, .calendar:
+        case .googleWorkspace:
             GoogleWorkspaceScreen(feature: appFeatures.feature(GoogleWorkspaceFeature.self))
         case .whatsappWebView:
             WhatsAppWebViewScreen(feature: appFeatures.feature(WhatsAppCrawlingFeature.self))

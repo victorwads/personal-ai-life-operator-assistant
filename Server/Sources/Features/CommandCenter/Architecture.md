@@ -61,8 +61,7 @@ My Data
 └── Sent Messages -> SentMessages/SentMessagesScreen
 
 Integrations
-├── Email -> EmailIntegration/EmailIntegrationScreen
-├── Calendar -> CalendarIntegration/CalendarIntegrationScreen
+├── Google Workspace -> GoogleWorkspace/GoogleWorkspaceScreen
 ├── WebView -> WhatsAppCrawling/Integrations/WebView/Screens/WhatsAppWebViewScreen
 ├── Web YAML Debug -> WhatsAppCrawling/Integrations/WebView/Screens/WhatsAppWebYAMLDebugScreen
 ├── Native YAML Debug -> WhatsAppCrawling/Integrations/Native/Screens/WhatsAppNativeYAMLDebugScreen

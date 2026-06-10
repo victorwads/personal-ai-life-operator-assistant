@@ -40,8 +40,7 @@ enum CommandCenterMenuRegistry {
             id: "integrations",
             title: "Integrations",
             items: [
-                CommandCenterMenuItem(title: "Email", icon: "envelope", route: .email),
-                CommandCenterMenuItem(title: "Calendar", icon: "calendar", route: .calendar),
+                CommandCenterMenuItem(title: "Google Workspace", icon: "square.grid.2x2", route: .googleWorkspace),
                 CommandCenterMenuItem(
                     title: "WebView",
                     icon: "globe",
