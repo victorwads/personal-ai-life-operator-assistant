@@ -41,7 +41,7 @@ struct ListCalendarEventsTool: MCPToolDefinition {
         let calendarId = MCPSupport.optionalString("calendarId", from: call) ?? "primary"
         let maxResults = MCPSupport.optionalInt("maxResults", from: call) ?? 10
 
-        let service = await serviceProvider()
+        let service = serviceProvider()
         let events = try await service.listUpcomingEvents(calendarId: calendarId, maxResults: maxResults)
 
         guard !events.isEmpty else {

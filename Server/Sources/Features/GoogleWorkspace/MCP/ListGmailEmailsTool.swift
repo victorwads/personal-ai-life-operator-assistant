@@ -41,7 +41,7 @@ struct ListGmailEmailsTool: MCPToolDefinition {
         let maxResults = MCPSupport.optionalInt("maxResults", from: call) ?? 10
         let query = MCPSupport.optionalString("query", from: call)
 
-        let service = await serviceProvider()
+        let service = serviceProvider()
         let emails = try await service.listRecentEmails(maxResults: maxResults, query: query)
 
         guard !emails.isEmpty else {

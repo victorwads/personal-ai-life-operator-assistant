@@ -41,7 +41,7 @@ struct SearchGoogleContactsTool: MCPToolDefinition {
         let query = MCPSupport.optionalString("query", from: call) ?? ""
         let maxResults = MCPSupport.optionalInt("maxResults", from: call) ?? 20
 
-        let service = await serviceProvider()
+        let service = serviceProvider()
         let contacts = try await service.searchContacts(query: query, pageSize: maxResults)
 
         guard !contacts.isEmpty else {

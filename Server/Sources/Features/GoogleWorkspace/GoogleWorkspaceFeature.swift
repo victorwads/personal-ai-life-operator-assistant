@@ -64,7 +64,47 @@ final class GoogleWorkspaceFeature: FeatureRuntime {
                     guard let self else { fatalError("GoogleWorkspaceFeature deallocated") }
                     return self.settings
                 }
-            )
+            ),
+            SearchGmailEmailsTool(serviceProvider: { [weak self] in
+                guard let self else { fatalError("GoogleWorkspaceFeature deallocated") }
+                return self.gmailService
+            }),
+            GetEmailContentTool(serviceProvider: { [weak self] in
+                guard let self else { fatalError("GoogleWorkspaceFeature deallocated") }
+                return self.gmailService
+            }),
+            GetEmailThreadTool(serviceProvider: { [weak self] in
+                guard let self else { fatalError("GoogleWorkspaceFeature deallocated") }
+                return self.gmailService
+            }),
+            ListGmailLabelsTool(serviceProvider: { [weak self] in
+                guard let self else { fatalError("GoogleWorkspaceFeature deallocated") }
+                return self.gmailService
+            }),
+            CreateGmailLabelTool(serviceProvider: { [weak self] in
+                guard let self else { fatalError("GoogleWorkspaceFeature deallocated") }
+                return self.gmailService
+            }),
+            AddLabelToEmailTool(serviceProvider: { [weak self] in
+                guard let self else { fatalError("GoogleWorkspaceFeature deallocated") }
+                return self.gmailService
+            }),
+            RemoveLabelFromEmailTool(serviceProvider: { [weak self] in
+                guard let self else { fatalError("GoogleWorkspaceFeature deallocated") }
+                return self.gmailService
+            }),
+            AssistantDeleteEmailTool(serviceProvider: { [weak self] in
+                guard let self else { fatalError("GoogleWorkspaceFeature deallocated") }
+                return self.gmailService
+            }),
+            MarkEmailAsReadTool(serviceProvider: { [weak self] in
+                guard let self else { fatalError("GoogleWorkspaceFeature deallocated") }
+                return self.gmailService
+            }),
+            MarkEmailAsUnreadTool(serviceProvider: { [weak self] in
+                guard let self else { fatalError("GoogleWorkspaceFeature deallocated") }
+                return self.gmailService
+            })
         ])
     }
 }

@@ -29,6 +29,32 @@ final class GoogleWorkspaceHTTPClient {
         return try await performRequest(request)
     }
 
+    func post<T: Decodable, B: Encodable>(_ urlString: String, body: B?, queryItems: [URLQueryItem] = []) async throws -> T {
+        guard var components = URLComponents(string: urlString) else {
+            throw NSError(domain: "GoogleWorkspaceHTTPClient", code: 201, userInfo: [
+                NSLocalizedDescriptionKey: "Invalid URL string."
+            ])
+        }
+        if !queryItems.isEmpty {
+            components.queryItems = (components.queryItems ?? []) + queryItems
+        }
+        guard let url = components.url else {
+            throw NSError(domain: "GoogleWorkspaceHTTPClient", code: 202, userInfo: [
+                NSLocalizedDescriptionKey: "Failed to generate URL with query parameters."
+            ])
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        
+        if let body = body {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try JSONEncoder().encode(body)
+        }
+        
+        return try await performRequest(request)
+    }
+
     private func performRequest<T: Decodable>(_ request: URLRequest) async throws -> T {
         var mutableRequest = request
         let token = try await authService.ensureValidToken()

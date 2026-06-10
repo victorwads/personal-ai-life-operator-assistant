@@ -44,22 +44,62 @@ final class GoogleContactsService {
     }
 
     func searchContacts(query: String, pageSize: Int = 100) async throws -> [GoogleContact] {
-        let contacts = try await listContacts(pageSize: max(pageSize, 100))
-        let lowercasedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-
-        if lowercasedQuery.isEmpty {
-            return Array(contacts.prefix(pageSize))
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedQuery.isEmpty {
+            return try await listContacts(pageSize: pageSize)
         }
 
-        let filtered = contacts.filter { contact in
-            contact.displayName.lowercased().contains(lowercasedQuery) ||
-            (contact.givenName?.lowercased().contains(lowercasedQuery) ?? false) ||
-            (contact.familyName?.lowercased().contains(lowercasedQuery) ?? false) ||
-            contact.emailAddresses.contains { $0.lowercased().contains(lowercasedQuery) } ||
-            contact.phoneNumbers.contains { $0.contains(lowercasedQuery) }
-        }
+        let url = "https://people.googleapis.com/v1/people:searchContacts"
+        // Google People API caps searchContacts pageSize at 30.
+        let queryItems = [
+            URLQueryItem(name: "query", value: trimmedQuery),
+            URLQueryItem(name: "readMask", value: "names,emailAddresses,phoneNumbers,organizations,photos"),
+            URLQueryItem(name: "pageSize", value: String(min(pageSize, 30)))
+        ]
 
-        return Array(filtered.prefix(pageSize))
+        do {
+            let response: GoogleSearchContactsResponse = try await httpClient.get(url, queryItems: queryItems)
+            guard let results = response.results else {
+                return []
+            }
+
+            return results.compactMap { result -> GoogleContact? in
+                guard let conn = result.person else { return nil }
+                let nameObj = conn.names?.first
+                let emailList = conn.emailAddresses?.compactMap { $0.value } ?? []
+                let phoneList = conn.phoneNumbers?.compactMap { $0.value } ?? []
+                let orgName = conn.organizations?.first?.name
+                let photoUrl = conn.photos?.first?.url
+
+                let displayName = nameObj?.displayName ?? emailList.first ?? conn.resourceName
+
+                return GoogleContact(
+                    resourceName: conn.resourceName,
+                    displayName: displayName,
+                    givenName: nameObj?.givenName,
+                    familyName: nameObj?.familyName,
+                    emailAddresses: emailList,
+                    phoneNumbers: phoneList,
+                    organizationName: orgName,
+                    photoUrl: photoUrl
+                )
+            }
+        } catch {
+            // Fall back to local search over connections list if server search fails (e.g., due to temporary restrictions)
+            print("Google People API searchContacts failed: \(error.localizedDescription). Falling back to local connections search.")
+            let contacts = try await listContacts(pageSize: max(pageSize, 100))
+            let lowercasedQuery = trimmedQuery.lowercased()
+
+            let filtered = contacts.filter { contact in
+                contact.displayName.lowercased().contains(lowercasedQuery) ||
+                (contact.givenName?.lowercased().contains(lowercasedQuery) ?? false) ||
+                (contact.familyName?.lowercased().contains(lowercasedQuery) ?? false) ||
+                contact.emailAddresses.contains { $0.lowercased().contains(lowercasedQuery) } ||
+                contact.phoneNumbers.contains { $0.contains(lowercasedQuery) }
+            }
+
+            return Array(filtered.prefix(pageSize))
+        }
     }
 }
 
@@ -95,4 +135,11 @@ struct GoogleConnectionsResponse: Decodable {
     }
 
     let connections: [Connection]?
+}
+
+struct GoogleSearchContactsResponse: Decodable {
+    struct SearchResult: Decodable {
+        let person: GoogleConnectionsResponse.Connection?
+    }
+    let results: [SearchResult]?
 }

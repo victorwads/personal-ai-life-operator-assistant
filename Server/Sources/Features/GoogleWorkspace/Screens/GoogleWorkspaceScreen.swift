@@ -64,32 +64,93 @@ struct GoogleWorkspaceScreen: View {
                     // Test Operations Section
                     if isConnected {
                         DSTitledSection(title: "Test Integrations") {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("Trigger live read-only requests to Google Workspace APIs to verify integration contracts:")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-
+                            VStack(alignment: .leading, spacing: 16) {
+                                // Basic read tests
                                 HStack(spacing: 12) {
-                                    Button(action: {
-                                        viewModel.testGmail()
-                                    }) {
-                                        Label("Test Gmail", systemImage: "envelope")
+                                    Button(action: { viewModel.testGmail() }) {
+                                        Label("Test Gmail List", systemImage: "envelope")
                                     }
                                     .disabled(viewModel.isLoading)
 
-                                    Button(action: {
-                                        viewModel.testCalendar()
-                                    }) {
+                                    Button(action: { viewModel.testCalendar() }) {
                                         Label("Test Calendar", systemImage: "calendar")
                                     }
                                     .disabled(viewModel.isLoading)
 
-                                    Button(action: {
-                                        viewModel.testContacts()
-                                    }) {
+                                    Button(action: { viewModel.testContacts() }) {
                                         Label("Test Contacts", systemImage: "person.crop.circle")
                                     }
                                     .disabled(viewModel.isLoading)
+
+                                    Button(action: { viewModel.testListLabels() }) {
+                                        Label("List Labels", systemImage: "tag")
+                                    }
+                                    .disabled(viewModel.isLoading)
+                                }
+                                
+                                Divider()
+
+                                // Gmail Search
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Gmail Search Query")
+                                        .font(.subheadline.weight(.semibold))
+                                    HStack {
+                                        TextField("e.g. from:boss or is:unread", text: $viewModel.searchQuery)
+                                            .textFieldStyle(.roundedBorder)
+                                        Button(action: { viewModel.testSearchEmails() }) {
+                                            Text("Search Emails")
+                                        }
+                                        .disabled(viewModel.isLoading)
+                                    }
+                                }
+
+                                // Gmail Label Creation
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Gmail Label Name")
+                                        .font(.subheadline.weight(.semibold))
+                                    HStack {
+                                        TextField("e.g. Assistant/Deleted", text: $viewModel.labelName)
+                                            .textFieldStyle(.roundedBorder)
+                                        Button(action: { viewModel.testCreateLabel() }) {
+                                            Text("Create Test Label")
+                                        }
+                                        .disabled(viewModel.isLoading)
+                                    }
+                                }
+
+                                // Message Operations
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Gmail Message ID")
+                                        .font(.subheadline.weight(.semibold))
+                                    HStack {
+                                        TextField("Enter Message ID", text: $viewModel.messageId)
+                                            .textFieldStyle(.roundedBorder)
+                                        Button(action: { viewModel.testGetEmailContent() }) {
+                                            Text("Get Email Content")
+                                        }
+                                        .disabled(viewModel.isLoading)
+                                        
+                                        Button(action: { viewModel.testAssistantDelete() }) {
+                                            Text("Assistant Delete")
+                                        }
+                                        .buttonStyle(.bordered)
+                                        .tint(.red)
+                                        .disabled(viewModel.isLoading)
+                                    }
+                                }
+
+                                // Thread Operations
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Gmail Thread ID")
+                                        .font(.subheadline.weight(.semibold))
+                                    HStack {
+                                        TextField("Enter Thread ID", text: $viewModel.threadId)
+                                            .textFieldStyle(.roundedBorder)
+                                        Button(action: { viewModel.testGetEmailThread() }) {
+                                            Text("Get Email Thread")
+                                        }
+                                        .disabled(viewModel.isLoading)
+                                    }
                                 }
                             }
                         }

@@ -41,6 +41,7 @@ final class GoogleWorkspaceSettingsWrapper {
     var enabledScopes: [String] {
         [
             "https://www.googleapis.com/auth/gmail.readonly",
+            "https://www.googleapis.com/auth/gmail.modify",
             "https://www.googleapis.com/auth/calendar.readonly",
             "https://www.googleapis.com/auth/contacts.readonly"
         ]
