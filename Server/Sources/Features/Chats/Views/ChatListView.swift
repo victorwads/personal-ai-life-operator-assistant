@@ -8,6 +8,8 @@ struct ChatListView: View {
     let errorMessage: String?
     let onRefresh: () -> Void
     let onMarkAllAsRead: () -> Void
+    let onSetChatPermission: (String, ChatPermission?) -> Void
+    let onSelectChat: (String) -> Void
     let onDeleteAll: () -> Void
 
     @State private var isConfirmingDeleteAll = false
@@ -78,7 +80,7 @@ struct ChatListView: View {
                                 )
                             } else {
                                 ForEach(allowedChats) { chat in
-                                    ChatListRowView(chat: chat)
+                                    chatRow(chat)
                                         .tag(chat.id)
                                 }
                             }
@@ -92,14 +94,14 @@ struct ChatListView: View {
                                 )
                             } else {
                                 ForEach(notAllowedChats) { chat in
-                                    ChatListRowView(chat: chat)
+                                    chatRow(chat)
                                         .tag(chat.id)
                                 }
                             }
                         }
                     } else {
                         ForEach(chats) { chat in
-                            ChatListRowView(chat: chat)
+                            chatRow(chat)
                                 .tag(chat.id)
                         }
                     }
@@ -119,6 +121,33 @@ struct ChatListView: View {
 
     private var hasUnhandledChats: Bool {
         chats.contains { $0.unhandledCount > 0 }
+    }
+
+    @ViewBuilder
+    private func chatRow(_ chat: Chat) -> some View {
+        ChatListRowView(chat: chat)
+            .onTapGesture {
+                if let chatID = chat.id {
+                    onSelectChat(chatID)
+                }
+            }
+            .contextMenu {
+                ForEach(ChatPermissionChoice.allCases) { choice in
+                    Button {
+                        if let chatID = chat.id {
+                            onSetChatPermission(chatID, choice.permission)
+                        }
+                    } label: {
+                        HStack {
+                            Text(choice.title)
+                            if choice == ChatPermissionChoice(permission: chat.permission) {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                    .disabled(chat.id == nil)
+                }
+            }
     }
 
     @ViewBuilder

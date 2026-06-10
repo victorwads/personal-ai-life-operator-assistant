@@ -24,6 +24,8 @@ struct ChatsScreen: View {
                 errorMessage: errorMessage,
                 onRefresh: requestLoadChats,
                 onMarkAllAsRead: beginMarkAllChatsMessagesHandled,
+                onSetChatPermission: beginSetChatPermission,
+                onSelectChat: beginSelectChat,
                 onDeleteAll: beginDeleteAllChatsAndMessages
             )
             .frame(minWidth: 280, idealWidth: 340, maxWidth: 420)
@@ -105,6 +107,14 @@ struct ChatsScreen: View {
 
     private func beginSetSelectedChatPermission(_ permission: ChatPermission?) {
         Task { await setSelectedChatPermission(permission) }
+    }
+
+    private func beginSetChatPermission(chatId: String, permission: ChatPermission?) {
+        Task { await setChatPermission(chatId: chatId, permission: permission, selectChat: true) }
+    }
+
+    private func beginSelectChat(_ chatId: String) {
+        selectedChatId = chatId
     }
 
     @MainActor
@@ -265,10 +275,19 @@ struct ChatsScreen: View {
     @MainActor
     private func setSelectedChatPermission(_ permission: ChatPermission?) async {
         guard let chatId = selectedChatId else { return }
+        await setChatPermission(chatId: chatId, permission: permission, selectChat: false)
+    }
+
+    @MainActor
+    private func setChatPermission(chatId: String, permission: ChatPermission?, selectChat: Bool) async {
         guard let chatIndex = chats.firstIndex(where: { $0.id == chatId }) else { return }
 
         let currentChat = chats[chatIndex]
         guard currentChat.permission != permission else { return }
+
+        if selectChat {
+            selectedChatId = chatId
+        }
 
         var updatedChat = currentChat
         updatedChat.permission = permission
@@ -277,6 +296,7 @@ struct ChatsScreen: View {
         do {
             try await feature.repository.updateChatPermission(chatId: chatId, permission: permission)
             chats[chatIndex] = updatedChat
+            await loadChats(autoSelect: false)
         } catch {
             errorMessage = "Failed to update chat permission: \(error.localizedDescription)"
         }
