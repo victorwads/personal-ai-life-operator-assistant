@@ -11,8 +11,13 @@ final class GoogleWorkspaceFeature: FeatureRuntime {
     private(set) var gmailService: GmailService
     private(set) var calendarService: GoogleCalendarService
     private(set) var contactsService: GoogleContactsService
+    private(set) var assistantContactRepository: FirestoreAssistantContactRepository
 
     required init(context: FeatureContext) {
+        guard let scope = context.profileContext.scope else {
+            preconditionFailure("GoogleWorkspaceFeature requires a persisted profile scope.")
+        }
+
         let settings = GoogleWorkspaceSettingsWrapper(settings: context.settings.store)
         self.settings = settings
         
@@ -28,6 +33,7 @@ final class GoogleWorkspaceFeature: FeatureRuntime {
         self.gmailService = GmailService(httpClient: httpClient)
         self.calendarService = GoogleCalendarService(httpClient: httpClient)
         self.contactsService = GoogleContactsService(httpClient: httpClient)
+        self.assistantContactRepository = FirestoreAssistantContactRepository(scope: scope)
 
         super.init(context: context)
 
@@ -104,6 +110,52 @@ final class GoogleWorkspaceFeature: FeatureRuntime {
             MarkEmailAsUnreadTool(serviceProvider: { [weak self] in
                 guard let self else { fatalError("GoogleWorkspaceFeature deallocated") }
                 return self.gmailService
+            }),
+            CreateEmailDraftTool(serviceProvider: { [weak self] in
+                guard let self else { fatalError("GoogleWorkspaceFeature deallocated") }
+                return self.gmailService
+            }),
+            CreateEmailReplyDraftTool(serviceProvider: { [weak self] in
+                guard let self else { fatalError("GoogleWorkspaceFeature deallocated") }
+                return self.gmailService
+            }),
+            CreateCalendarEventTool(serviceProvider: { [weak self] in
+                guard let self else { fatalError("GoogleWorkspaceFeature deallocated") }
+                return self.calendarService
+            }),
+            UpdateCalendarEventTool(serviceProvider: { [weak self] in
+                guard let self else { fatalError("GoogleWorkspaceFeature deallocated") }
+                return self.calendarService
+            }),
+            DeleteCalendarEventTool(serviceProvider: { [weak self] in
+                guard let self else { fatalError("GoogleWorkspaceFeature deallocated") }
+                return self.calendarService
+            }),
+            ListCalendarsTool(serviceProvider: { [weak self] in
+                guard let self else { fatalError("GoogleWorkspaceFeature deallocated") }
+                return self.calendarService
+            }),
+            LinkContactToWhatsAppChatTool(repositoryProvider: { [weak self] in
+                guard let self else { fatalError("GoogleWorkspaceFeature deallocated") }
+                return self.assistantContactRepository
+            }),
+            LinkGoogleContactToWhatsAppChatTool(
+                repositoryProvider: { [weak self] in
+                    guard let self else { fatalError("GoogleWorkspaceFeature deallocated") }
+                    return self.assistantContactRepository
+                },
+                contactsServiceProvider: { [weak self] in
+                    guard let self else { fatalError("GoogleWorkspaceFeature deallocated") }
+                    return self.contactsService
+                }
+            ),
+            GetContactForWhatsAppChatTool(repositoryProvider: { [weak self] in
+                guard let self else { fatalError("GoogleWorkspaceFeature deallocated") }
+                return self.assistantContactRepository
+            }),
+            GetContactByGooglePersonIdTool(repositoryProvider: { [weak self] in
+                guard let self else { fatalError("GoogleWorkspaceFeature deallocated") }
+                return self.assistantContactRepository
             })
         ])
     }

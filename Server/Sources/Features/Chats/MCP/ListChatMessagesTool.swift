@@ -7,15 +7,18 @@ struct ListChatMessagesTool: MCPToolDefinition {
     private let repository: any ChatRepository
     private let permissionModeProvider: @MainActor () -> ChatPermissionMode
     private let assistantNameProvider: @MainActor () -> String
+    private let contactProvider: @Sendable @MainActor (String) async throws -> AssistantContact?
 
     init(
         repository: any ChatRepository,
         permissionModeProvider: @escaping @MainActor () -> ChatPermissionMode,
-        assistantNameProvider: @escaping @MainActor () -> String
+        assistantNameProvider: @escaping @MainActor () -> String,
+        contactProvider: @escaping @Sendable @MainActor (String) async throws -> AssistantContact? = { _ in nil }
     ) {
         self.repository = repository
         self.permissionModeProvider = permissionModeProvider
         self.assistantNameProvider = assistantNameProvider
+        self.contactProvider = contactProvider
     }
 
     let name = "list_chat_messages"
@@ -53,7 +56,8 @@ struct ListChatMessagesTool: MCPToolDefinition {
         let resolvedLimit = max(limit, minLimit(for: chat))
         let messages = try await repository.listUnhandledMessages(chatId: chatId, limit: resolvedLimit)
         let renderedMessages = renderMessages(messages.reversed(), assistantName: assistantName)
-        let renderedContext = renderChatContext(chat.chatContext)
+        let contact = try await contactProvider(chatId)
+        let renderedContext = renderChatContext(chat.chatContext, contact: contact)
         guard !messages.isEmpty else {
             return .string(composeContextAndMessages(context: renderedContext, messages: renderedMessages))
         }
@@ -88,14 +92,30 @@ struct ListChatMessagesTool: MCPToolDefinition {
         max(1, chat.unhandledCount)
     }
 
-    private func renderChatContext(_ context: String?) -> String? {
-        guard let context = context?.trimmingCharacters(in: .whitespacesAndNewlines), !context.isEmpty else {
-            return nil
+    private func renderChatContext(_ context: String?, contact: AssistantContact?) -> String? {
+        var parts: [String] = []
+
+        if let contact = contact {
+            let info = """
+            Linked Contact Identity:
+            - contactId: \(contact.id ?? "")
+            - displayName: \(contact.displayName)
+            - googlePersonId: \(contact.googlePersonId ?? "")
+            - primaryPhone: \(contact.primaryPhone ?? "")
+            - primaryEmail: \(contact.primaryEmail ?? "")
+            """
+            parts.append(info)
         }
+
+        if let context = context?.trimmingCharacters(in: .whitespacesAndNewlines), !context.isEmpty {
+            parts.append(context)
+        }
+
+        guard !parts.isEmpty else { return nil }
 
         return [
             "<chat_context>",
-            context,
+            parts.joined(separator: "\n\n"),
             "</chat_context>"
         ]
         .joined(separator: "\n")

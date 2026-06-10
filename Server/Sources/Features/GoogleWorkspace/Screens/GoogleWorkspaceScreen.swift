@@ -154,6 +154,166 @@ struct GoogleWorkspaceScreen: View {
                                 }
                             }
                         }
+
+                        DSTitledSection(title: "Milestone 3 — Drafts & Calendar CRUD") {
+                            VStack(alignment: .leading, spacing: 16) {
+                                // Create Draft Form
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Create Email Draft")
+                                        .font(.subheadline.weight(.semibold))
+                                    TextField("To (e.g. email@test.com)", text: $viewModel.draftTo)
+                                        .textFieldStyle(.roundedBorder)
+                                    HStack {
+                                        TextField("CC (optional)", text: $viewModel.draftCc)
+                                            .textFieldStyle(.roundedBorder)
+                                        TextField("BCC (optional)", text: $viewModel.draftBcc)
+                                            .textFieldStyle(.roundedBorder)
+                                    }
+                                    TextField("Subject", text: $viewModel.draftSubject)
+                                        .textFieldStyle(.roundedBorder)
+                                    TextField("Body", text: $viewModel.draftBody)
+                                        .textFieldStyle(.roundedBorder)
+                                    Button("Create Draft") {
+                                        viewModel.testCreateDraft()
+                                    }
+                                    .disabled(viewModel.isLoading)
+                                }
+                                
+                                Divider()
+                                
+                                // Create Reply Draft Form
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Create Thread Reply Draft")
+                                        .font(.subheadline.weight(.semibold))
+                                    TextField("Thread ID", text: $viewModel.threadId)
+                                        .textFieldStyle(.roundedBorder)
+                                    TextField("Original Message ID (from Header)", text: $viewModel.replyMessageId)
+                                        .textFieldStyle(.roundedBorder)
+                                    TextField("Reply Body", text: $viewModel.replyBody)
+                                        .textFieldStyle(.roundedBorder)
+                                    Button("Create Reply Draft") {
+                                        viewModel.testCreateReplyDraft()
+                                    }
+                                    .disabled(viewModel.isLoading)
+                                }
+                                
+                                Divider()
+
+                                // Calendar Event CRUD
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Calendar Event Operations")
+                                        .font(.subheadline.weight(.semibold))
+                                    HStack {
+                                        Button("List Calendars") {
+                                            viewModel.testListCalendars()
+                                        }
+                                        .disabled(viewModel.isLoading)
+                                    }
+                                    
+                                    TextField("Event ID (for update/delete)", text: $viewModel.eventId)
+                                        .textFieldStyle(.roundedBorder)
+                                    TextField("Title", text: $viewModel.eventTitle)
+                                        .textFieldStyle(.roundedBorder)
+                                    TextField("Description", text: $viewModel.eventDescription)
+                                        .textFieldStyle(.roundedBorder)
+                                    TextField("Location", text: $viewModel.eventLocation)
+                                        .textFieldStyle(.roundedBorder)
+                                    HStack {
+                                        TextField("Start DateTime (ISO)", text: $viewModel.eventStartDateTime)
+                                            .textFieldStyle(.roundedBorder)
+                                        TextField("End DateTime (ISO)", text: $viewModel.eventEndDateTime)
+                                            .textFieldStyle(.roundedBorder)
+                                    }
+                                    TextField("Attendees (comma separated emails)", text: $viewModel.eventAttendees)
+                                        .textFieldStyle(.roundedBorder)
+                                    HStack {
+                                        TextField("Recurrence (e.g. RRULE:FREQ=DAILY)", text: $viewModel.eventRecurrence)
+                                            .textFieldStyle(.roundedBorder)
+                                        TextField("Status (e.g. confirmed)", text: $viewModel.eventStatus)
+                                            .textFieldStyle(.roundedBorder)
+                                    }
+                                    HStack {
+                                        Button("Create Event") {
+                                            viewModel.testCreateCalendarEvent()
+                                        }
+                                        .disabled(viewModel.isLoading)
+                                        
+                                        Button("Update Event") {
+                                            viewModel.testUpdateCalendarEvent()
+                                        }
+                                        .disabled(viewModel.isLoading)
+                                        
+                                        Button("Delete Event") {
+                                            viewModel.testDeleteCalendarEvent()
+                                        }
+                                        .tint(.red)
+                                        .disabled(viewModel.isLoading)
+                                    }
+                                }
+                            }
+                        }
+
+                        DSTitledSection(title: "Milestone 3 — Contact Identity Linking") {
+                            VStack(alignment: .leading, spacing: 16) {
+                                // Link Contact to WhatsApp Chat
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Link Contact to WhatsApp Chat")
+                                        .font(.subheadline.weight(.semibold))
+                                    HStack {
+                                        TextField("Contact ID", text: $viewModel.linkContactId)
+                                            .textFieldStyle(.roundedBorder)
+                                        TextField("WhatsApp Chat ID", text: $viewModel.linkWhatsappChatId)
+                                            .textFieldStyle(.roundedBorder)
+                                        Button("Link Contact") {
+                                            viewModel.testLinkContactToWhatsAppChat()
+                                        }
+                                        .disabled(viewModel.isLoading)
+                                    }
+                                }
+
+                                Divider()
+
+                                // Link Google Contact to WhatsApp Chat
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Link Google Contact to WhatsApp Chat")
+                                        .font(.subheadline.weight(.semibold))
+                                    HStack {
+                                        TextField("Google Person ID", text: $viewModel.linkGooglePersonId)
+                                            .textFieldStyle(.roundedBorder)
+                                        TextField("WhatsApp Chat ID", text: $viewModel.linkWhatsappChatId)
+                                            .textFieldStyle(.roundedBorder)
+                                        Button("Link Google Contact") {
+                                            viewModel.testLinkGoogleContactToWhatsAppChat()
+                                        }
+                                        .disabled(viewModel.isLoading)
+                                    }
+                                }
+
+                                Divider()
+
+                                // Contact Lookups
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Contact Identity Lookup")
+                                        .font(.subheadline.weight(.semibold))
+                                    HStack {
+                                        TextField("Lookup WhatsApp Chat ID", text: $viewModel.lookupWhatsappChatId)
+                                            .textFieldStyle(.roundedBorder)
+                                        Button("Lookup By Chat") {
+                                            viewModel.testLookupContactByChat()
+                                        }
+                                        .disabled(viewModel.isLoading)
+                                    }
+                                    HStack {
+                                        TextField("Lookup Google Person ID", text: $viewModel.lookupGooglePersonId)
+                                            .textFieldStyle(.roundedBorder)
+                                        Button("Lookup By Google ID") {
+                                            viewModel.testLookupContactByGoogleId()
+                                        }
+                                        .disabled(viewModel.isLoading)
+                                    }
+                                }
+                            }
+                        }
                     } else {
                         DSCard(title: "Configuration Required", systemImage: "exclamationmark.triangle") {
                             VStack(alignment: .leading, spacing: 8) {

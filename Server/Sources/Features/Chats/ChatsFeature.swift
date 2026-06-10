@@ -35,7 +35,11 @@ final class ChatsFeature: FeatureRuntime {
             ListChatMessagesTool(
                 repository: repository,
                 permissionModeProvider: { crawlingSettings.chatPermissionMode },
-                assistantNameProvider: { sentMessagesSettings.assistantName }
+                assistantNameProvider: { sentMessagesSettings.assistantName },
+                contactProvider: { whatsappChatId in
+                    let googleWorkspace = context.feature(GoogleWorkspaceFeature.self)
+                    return try await googleWorkspace.assistantContactRepository.findByWhatsappChatId(whatsappChatId)
+                }
             ),
             UpdateChatContextTool(repository: repository),
             MarkChatMessagesAsHandledTool(

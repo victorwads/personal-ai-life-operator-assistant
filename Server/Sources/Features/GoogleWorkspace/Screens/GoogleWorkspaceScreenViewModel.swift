@@ -14,6 +14,29 @@ final class GoogleWorkspaceScreenViewModel: ObservableObject {
     @Published var messageId = ""
     @Published var threadId = ""
     @Published var labelName = ""
+    
+    // Inputs for Milestone 3
+    @Published var draftTo = ""
+    @Published var draftCc = ""
+    @Published var draftBcc = ""
+    @Published var draftSubject = ""
+    @Published var draftBody = ""
+    @Published var replyMessageId = ""
+    @Published var replyBody = ""
+    @Published var eventTitle = ""
+    @Published var eventDescription = ""
+    @Published var eventLocation = ""
+    @Published var eventStartDateTime = ""
+    @Published var eventEndDateTime = ""
+    @Published var eventAttendees = ""
+    @Published var eventId = ""
+    @Published var eventRecurrence = ""
+    @Published var eventStatus = ""
+    @Published var linkContactId = ""
+    @Published var linkWhatsappChatId = ""
+    @Published var linkGooglePersonId = ""
+    @Published var lookupWhatsappChatId = ""
+    @Published var lookupGooglePersonId = ""
 
     init(feature: GoogleWorkspaceFeature) {
         self.feature = feature
@@ -343,6 +366,265 @@ final class GoogleWorkspaceScreenViewModel: ObservableObject {
             } catch {
                 self.lastError = error.localizedDescription
                 self.resultPreview = "Failed to perform Assistant Delete."
+                self.isLoading = false
+            }
+        }
+    }
+
+    func testCreateDraft() {
+        isLoading = true
+        lastError = nil
+        resultPreview = "Creating email draft..."
+        Task {
+            do {
+                let ccVal = draftCc.isEmpty ? nil : draftCc
+                let bccVal = draftBcc.isEmpty ? nil : draftBcc
+                let draft = try await feature.gmailService.createDraftEmail(
+                    to: draftTo,
+                    cc: ccVal,
+                    bcc: bccVal,
+                    subject: draftSubject,
+                    body: draftBody
+                )
+                let data = try JSONEncoder().encode(draft)
+                let json = String(data: data, encoding: .utf8) ?? ""
+                self.resultPreview = json
+                self.isLoading = false
+            } catch {
+                self.lastError = error.localizedDescription
+                self.resultPreview = "Failed to create email draft."
+                self.isLoading = false
+            }
+        }
+    }
+
+    func testCreateReplyDraft() {
+        isLoading = true
+        lastError = nil
+        resultPreview = "Creating reply draft..."
+        Task {
+            do {
+                let draft = try await feature.gmailService.createDraftReply(
+                    threadId: threadId,
+                    messageId: replyMessageId,
+                    body: replyBody
+                )
+                let data = try JSONEncoder().encode(draft)
+                let json = String(data: data, encoding: .utf8) ?? ""
+                self.resultPreview = json
+                self.isLoading = false
+            } catch {
+                self.lastError = error.localizedDescription
+                self.resultPreview = "Failed to create reply draft."
+                self.isLoading = false
+            }
+        }
+    }
+
+    func testListCalendars() {
+        isLoading = true
+        lastError = nil
+        resultPreview = "Listing calendars..."
+        Task {
+            do {
+                let calendars = try await feature.calendarService.listCalendars()
+                let data = try JSONEncoder().encode(calendars)
+                let json = String(data: data, encoding: .utf8) ?? ""
+                self.resultPreview = json
+                self.isLoading = false
+            } catch {
+                self.lastError = error.localizedDescription
+                self.resultPreview = "Failed to list calendars."
+                self.isLoading = false
+            }
+        }
+    }
+
+    func testCreateCalendarEvent() {
+        isLoading = true
+        lastError = nil
+        resultPreview = "Creating calendar event..."
+        Task {
+            do {
+                let attendeesList = eventAttendees.isEmpty ? nil : eventAttendees.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                let event = try await feature.calendarService.createCalendarEvent(
+                    title: eventTitle,
+                    description: eventDescription.isEmpty ? nil : eventDescription,
+                    location: eventLocation.isEmpty ? nil : eventLocation,
+                    startDateTime: eventStartDateTime,
+                    endDateTime: eventEndDateTime,
+                    attendees: attendeesList
+                )
+                let data = try JSONEncoder().encode(event)
+                let json = String(data: data, encoding: .utf8) ?? ""
+                self.resultPreview = json
+                self.isLoading = false
+            } catch {
+                self.lastError = error.localizedDescription
+                self.resultPreview = "Failed to create calendar event."
+                self.isLoading = false
+            }
+        }
+    }
+
+    func testUpdateCalendarEvent() {
+        isLoading = true
+        lastError = nil
+        resultPreview = "Updating calendar event..."
+        Task {
+            do {
+                let attendeesList = eventAttendees.isEmpty ? nil : eventAttendees.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                let recurrenceList = eventRecurrence.isEmpty ? nil : eventRecurrence.components(separatedBy: ";")
+                let event = try await feature.calendarService.updateCalendarEvent(
+                    eventId: eventId,
+                    title: eventTitle.isEmpty ? nil : eventTitle,
+                    description: eventDescription.isEmpty ? nil : eventDescription,
+                    location: eventLocation.isEmpty ? nil : eventLocation,
+                    startDateTime: eventStartDateTime.isEmpty ? nil : eventStartDateTime,
+                    endDateTime: eventEndDateTime.isEmpty ? nil : eventEndDateTime,
+                    attendees: attendeesList,
+                    recurrence: recurrenceList,
+                    status: eventStatus.isEmpty ? nil : eventStatus
+                )
+                let data = try JSONEncoder().encode(event)
+                let json = String(data: data, encoding: .utf8) ?? ""
+                self.resultPreview = json
+                self.isLoading = false
+            } catch {
+                self.lastError = error.localizedDescription
+                self.resultPreview = "Failed to update calendar event."
+                self.isLoading = false
+            }
+        }
+    }
+
+    func testDeleteCalendarEvent() {
+        isLoading = true
+        lastError = nil
+        resultPreview = "Deleting calendar event..."
+        Task {
+            do {
+                try await feature.calendarService.deleteCalendarEvent(eventId: eventId)
+                self.resultPreview = "Successfully deleted calendar event with ID: \(eventId)"
+                self.isLoading = false
+            } catch {
+                self.lastError = error.localizedDescription
+                self.resultPreview = "Failed to delete calendar event."
+                self.isLoading = false
+            }
+        }
+    }
+
+    func testLinkContactToWhatsAppChat() {
+        isLoading = true
+        lastError = nil
+        resultPreview = "Linking contact to WhatsApp chat..."
+        Task {
+            do {
+                guard var contact = try await feature.assistantContactRepository.getById(linkContactId) else {
+                    self.resultPreview = "Contact not found."
+                    self.isLoading = false
+                    return
+                }
+                contact.whatsappChatId = linkWhatsappChatId
+                try await feature.assistantContactRepository.save(contact)
+                let data = try JSONEncoder().encode(contact)
+                self.resultPreview = String(data: data, encoding: .utf8) ?? ""
+                self.isLoading = false
+            } catch {
+                self.lastError = error.localizedDescription
+                self.resultPreview = "Failed to link contact."
+                self.isLoading = false
+            }
+        }
+    }
+
+    func testLinkGoogleContactToWhatsAppChat() {
+        isLoading = true
+        lastError = nil
+        resultPreview = "Linking Google Contact to WhatsApp chat..."
+        Task {
+            do {
+                var normalizedId = linkGooglePersonId
+                if !normalizedId.hasPrefix("people/") {
+                    normalizedId = "people/" + normalizedId
+                }
+                if var existing = try await feature.assistantContactRepository.findByGooglePersonId(normalizedId) {
+                    existing.whatsappChatId = linkWhatsappChatId
+                    try await feature.assistantContactRepository.save(existing)
+                    let data = try JSONEncoder().encode(existing)
+                    self.resultPreview = String(data: data, encoding: .utf8) ?? ""
+                    self.isLoading = false
+                    return
+                }
+                guard let googleContact = try await feature.contactsService.getContact(resourceName: normalizedId) else {
+                    self.resultPreview = "Google Contact not found."
+                    self.isLoading = false
+                    return
+                }
+                let newContact = AssistantContact(
+                    id: nil,
+                    displayName: googleContact.displayName,
+                    googlePersonId: normalizedId,
+                    whatsappChatId: linkWhatsappChatId,
+                    primaryPhone: googleContact.phoneNumbers.first,
+                    primaryEmail: googleContact.emailAddresses.first
+                )
+                let saved = try await feature.assistantContactRepository.save(newContact)
+                let data = try JSONEncoder().encode(saved)
+                self.resultPreview = String(data: data, encoding: .utf8) ?? ""
+                self.isLoading = false
+            } catch {
+                self.lastError = error.localizedDescription
+                self.resultPreview = "Failed to link Google Contact."
+                self.isLoading = false
+            }
+        }
+    }
+
+    func testLookupContactByChat() {
+        isLoading = true
+        lastError = nil
+        resultPreview = "Looking up contact by WhatsApp Chat ID..."
+        Task {
+            do {
+                guard let contact = try await feature.assistantContactRepository.findByWhatsappChatId(lookupWhatsappChatId) else {
+                    self.resultPreview = "No linked contact found."
+                    self.isLoading = false
+                    return
+                }
+                let data = try JSONEncoder().encode(contact)
+                self.resultPreview = String(data: data, encoding: .utf8) ?? ""
+                self.isLoading = false
+            } catch {
+                self.lastError = error.localizedDescription
+                self.resultPreview = "Failed to look up contact."
+                self.isLoading = false
+            }
+        }
+    }
+
+    func testLookupContactByGoogleId() {
+        isLoading = true
+        lastError = nil
+        resultPreview = "Looking up contact by Google Person ID..."
+        Task {
+            do {
+                var normalizedId = lookupGooglePersonId
+                if !normalizedId.hasPrefix("people/") {
+                    normalizedId = "people/" + normalizedId
+                }
+                guard let contact = try await feature.assistantContactRepository.findByGooglePersonId(normalizedId) else {
+                    self.resultPreview = "No linked contact found."
+                    self.isLoading = false
+                    return
+                }
+                let data = try JSONEncoder().encode(contact)
+                self.resultPreview = String(data: data, encoding: .utf8) ?? ""
+                self.isLoading = false
+            } catch {
+                self.lastError = error.localizedDescription
+                self.resultPreview = "Failed to look up contact."
                 self.isLoading = false
             }
         }
