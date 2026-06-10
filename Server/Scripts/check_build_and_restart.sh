@@ -42,7 +42,7 @@ fi
 APP_PATH="$target_build_dir/$full_product_name"
 
 echo "==> Building"
-xcodebuild "${XCODEBUILD_ARGS[@]}" build
+xcodebuild "${XCODEBUILD_ARGS[@]}" build -quiet
 
 echo "==> Unit Tests"
 

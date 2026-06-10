@@ -168,6 +168,7 @@ Feature- and infrastructure-specific architecture rules live close to the code t
 - [Server/Sources/Features/ServerLogs/Architecture.md](../Server/Sources/Features/ServerLogs/Architecture.md)
 - [Server/Sources/Features/ToolsBrowser/Architecture.md](../Server/Sources/Features/ToolsBrowser/Architecture.md)
 - [Server/Sources/Features/WhatsAppCrawling/Architecture.md](../Server/Sources/Features/WhatsAppCrawling/Architecture.md)
+- [Server/Sources/Features/GoogleWorkspace/Architecture.md](../Server/Sources/Features/GoogleWorkspace/Architecture.md)
 - [Server/Sources/Features/Chats/Architecture.md](../Server/Sources/Features/Chats/Architecture.md)
 - [Server/Sources/Shared/UI/Architecture.md](../Server/Sources/Shared/UI/Architecture.md)
 - [Server/Sources/Shared/UI/PreviewApp/Architecture.md](../Server/Sources/Shared/UI/PreviewApp/Architecture.md)
