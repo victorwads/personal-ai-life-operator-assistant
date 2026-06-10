@@ -8,8 +8,7 @@ enum CommandCenterRoute: String, CaseIterable, Identifiable, Hashable {
     case sensitiveData
     case clientVoice
     case sentMessages
-    case email
-    case calendar
+    case googleWorkspace
     case whatsappWebView
     case whatsappWebYAMLDebug
     case whatsappNativeYAMLDebug
