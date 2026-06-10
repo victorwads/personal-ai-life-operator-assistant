@@ -79,7 +79,7 @@ struct ChatListView: View {
                             } else {
                                 ForEach(allowedChats) { chat in
                                     ChatListRowView(chat: chat)
-                                        .tag(chat.id)
+                                        .tag(chat.id as String?)
                                 }
                             }
                         }
@@ -93,14 +93,14 @@ struct ChatListView: View {
                             } else {
                                 ForEach(notAllowedChats) { chat in
                                     ChatListRowView(chat: chat)
-                                        .tag(chat.id)
+                                        .tag(chat.id as String?)
                                 }
                             }
                         }
                     } else {
                         ForEach(chats) { chat in
                             ChatListRowView(chat: chat)
-                                .tag(chat.id)
+                                .tag(chat.id as String?)
                         }
                     }
                 }
