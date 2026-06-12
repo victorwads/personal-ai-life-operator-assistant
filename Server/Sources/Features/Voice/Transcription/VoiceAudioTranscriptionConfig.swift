@@ -6,8 +6,11 @@ enum VoiceVADMode: String, CaseIterable, Equatable {
 }
 
 struct VoiceAudioTranscriptionConfig: Equatable {
+    /// Used by timed text activity mode to close a segment after Apple Speech text stops changing.
     var silenceBreakInterval: TimeInterval
+    /// Shortest audio chunk allowed before a segment can be committed.
     var minimumSegmentDuration: TimeInterval
+    /// Upper bound for a single segment before it is forced to close.
     var maximumSegmentDuration: TimeInterval
     var realtimeDebounceInterval: TimeInterval
     var enablesWhisperPostProcessing: Bool
@@ -19,16 +22,22 @@ struct VoiceAudioTranscriptionConfig: Equatable {
 
     var whisperModelPath: String?
     var whisperCoreMLModelPath: String?
+    /// When true, Whisper transcription is forced onto CPU for comparison and stress testing.
     var whisperTranscriptionUsesCPUOnly: Bool
+    /// Preferred CPU thread count when Whisper runs in CPU-only mode.
     var whisperTranscriptionCPUThreadCount: Int
 
     var vadMode: VoiceVADMode
     var vadModelPath: String?
     var vadThreshold: Double
     var vadMinSpeechDuration: TimeInterval
+    /// Used by local VAD mode to determine how long silence must last before closing a speech segment.
     var vadMinSilenceDuration: TimeInterval
+    /// Emergency fallback for local VAD mode when Apple Speech text stops changing.
     var vadNoTextFallbackInterval: TimeInterval
+    /// Audio-only overlap added between adjacent segments before Whisper post-processing.
     var segmentAudioOverlapDuration: TimeInterval
+    /// Long silence duration used to insert paragraph breaks in the final editable text.
     var paragraphBreakSilenceDuration: TimeInterval
     var enablesParagraphBreaks: Bool
     var debugMinimumPostProcessingDisplayDuration: TimeInterval?
