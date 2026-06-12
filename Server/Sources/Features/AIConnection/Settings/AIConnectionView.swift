@@ -9,13 +9,14 @@ struct AIConnectionSettingsView: View {
     @State private var assistantAPIKey = ""
     @State private var assistantModel = ""
     @State private var temperature = 0.6
-    @State private var reasoningEffort = AIConnectionReasoningEffort.off
+    @State private var assistantReasoningEffort = AIConnectionReasoningEffort.omit
     @State private var maxOutputTokens = ""
     @State private var assistantCacheMode = AIConnectionCacheMode.automatic
     @State private var imageProviderKind = AIConnectionProviderKind.openRouter
     @State private var imageBaseURL = ""
     @State private var imageAPIKey = ""
     @State private var imageModel = ""
+    @State private var imageReasoningEffort = AIConnectionReasoningEffort.omit
     @State private var imageCacheMode = AIConnectionCacheMode.automatic
 
     var body: some View {
@@ -27,6 +28,7 @@ struct AIConnectionSettingsView: View {
                 baseURL: assistantBaseURLBinding,
                 apiKey: assistantAPIKeyBinding,
                 model: assistantModelBinding,
+                reasoningEffort: assistantReasoningEffortBinding,
                 cacheMode: assistantCacheModeBinding
             )
             Stepper(
@@ -35,11 +37,6 @@ struct AIConnectionSettingsView: View {
                 in: 0...2,
                 step: 0.1
             )
-            Picker("Reasoning", selection: reasoningEffortBinding) {
-                ForEach(AIConnectionReasoningEffort.allCases, id: \.self) { effort in
-                    Text(effort.displayName).tag(effort)
-                }
-            }
             TextField("Max Output Tokens (optional)", text: maxOutputTokensBinding)
                 .autocorrectionDisabled()
             providerSection(
@@ -48,6 +45,7 @@ struct AIConnectionSettingsView: View {
                 baseURL: imageBaseURLBinding,
                 apiKey: imageAPIKeyBinding,
                 model: imageModelBinding,
+                reasoningEffort: imageReasoningEffortBinding,
                 cacheMode: imageCacheModeBinding
             )
 
@@ -115,12 +113,12 @@ struct AIConnectionSettingsView: View {
         }
     }
 
-    private var reasoningEffortBinding: Binding<AIConnectionReasoningEffort> {
+    private var assistantReasoningEffortBinding: Binding<AIConnectionReasoningEffort> {
         Binding {
-            reasoningEffort
+            assistantReasoningEffort
         } set: { value in
-            reasoningEffort = value
-            wrapper.reasoningEffort = value
+            assistantReasoningEffort = value
+            wrapper.assistantReasoningEffort = value
         }
     }
 
@@ -189,6 +187,15 @@ struct AIConnectionSettingsView: View {
         }
     }
 
+    private var imageReasoningEffortBinding: Binding<AIConnectionReasoningEffort> {
+        Binding {
+            imageReasoningEffort
+        } set: { value in
+            imageReasoningEffort = value
+            wrapper.imageExtractionReasoningEffort = value
+        }
+    }
+
     private func load() {
         autoStart = wrapper.autoStart
         assistantProviderKind = wrapper.providerKind
@@ -196,13 +203,14 @@ struct AIConnectionSettingsView: View {
         assistantAPIKey = wrapper.apiKey
         assistantModel = wrapper.model
         temperature = wrapper.temperature
-        reasoningEffort = wrapper.reasoningEffort
+        assistantReasoningEffort = wrapper.assistantReasoningEffort
         maxOutputTokens = wrapper.maxOutputTokens.map(String.init) ?? ""
         assistantCacheMode = wrapper.cacheMode
         imageProviderKind = wrapper.imageExtractionProviderKind
         imageBaseURL = wrapper.imageExtractionBaseURL
         imageAPIKey = wrapper.imageExtractionAPIKey
         imageModel = wrapper.imageExtractionModel
+        imageReasoningEffort = wrapper.imageExtractionReasoningEffort
         imageCacheMode = wrapper.imageExtractionCacheMode
     }
 
@@ -213,6 +221,7 @@ struct AIConnectionSettingsView: View {
         baseURL: Binding<String>,
         apiKey: Binding<String>,
         model: Binding<String>,
+        reasoningEffort: Binding<AIConnectionReasoningEffort>,
         cacheMode: Binding<AIConnectionCacheMode>
     ) -> some View {
         GroupBox(title) {
@@ -227,6 +236,11 @@ struct AIConnectionSettingsView: View {
                 SecureField("API Key", text: apiKey)
                 TextField("Model", text: model)
                     .autocorrectionDisabled()
+                Picker("Reasoning", selection: reasoningEffort) {
+                    ForEach(AIConnectionReasoningEffort.allCases, id: \.self) { effort in
+                        Text(effort.displayName).tag(effort)
+                    }
+                }
                 Picker("Cache Mode", selection: cacheMode) {
                     ForEach(AIConnectionCacheMode.allCases, id: \.self) { mode in
                         Text(mode.displayName).tag(mode)

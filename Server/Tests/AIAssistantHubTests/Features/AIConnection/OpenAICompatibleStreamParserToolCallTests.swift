@@ -9,7 +9,7 @@ final class OpenAICompatibleStreamParserToolCallTests: FixtureBackedTestCase {
 
         XCTAssertEqual(
             completedCall,
-            AIRequestedToolCall(id: "call_1", name: "list_unhandled_chats", argumentsJSON: "")
+            AIRequestedToolCall(id: "call_1", name: "whatsapp_list_unhandled_chats", argumentsJSON: "")
         )
     }
 
@@ -20,7 +20,7 @@ final class OpenAICompatibleStreamParserToolCallTests: FixtureBackedTestCase {
 
         XCTAssertEqual(
             completedCall,
-            AIRequestedToolCall(id: "call_2", name: "list_unhandled_chats", argumentsJSON: #"{"limit":10}"#)
+            AIRequestedToolCall(id: "call_2", name: "whatsapp_list_unhandled_chats", argumentsJSON: #"{"limit":10}"#)
         )
     }
 

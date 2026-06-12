@@ -1,6 +1,7 @@
 import Foundation
 
 enum AIConnectionReasoningEffort: String, Codable, CaseIterable, Sendable {
+    case omit
     case off
     case enabled
     case none
@@ -12,6 +13,8 @@ enum AIConnectionReasoningEffort: String, Codable, CaseIterable, Sendable {
 
     var reasoningPayload: OpenAICompatibleReasoningPayload? {
         switch self {
+        case .omit:
+            return nil
         case .off:
             return .off
         case .enabled:
@@ -29,13 +32,15 @@ enum AIConnectionReasoningEffort: String, Codable, CaseIterable, Sendable {
             return OpenAICompatibleExtraBody(
                 chatTemplateKwargs: OpenAICompatibleChatTemplateKwargs(enableThinking: false)
             )
-        case .off, .enabled, .none, .low, .medium, .high, .xhigh:
+        case .omit, .off, .enabled, .none, .low, .medium, .high, .xhigh:
             return nil
         }
     }
 
     var displayName: String {
         switch self {
+        case .omit:
+            return "Omit"
         case .off:
             return "Off"
         case .enabled:

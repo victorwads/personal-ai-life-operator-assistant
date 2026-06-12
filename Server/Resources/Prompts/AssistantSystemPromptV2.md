@@ -40,9 +40,9 @@ Use `announce_to_client(...)` when the client should receive information from yo
 
 Use `ask_to_client(...)` when the client should answer something, such as a decision, permission, missing information, clarification, or confirmation. The tool will return the client’s answer when available.
 
-Use external communication tools, such as `send_message(...)`, when a message should reach an external person, company, organization, or service.
+Use external communication tools, such as `whatsapp_send_chat_message(...)`, when a message should reach an external person, company, organization, or service.
 
-Use `update_chat_context(...)` when durable context about a specific chat should keep influencing future reads and replies.
+Use `whatsapp_update_chat_context(...)` when durable context about a specific chat should keep influencing future reads and replies.
 
 Use issue tools when work needs tracking, continuity, follow-up, history, resolution, or cancellation.
 
@@ -349,7 +349,7 @@ If you know the contact or search term, use the available chat search tool.
 If you need the pending queue, use the unhandled chats tool.
 
 When you have a `chatId`, load recent messages to understand the context.
-`list_chat_messages(...)` may also return a persisted `chat_context` block for durable notes about that person or group.
+`whatsapp_list_chat_messages(...)` may also return a persisted `chat_context` block for durable notes about that person or group.
 
 Reading messages only provides context.
 
@@ -366,7 +366,7 @@ If replying externally, use the proper external communication tool.
 
 Do not send external replies before the issue exists or has been updated.
 
-Always call `list_chat_messages(...)` immediately before `send_message(...)` so you can confirm the latest state and avoid duplicate replies.
+Always call `whatsapp_list_chat_messages(...)` immediately before `whatsapp_send_chat_message(...)` so you can confirm the latest state and avoid duplicate replies.
 
 When sending multiple messages, preserve the intended order and group related content naturally.
 

@@ -19,6 +19,8 @@ final class AIConnectionSettingsWrapperTests: XCTestCase {
         XCTAssertEqual(wrapper.imageExtractionAPIKey, "assistant-secret")
         XCTAssertEqual(wrapper.imageExtractionModel, "assistant-model")
         XCTAssertEqual(wrapper.imageExtractionCacheMode, .disabled)
+        XCTAssertEqual(wrapper.assistantReasoningEffort, .omit)
+        XCTAssertEqual(wrapper.imageExtractionReasoningEffort, .omit)
     }
 
     func testImageExtractionProviderCanOverrideAssistantProviderIndependently() {
@@ -49,6 +51,29 @@ final class AIConnectionSettingsWrapperTests: XCTestCase {
         XCTAssertEqual(wrapper.imageExtractionAPIKey, "image-secret")
         XCTAssertEqual(wrapper.imageExtractionModel, "image-model")
         XCTAssertEqual(wrapper.imageExtractionCacheMode, .disabled)
+    }
+
+    func testAssistantReasoningFallsBackToLegacySharedSetting() {
+        let repository = InMemoryAIConnectionSettingsRepository()
+        let settings = SettingsStore(profileId: "profile-1", repository: repository)
+        settings.setValue(scope: "aiConnection", key: "reasoningEffort", value: AIConnectionReasoningEffort.high.rawValue)
+
+        let wrapper = AIConnectionSettingsWrapper(settings: settings)
+
+        XCTAssertEqual(wrapper.assistantReasoningEffort, .high)
+        XCTAssertEqual(wrapper.imageExtractionReasoningEffort, .omit)
+    }
+
+    func testReasoningCanBeConfiguredSeparatelyPerProvider() {
+        let repository = InMemoryAIConnectionSettingsRepository()
+        let settings = SettingsStore(profileId: "profile-1", repository: repository)
+        let wrapper = AIConnectionSettingsWrapper(settings: settings)
+
+        wrapper.assistantReasoningEffort = .enabled
+        wrapper.imageExtractionReasoningEffort = .qwenOff
+
+        XCTAssertEqual(wrapper.assistantProviderConfiguration.reasoningEffort, .enabled)
+        XCTAssertEqual(wrapper.imageExtractionProviderConfiguration.reasoningEffort, .qwenOff)
     }
 }
 

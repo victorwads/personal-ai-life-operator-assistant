@@ -304,6 +304,52 @@ final class AIImageExtractionServiceTests: XCTestCase {
         XCTAssertTrue(imageURL.hasPrefix("data:image/png;base64,"))
     }
 
+    func testImageExtractionRequestUsesProviderReasoningEffort() async throws {
+        let prompt = "Prompt from bundle"
+        let image = try makeTempImageURL(fileName: "reasoning-image.png", contents: Data("reasoning-image".utf8))
+        let cacheRepository = FakeAIImageExtractionCacheRepository()
+        let streamingService = FakeAIImageExtractionStreamingService(
+            responseEvents: [
+                .completed(
+                    AIProviderResponse(
+                        id: "response-1",
+                        model: "image-model",
+                        provider: .openRouter,
+                        finishReason: "stop",
+                        text: "Image text",
+                        reasoning: "",
+                        toolCalls: [],
+                        usage: nil
+                    )
+                )
+            ]
+        )
+        let service = AIImageExtractionService(
+            profileId: "profile-1",
+            streamingService: streamingService,
+            settingsProvider: {
+                AIConnectionProviderConfiguration(
+                    providerKind: .openRouter,
+                    baseURL: "https://example.com/v1",
+                    apiKey: "secret",
+                    model: "image-model",
+                    temperature: 0.0,
+                    reasoningEffort: .qwenOff,
+                    maxOutputTokens: 4096,
+                    streamingEnabled: true,
+                    cacheMode: .automatic
+                )
+            },
+            promptProvider: { prompt },
+            cacheRepository: cacheRepository
+        )
+
+        _ = try await service.extractTextAndDescription(from: [image], mediaKind: .image)
+
+        let request = try XCTUnwrap(streamingService.recordedRequests.first)
+        XCTAssertEqual(request.reasoningEffort, .qwenOff)
+    }
+
     private func makeService(
         profileId: String,
         streamingService: FakeAIImageExtractionStreamingService,

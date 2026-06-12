@@ -39,7 +39,7 @@ final class AIConnectionRuntimeService: ObservableObject {
                 apiKey: "",
                 model: "",
                 temperature: 0.6,
-                reasoningEffort: .off,
+                reasoningEffort: .omit,
                 maxOutputTokens: nil,
                 streamingEnabled: true,
                 cacheMode: .automatic
@@ -282,7 +282,7 @@ final class AIConnectionRuntimeService: ObservableObject {
             }
             conversationMessages.append(assistantMessage)
 
-            let terminalActionTools: Set<String> = ["wait_for_event", "ask_to_client", "send_message", "announce_to_client"]
+            let terminalActionTools: Set<String> = ["wait_for_event", "ask_to_client", "whatsapp_send_chat_message", "announce_to_client"]
 
             if !toolCalls.isEmpty {
                 if toolCalls.contains(where: { terminalActionTools.contains($0.name) }) {

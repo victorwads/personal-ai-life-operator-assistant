@@ -61,7 +61,7 @@ final class OpenAICompatibleRequestModelsTests: XCTestCase {
                         toolCalls: [
                             AIRequestedToolCall(
                                 id: "call-1",
-                                name: "list_unhandled_chats",
+                                name: "whatsapp_list_unhandled_chats",
                                 argumentsJSON: ""
                             )
                         ]
@@ -94,7 +94,7 @@ final class OpenAICompatibleRequestModelsTests: XCTestCase {
                         toolCalls: [
                             AIRequestedToolCall(
                                 id: "call-1",
-                                name: "list_unhandled_chats",
+                                name: "whatsapp_list_unhandled_chats",
                                 argumentsJSON: "   "
                             )
                         ]
@@ -102,7 +102,7 @@ final class OpenAICompatibleRequestModelsTests: XCTestCase {
                     AIConversationMessage(
                         role: .tool,
                         content: "{\"success\":true}",
-                        name: "list_unhandled_chats",
+                        name: "whatsapp_list_unhandled_chats",
                         toolCallID: "call-1"
                     )
                 ]
@@ -119,7 +119,7 @@ final class OpenAICompatibleRequestModelsTests: XCTestCase {
 
         let toolCalls = try XCTUnwrap(assistantMessage["tool_calls"] as? [[String: Any]])
         let function = try XCTUnwrap(toolCalls.first?["function"] as? [String: Any])
-        XCTAssertEqual(function["name"] as? String, "list_unhandled_chats")
+        XCTAssertEqual(function["name"] as? String, "whatsapp_list_unhandled_chats")
         XCTAssertEqual(function["arguments"] as? String, "{}")
 
         let toolMessage = try XCTUnwrap(messages[3] as [String: Any])
@@ -144,6 +144,23 @@ final class OpenAICompatibleRequestModelsTests: XCTestCase {
         XCTAssertEqual(jsonObject["reasoning"] as? String, "off")
         XCTAssertNil(jsonObject["extra_body"])
         XCTAssertEqual(jsonObject["cache_enabled"] as? Bool, true)
+    }
+
+    func testReasoningOmitLeavesReasoningOutOfPayload() throws {
+        let request = OpenAICompatibleChatCompletionsRequest(
+            request: AIProviderRequest(
+                model: "model-1",
+                messages: [
+                    AIConversationMessage(role: .user, content: "hello")
+                ],
+                reasoningEffort: .omit
+            )
+        )
+
+        let jsonObject = try encodedJSONObject(for: request)
+
+        XCTAssertNil(jsonObject["reasoning"])
+        XCTAssertNil(jsonObject["extra_body"])
     }
 
     func testRequestEncodesStreamUsageOptions() throws {

@@ -16,10 +16,12 @@ final class AIConnectionSettingsWrapper {
         static let assistantBaseURL = "baseURL"
         static let assistantAPIKey = "apiKey"
         static let assistantModel = "model"
+        static let assistantReasoningEffort = "assistantReasoningEffort"
         static let imageExtractionProviderKind = "imageExtractionProviderKind"
         static let imageExtractionBaseURL = "imageExtractionBaseURL"
         static let imageExtractionAPIKey = "imageExtractionAPIKey"
         static let imageExtractionModel = "imageExtractionModel"
+        static let imageExtractionReasoningEffort = "imageExtractionReasoningEffort"
         static let temperature = "temperature"
         static let reasoningEffort = "reasoningEffort"
         static let maxOutputTokens = "maxOutputTokens"
@@ -166,17 +168,36 @@ final class AIConnectionSettingsWrapper {
 
     var reasoningEffort: AIConnectionReasoningEffort {
         get {
-            guard
-                let rawValue = settings.value(scope: Self.scopeName, key: Key.reasoningEffort),
-                let reasoningEffort = AIConnectionReasoningEffort(rawValue: rawValue)
-            else {
-                return .off
-            }
-
-            return reasoningEffort
+            assistantReasoningEffort
         }
         set {
-            settings.setValue(scope: Self.scopeName, key: Key.reasoningEffort, value: newValue.rawValue)
+            assistantReasoningEffort = newValue
+        }
+    }
+
+    var assistantReasoningEffort: AIConnectionReasoningEffort {
+        get {
+            reasoningEffort(
+                primaryKey: Key.assistantReasoningEffort,
+                fallbackKey: Key.reasoningEffort,
+                default: .omit
+            )
+        }
+        set {
+            settings.setValue(scope: Self.scopeName, key: Key.assistantReasoningEffort, value: newValue.rawValue)
+        }
+    }
+
+    var imageExtractionReasoningEffort: AIConnectionReasoningEffort {
+        get {
+            reasoningEffort(
+                primaryKey: Key.imageExtractionReasoningEffort,
+                fallbackKey: nil,
+                default: .omit
+            )
+        }
+        set {
+            settings.setValue(scope: Self.scopeName, key: Key.imageExtractionReasoningEffort, value: newValue.rawValue)
         }
     }
 
@@ -236,7 +257,7 @@ final class AIConnectionSettingsWrapper {
             apiKey: apiKey,
             model: model,
             temperature: temperature,
-            reasoningEffort: reasoningEffort,
+            reasoningEffort: assistantReasoningEffort,
             maxOutputTokens: maxOutputTokens,
             streamingEnabled: streamingEnabled,
             cacheMode: cacheMode
@@ -250,11 +271,30 @@ final class AIConnectionSettingsWrapper {
             apiKey: imageExtractionAPIKey,
             model: imageExtractionModel,
             temperature: 0.0,
-            reasoningEffort: .off,
+            reasoningEffort: imageExtractionReasoningEffort,
             maxOutputTokens: 4096,
             streamingEnabled: true,
             cacheMode: imageExtractionCacheMode
         )
+    }
+
+    private func reasoningEffort(
+        primaryKey: String,
+        fallbackKey: String?,
+        default defaultValue: AIConnectionReasoningEffort
+    ) -> AIConnectionReasoningEffort {
+        if let rawValue = settings.value(scope: Self.scopeName, key: primaryKey),
+           let reasoningEffort = AIConnectionReasoningEffort(rawValue: rawValue) {
+            return reasoningEffort
+        }
+
+        if let fallbackKey,
+           let rawValue = settings.value(scope: Self.scopeName, key: fallbackKey),
+           let reasoningEffort = AIConnectionReasoningEffort(rawValue: rawValue) {
+            return reasoningEffort
+        }
+
+        return defaultValue
     }
 
     private func providerKind(for target: ProviderTarget) -> AIConnectionProviderKind {

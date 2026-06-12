@@ -132,7 +132,7 @@ final class AIImageExtractionService: AIImageExtracting {
             ],
             tools: [],
             temperature: 0.0,
-            reasoningEffort: .off,
+            reasoningEffort: configuration.reasoningEffort,
             maxOutputTokens: 4096,
             cacheMode: configuration.cacheMode,
             loadAvailableTools: false
