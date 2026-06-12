@@ -14,7 +14,7 @@ final class UpdateChatContextToolTests: FirestoreIntegrationTestCase {
 
         let result = try await tool.execute(
             MCPToolCall(
-                name: "update_chat_context",
+                name: "whatsapp_update_chat_context",
                 arguments: [
                     "chatId": .string("chat-1"),
                     "context": .string(context)

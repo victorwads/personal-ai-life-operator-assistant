@@ -11,6 +11,8 @@ struct ChatMessageBubbleView: View {
     let onDeleteMessage: (ChatMessage) -> Void
     let onSelectionChange: (ChatMessage, Bool) -> Void
     let onToggleSentByAssistant: (ChatMessage) -> Void
+    let onRetryImageExtraction: (ChatMessage) -> Void
+    let isRetryingImageExtraction: Bool
 
     var body: some View {
         DSMessageBubbleRow(
@@ -204,6 +206,14 @@ struct ChatMessageBubbleView: View {
         }
     }
 
+    private var canRetryImageExtraction: Bool {
+        (message.kind == .image || message.kind == .sticker) && !message.localMediaPaths.isEmpty
+    }
+
+    private var showsImageExtractionFailure: Bool {
+        canRetryImageExtraction && message.imageExtractionFailed == true
+    }
+
     private var kindBadge: some View {
         switch message.kind {
         case .text:
@@ -225,6 +235,10 @@ struct ChatMessageBubbleView: View {
     private var mediaMessageContent: some View {
         VStack(alignment: .leading, spacing: 8) {
             mediaContentView
+
+            if showsImageExtractionFailure {
+                imageExtractionFailureView
+            }
 
             if let trimmedMessageText {
                 Text(trimmedMessageText)
@@ -258,6 +272,27 @@ struct ChatMessageBubbleView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
             }
+        }
+    }
+
+    private var imageExtractionFailureView: some View {
+        HStack(alignment: .center, spacing: 10) {
+            Label("Image extraction failed", systemImage: "exclamationmark.triangle.fill")
+                .font(.caption)
+                .foregroundStyle(.orange)
+
+            Button {
+                onRetryImageExtraction(message)
+            } label: {
+                if isRetryingImageExtraction {
+                    Label("Re-extracting...", systemImage: "arrow.trianglehead.2.clockwise")
+                } else {
+                    Label("Re-extract", systemImage: "arrow.clockwise")
+                }
+            }
+            .buttonStyle(.borderless)
+            .controlSize(.small)
+            .disabled(isRetryingImageExtraction)
         }
     }
 

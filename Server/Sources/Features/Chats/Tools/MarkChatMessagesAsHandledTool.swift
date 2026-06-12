@@ -12,7 +12,7 @@ struct MarkChatMessagesAsHandledTool: MCPToolDefinition {
         self.issueRepositoryProvider = issueRepositoryProvider
     }
 
-    let name = "mark_chat_messages_as_handled"
+    let name = "whatsapp_mark_chat_messages_as_handled"
     let icon = "checkmark.circle"
     let description = "Marks chat messages as handled using a read receipt."
     let group = "chats"

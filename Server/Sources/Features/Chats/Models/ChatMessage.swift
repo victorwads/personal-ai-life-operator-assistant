@@ -26,6 +26,7 @@ struct ChatMessage: PersistableModel, Equatable, Sendable {
     var quotedMessageText: String?
     var quotedMessageAuthor: String?
     var localMediaPaths: [String] = []
+    var imageExtractionFailed: Bool? = false
     var handled: Bool = false
     var sentByAssistant: Bool? = false
 

@@ -2,7 +2,7 @@ import Foundation
 
 struct ListChatMessagesTool: MCPToolDefinition {
     private static let defaultLimit = 10
-    private static let emptyResponse = "No supported messages found."
+    private static let emptyResponse = "No messages found."
 
     private let repository: any ChatRepository
     private let permissionModeProvider: @MainActor () -> ChatPermissionMode
@@ -21,7 +21,7 @@ struct ListChatMessagesTool: MCPToolDefinition {
         self.contactProvider = contactProvider
     }
 
-    let name = "list_chat_messages"
+    let name = "whatsapp_list_chat_messages"
     let icon = "clock"
     let description = "Loads persisted messages from a chat in conversational order."
     let group = "chats"
@@ -54,7 +54,8 @@ struct ListChatMessagesTool: MCPToolDefinition {
             throw MCPServerError.invalidArguments("Chat '\(chat.title)' is not allowed by current chat permissions.")
         }
         let resolvedLimit = max(limit, minLimit(for: chat))
-        let messages = try await repository.listUnhandledMessages(chatId: chatId, limit: resolvedLimit)
+        let totalMessages = try await repository.listMessages(chatId: chatId, limit: nil)
+        let messages = Array(totalMessages.prefix(resolvedLimit))
         let renderedMessages = renderMessages(messages.reversed(), assistantName: assistantName)
         let contact = try await contactProvider(chatId)
         let renderedContext = renderChatContext(chat.chatContext, contact: contact)
@@ -75,6 +76,7 @@ struct ListChatMessagesTool: MCPToolDefinition {
             "readReceipt: \(readReceipt)",
             renderedContext,
             renderedMessages,
+            summaryText(visibleCount: messages.count, totalCount: totalMessages.count),
             Self.readReceiptInstruction
         ]
         .compactMap { value in
@@ -86,10 +88,14 @@ struct ListChatMessagesTool: MCPToolDefinition {
         return .string(responseText)
     }
 
-    private static let readReceiptInstruction = "To mark these messages as handled, call mark_chat_messages_as_handled with this readReceipt and an issueId."
+    private static let readReceiptInstruction = "To mark these messages as handled, call whatsapp_mark_chat_messages_as_handled with this readReceipt and an issueId."
 
     private func minLimit(for chat: Chat) -> Int {
         max(1, chat.unhandledCount)
+    }
+
+    private func summaryText(visibleCount: Int, totalCount: Int) -> String {
+        "Showing the latest \(visibleCount) messages out of \(totalCount) total messages in this chat."
     }
 
     private func renderChatContext(_ context: String?, contact: AssistantContact?) -> String? {
@@ -137,9 +143,7 @@ struct ListChatMessagesTool: MCPToolDefinition {
         _ messages: [ChatMessage],
         assistantName: String
     ) -> String {
-        let rendered = messages
-            .filter(isSupportedMessage)
-            .map { renderMessage($0, assistantName: assistantName) }
+        let rendered = messages.map { renderMessage($0, assistantName: assistantName) }
 
         guard !rendered.isEmpty else {
             return Self.emptyResponse
@@ -220,15 +224,6 @@ struct ListChatMessagesTool: MCPToolDefinition {
         }
 
         return "In reply to \(author): \(text)"
-    }
-
-    private func isSupportedMessage(_ message: ChatMessage) -> Bool {
-        switch message.kind {
-        case .text, .image, .sticker, .audio, .video:
-            return true
-        default:
-            return false
-        }
     }
 
     private func formattedBody(for message: ChatMessage) -> String {

@@ -4,6 +4,8 @@ private enum ChatMessageField {
     static let chatId = "chatId"
     static let listOrder = "listOrder"
     static let handled = "handled"
+    static let text = "text"
+    static let imageExtractionFailed = "imageExtractionFailed"
 }
 
 enum ChatMessageRangeOperation {
@@ -128,7 +130,7 @@ final class FirestoreChatRepository: ChatRepository {
         limit: Int? = nil,
         handled: Bool?
     ) async throws -> [ChatMessage] {
-        let effectiveLimit = max(1, limit ?? 10)
+        let effectiveLimit = limit.map { max(1, $0) }
         let messages = try await messageStore.query(
             matching: [ChatMessageField.chatId: chatId],
             sortedBy: MessageSort.newestFirst,
@@ -139,7 +141,12 @@ final class FirestoreChatRepository: ChatRepository {
             return messages
         }
 
-        return Array(messages.filter { $0.handled == handled }.prefix(effectiveLimit))
+        let filteredMessages = messages.filter { $0.handled == handled }
+        guard let effectiveLimit else {
+            return filteredMessages
+        }
+
+        return Array(filteredMessages.prefix(effectiveLimit))
     }
 
     func insertMessages(_ messages: [ChatMessage]) async throws -> [ChatMessage] {
@@ -321,6 +328,24 @@ final class FirestoreChatRepository: ChatRepository {
             id: messageId,
             data: ["sentByAssistant": sentByAssistant]
         )
+    }
+
+    func setMessageImageExtractionFailed(chatId _: String, messageId: String, failed: Bool) async throws {
+        try await messageStore.update(
+            id: messageId,
+            data: [ChatMessageField.imageExtractionFailed: failed]
+        )
+    }
+
+    func setMessageImageExtractionResult(chatId: String, messageId: String, text: String?) async throws {
+        try await messageStore.update(
+            id: messageId,
+            data: [
+                ChatMessageField.text: text ?? NSNull(),
+                ChatMessageField.imageExtractionFailed: false
+            ]
+        )
+        try await refreshChatSummary(chatId: chatId)
     }
 
     private func refreshChatSummary(chatId: String, resetUnreadCount: Bool = false) async throws {

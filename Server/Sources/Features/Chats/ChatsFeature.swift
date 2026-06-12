@@ -7,6 +7,10 @@ final class ChatsFeature: FeatureRuntime {
     let repository: FirestoreChatRepository
     let crawlingSettings: WhatsAppCrawlingSettingsWrapper
 
+    var imageExtractionService: any AIImageExtracting {
+        context.feature(AIConnectionFeature.self).imageExtractionService
+    }
+
     required init(context: FeatureContext) {
         guard let scope = context.profileContext.scope else {
             preconditionFailure("ChatsFeature requires a persisted profile scope.")

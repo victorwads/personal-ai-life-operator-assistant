@@ -12,7 +12,7 @@ struct ListUnhandledChatsTool: MCPToolDefinition {
         self.permissionModeProvider = permissionModeProvider
     }
 
-    let name = "list_unhandled_chats"
+    let name = "whatsapp_list_unhandled_chats"
     let icon = "envelope.badge"
     let description = """
     Lists chats that still have messages or events not yet handled by the assistant.

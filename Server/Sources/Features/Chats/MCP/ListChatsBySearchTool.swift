@@ -15,7 +15,7 @@ struct ListChatsBySearchTool: MCPToolDefinition {
         self.permissionModeProvider = permissionModeProvider
     }
 
-    let name = "list_chats_by_search"
+    let name = "whatsapp_list_chats_by_search"
     let icon = "magnifyingglass"
     let description = "Searches chats by title or last message preview using a simple similarity score."
     let group = "chats"

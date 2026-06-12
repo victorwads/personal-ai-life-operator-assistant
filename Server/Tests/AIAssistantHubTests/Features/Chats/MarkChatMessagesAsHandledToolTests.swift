@@ -13,7 +13,7 @@ final class MarkChatMessagesAsHandledToolTests: FirestoreIntegrationTestCase {
             repository: repository,
             issueRepositoryProvider: { issueRepository }
         )
-        let call = MCPToolCall(name: "mark_chat_messages_as_handled", arguments: [
+        let call = MCPToolCall(name: "whatsapp_mark_chat_messages_as_handled", arguments: [
             "issueId": .string("issue-1"),
             "readReceipt": .string(try ChatMessagesReadReceiptCoder.encode(
                 chatId: "chat-range",
@@ -40,7 +40,7 @@ final class MarkChatMessagesAsHandledToolTests: FirestoreIntegrationTestCase {
             repository: repository,
             issueRepositoryProvider: { issueRepository }
         )
-        let call = MCPToolCall(name: "mark_chat_messages_as_handled", arguments: [
+        let call = MCPToolCall(name: "whatsapp_mark_chat_messages_as_handled", arguments: [
             "issueId": .string("issue-42"),
             "readReceipt": .string("invalid")
         ])
@@ -61,7 +61,7 @@ final class MarkChatMessagesAsHandledToolTests: FirestoreIntegrationTestCase {
             chatId: "chat-range",
             lastChatMessageId: "m6"
         )
-        let call = MCPToolCall(name: "mark_chat_messages_as_handled", arguments: [
+        let call = MCPToolCall(name: "whatsapp_mark_chat_messages_as_handled", arguments: [
             "issueId": .string("   "),
             "readReceipt": .string(readReceipt)
         ])

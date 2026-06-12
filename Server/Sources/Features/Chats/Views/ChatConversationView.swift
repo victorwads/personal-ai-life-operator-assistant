@@ -15,6 +15,8 @@ struct ChatConversationView: View {
     let onMarkSelectedMessagesHandled: ([String], Bool) -> Void
     let onMarkAllHandled: () -> Void
     let onToggleMessageSentByAssistant: (ChatMessage) -> Void
+    let onRetryImageExtraction: (ChatMessage) -> Void
+    let reextractingMessageId: String?
 
     @State private var isConfirmingDeleteMessages = false
     @State private var isConfirmingDeleteChat = false
@@ -180,7 +182,9 @@ struct ChatConversationView: View {
                                         onMarkThisAndNewerUnhandled: onMarkMessageAndNewerUnhandled,
                                         onDeleteMessage: beginDeleteMessage,
                                         onSelectionChange: updateSelection(for:isSelected:),
-                                        onToggleSentByAssistant: onToggleMessageSentByAssistant
+                                        onToggleSentByAssistant: onToggleMessageSentByAssistant,
+                                        onRetryImageExtraction: onRetryImageExtraction,
+                                        isRetryingImageExtraction: reextractingMessageId == message.id
                                     )
                                 }
                             }

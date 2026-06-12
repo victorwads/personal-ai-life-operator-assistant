@@ -7,7 +7,7 @@ struct UpdateChatContextTool: MCPToolDefinition {
         self.repository = repository
     }
 
-    let name = "update_chat_context"
+    let name = "whatsapp_update_chat_context"
     let icon = "text.bubble"
     let description = """
     Saves durable context about a specific chat, such as who that person/group is, the relationship to the client, and stable communication guidance.

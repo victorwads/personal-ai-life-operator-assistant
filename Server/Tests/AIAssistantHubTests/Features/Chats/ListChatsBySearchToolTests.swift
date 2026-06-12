@@ -11,7 +11,7 @@ final class ListChatsBySearchToolTests: FirestoreIntegrationTestCase {
             repository: repository,
             permissionModeProvider: { .allowAllExceptDenied }
         )
-        let call = MCPToolCall(name: "list_chats_by_search", arguments: [
+        let call = MCPToolCall(name: "whatsapp_list_chats_by_search", arguments: [
             "query": .string("leonardo"),
             "limit": .int(10)
         ])
@@ -40,7 +40,7 @@ final class ListChatsBySearchToolTests: FirestoreIntegrationTestCase {
             repository: repository,
             permissionModeProvider: { .allowAllExceptDenied }
         )
-        let call = MCPToolCall(name: "list_chats_by_search", arguments: [
+        let call = MCPToolCall(name: "whatsapp_list_chats_by_search", arguments: [
             "query": .string("zxywvu")
         ])
 

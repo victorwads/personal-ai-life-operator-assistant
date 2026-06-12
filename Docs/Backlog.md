@@ -1224,3 +1224,159 @@ Reforçar e consolidar a lógica de suspensão de issues para que uma issue poss
 
 **Por que isso entra no backlog**  
 Isso fecha a parte de orquestração temporal do assistente e deixa a suspensão de issues realmente útil para pausar trabalho até a hora ou o evento certo.
+
+---
+
+## 69) Tooling para copiar conteúdo para o clipboard
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R2 - Baixo`
+Risco da Feature: `R1 - Baixíssimo`
+Score de Execução: `0.57`
+
+**Descrição**  
+Criar uma MCP tool para colocar texto no clipboard do sistema, como se o assistente tivesse dado `Ctrl+C` para copiar um conteúdo pedido pelo usuário. A intenção é permitir que o assistente copie códigos de verificação, e-mails, trechos de texto ou qualquer outro conteúdo útil para a área de transferência, sem depender de o usuário selecionar e copiar manualmente.
+
+**Dependências**  
+- `Nenhuma`
+
+**Comportamento desejado**  
+- Permitir que o assistente escreva um texto no clipboard do sistema.
+- Funcionar como uma ação explícita do runtime, não como efeito lateral escondido.
+- Ajudar fluxos como copiar código de verificação, e-mail, endereço, número ou trecho útil.
+- Manter o conteúdo copiado disponível para o usuário colar imediatamente depois.
+
+**Notas técnicas**  
+- A tool deve deixar claro que está sobrescrevendo o clipboard atual.
+- O contrato deve ser simples o suficiente para ser usado por outras features sem espalhar lógica de clipboard pela codebase.
+- Vale pensar em registrar o conteúdo copiado em logs de debug com cuidado, se isso não expuser informação sensível.
+- O ideal é integrar com a API nativa do sistema para copiar texto sem depender de automação visual.
+
+**Por que isso entra no backlog**  
+Isso fecha uma ponta útil da operação do assistente, deixando ele capaz de preparar conteúdo para o usuário colar rapidamente quando for preciso.
+
+---
+
+## 70) `Speak to Client` deve sugerir `Ask to Client` quando houver pergunta
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R2 - Baixo`
+Risco da Feature: `R1 - Baixíssimo`
+Score de Execução: `0.57`
+
+**Descrição**  
+Fazer com que a tooling `Speak to Client` sempre inclua um hint para o modelo sobre usar `Ask to Client` quando a fala enviada ao cliente contiver uma pergunta explícita. A regra só deve disparar quando o texto tiver ponto de interrogação, para evitar instruções desnecessárias em mensagens puramente informativas. A ideia é orientar o assistente a não depender apenas de fala passiva quando ele precisar realmente de uma resposta do usuário.
+
+**Dependências**  
+- `48) Componentes reutilizáveis de voz e request do cliente - doing`
+- `67) Reforçar no prompt a prevenção de issues duplicadas`
+
+**Comportamento desejado**  
+- Detectar presença de `?` no texto antes de executar `Speak to Client`.
+- Quando houver pergunta, adicionar um hint claro orientando o uso de `Ask to Client` para obter resposta.
+- Não adicionar o hint quando a mensagem for apenas informativa.
+- Manter o comportamento discreto e automático, sem poluir mensagens que não são interrogativas.
+
+**Notas técnicas**  
+- O ideal é que a regra seja aplicada no contrato/prompt da tool, não em cada chamada manual.
+- A checagem do `?` deve ser simples e previsível.
+- O hint precisa ser curto e direto, para não competir com o texto principal enviado ao cliente.
+- Vale garantir que essa orientação não crie loops artificiais entre falar e perguntar.
+
+**Por que isso entra no backlog**  
+Isso ajuda o assistente a escolher melhor entre falar e perguntar, reduzindo o risco de mandar uma fala que deveria ter virado uma pergunta formal ao usuário.
+
+---
+
+## 71) Filtro central de dados sensíveis para UI, HTML e crawl
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R4 - Alto`
+Risco da Feature: `R4 - Alto`
+Score de Execução: `0.41`
+
+**Descrição**  
+Criar uma camada central de ofuscação/filtragem de dados sensíveis para que qualquer string exibida na interface ou processada a partir do HTML passe por uma proteção única antes de aparecer na tela. A ideia é impedir que informações sensíveis vazem em qualquer superfície visual do app, incluindo telas, listas, detalhes, previews e resultados de crawling. Tudo o que entrar no pipeline de UI ou vier do HTML deve ser analisado por essa camada e ofuscado quando necessário, para manter o conteúdo sensível sempre protegido.
+
+**Dependências**  
+- `Nenhuma`
+
+**Comportamento desejado**  
+- Passar toda string exibida na UI por uma camada central de filtro/ofuscação.
+- Ofuscar dados sensíveis antes de renderizar qualquer tela.
+- Aplicar a mesma proteção também ao conteúdo vindo do HTML/crawling.
+- Garantir que dados sensíveis não apareçam por acidente em listas, cards, headers ou previews.
+- Tornar a proteção consistente em toda a aplicação, não só em pontos isolados.
+
+**Notas técnicas**  
+- O ideal é ter uma classe/utilitário único de filtragem, para não espalhar regras de anonimização pela codebase.
+- Essa camada deve ser usada tanto pela renderização de UI quanto pelos fluxos de crawling/parse.
+- Vale tratar isso como uma proteção transversal, não como um filtro opcional por feature.
+- O comportamento precisa ser conservador o suficiente para ocultar o que é sensível sem quebrar o restante do texto.
+- Se houver dados já persistidos ou HTML já extraído, o filtro deve atuar antes da exibição e antes de qualquer processamento que leve à UI.
+
+**Por que isso entra no backlog**  
+Isso reduz muito o risco de exposição acidental de informações sensíveis e cria uma base mais segura para toda a experiência do assistente.
+
+---
+
+## 72) Investigar reinício de sessão sem `wait_for_event`
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R4 - Alto`
+Risco da Feature: `R4 - Alto`
+Score de Execução: `0.43`
+
+**Descrição**  
+Investigar um bug em que a sessão da IA parece finalizar do nada e começar outra sem que o `wait_for_event` tenha sido chamado. O comportamento esperado é que a sessão só reinicie quando o runtime atingir um boundary claro, mas hoje aparentemente existe um reset inesperado que faz o agente perder continuidade e recomeçar sozinho. Esse item é para localizar a causa real desse restart espúrio e corrigir a lógica de ciclo para que o runtime só reinicie quando realmente houver um gatilho válido.
+
+**Dependências**  
+- `42) `wait_for_event` com fontes de evento ampliadas`
+- `67) Reforçar no prompt a prevenção de issues duplicadas`
+
+**Comportamento desejado**  
+- Identificar por que a sessão está reiniciando sem o boundary esperado.
+- Garantir que o restart só aconteça quando houver um evento ou término de ciclo legítimo.
+- Evitar perda de contexto por reinício inesperado.
+- Diferenciar claramente fim de ciclo, correção de prompt e reinício indevido.
+- Registrar o motivo real de qualquer reinício para facilitar debug futuro.
+
+**Notas técnicas**  
+- O bug pode estar no fluxo de runtime/cycle management, no `wait_for_event`, em correções de prompt ou em um boundary mal detectado.
+- Vale inspecionar logs, estados de ciclo e transições entre requests antes de assumir a causa.
+- O ideal é que o diagnóstico deixe explícito se o restart está vindo do loop principal, de uma correção automática ou de um encerramento de sessão mascarado.
+- Esse item deve ser tratado como investigação antes de qualquer refactor grande.
+
+**Por que isso entra no backlog**  
+Esse tipo de reinício inesperado quebra a continuidade do assistente e pode fazer ele perder contexto ou repetir trabalho, então vale resolver na raiz.
+
+---
+
+## 73) Reter contexto do AIConnection entre sessões e validar boundaries de fechamento
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R4 - Alto`
+Risco da Feature: `R4 - Alto`
+Score de Execução: `0.44`
+
+**Descrição**  
+Rever as regras de perda de contexto do `AIConnection` para que o runtime não descarte tudo a cada boundary errado. Hoje o contexto costuma sumir quando a sessão reinicia, o que dificulta debug e também faz a timeline interna perder o que aconteceu antes do restart. O comportamento desejado é preservar o contexto entre sessões até que exista um fechamento legítimo, especialmente quando a execução realmente terminou um ciclo completo; nesse caso, a limpeza pode acontecer. O item também precisa investigar a inconsistência de `session completed`, que às vezes aparece sem um `wait_for_event` claro e às vezes surge depois de falha de tool, quando o esperado é que o encerramento só ocorra em boundary válido.
+
+**Dependências**  
+- `72) Investigar reinício de sessão sem `wait_for_event`
+
+**Comportamento desejado**  
+- Preservar o contexto de debug do `AIConnection` entre reinícios indevidos.
+- Limpar contexto apenas quando um ciclo terminar de forma legítima.
+- Evitar perder o histórico da última sessão quando ela reiniciar.
+- Garantir que `session completed` só apareça em boundaries válidos e compreensíveis.
+- Tornar visível o motivo real de um restart ou de um fechamento de sessão.
+
+**Notas técnicas**  
+- O inspector de `AIConnection` precisa guardar o rastro da sessão anterior para análise, mesmo quando a próxima sessão começar.
+- O ciclo de vida da sessão deve distinguir claramente entre `wait_for_event`, falha de tool, correção de prompt e término real.
+- Vale revisar os pontos que limpam `state.promptSections`, `conversationMessages` e eventos de debug para não zerar contexto cedo demais.
+- O objetivo aqui não é só observar os logs, mas preservar contexto suficiente para entender por que a sessão caiu e o que levou ao restart.
+
+**Por que isso entra no backlog**  
+Isso melhora muito a capacidade de debug e reduz a chance de o assistente “esquecer” o que aconteceu entre uma sessão e outra sem motivo real.

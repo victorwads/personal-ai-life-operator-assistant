@@ -12,7 +12,7 @@ struct ListChatsTool: MCPToolDefinition {
         self.permissionModeProvider = permissionModeProvider
     }
 
-    let name = "list_chats"
+    let name = "whatsapp_list_chats"
     let icon = "text.bubble"
     let description = "Lists persisted chats from the local chat store."
     let group = "chats"

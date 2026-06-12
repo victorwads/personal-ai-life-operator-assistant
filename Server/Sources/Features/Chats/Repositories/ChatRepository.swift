@@ -32,4 +32,6 @@ protocol ChatRepository {
     func countUnhandledMessages(chatId: String) async throws -> Int
     func updateUnhandledCount(chatId: String, count: Int?) async throws
     func setMessageSentByAssistant(chatId: String, messageId: String, sentByAssistant: Bool) async throws
+    func setMessageImageExtractionFailed(chatId: String, messageId: String, failed: Bool) async throws
+    func setMessageImageExtractionResult(chatId: String, messageId: String, text: String?) async throws
 }

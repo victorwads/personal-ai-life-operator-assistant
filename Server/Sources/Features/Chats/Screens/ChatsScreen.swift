@@ -12,6 +12,7 @@ struct ChatsScreen: View {
     @State private var isDeletingAllChats = false
     @State private var deletingChatId: String?
     @State private var deletingMessageId: String?
+    @State private var reextractingMessageId: String?
     @State private var errorMessage: String?
 
     var body: some View {
@@ -44,7 +45,9 @@ struct ChatsScreen: View {
                 onDeleteMessage: beginDeleteSelectedMessage,
                 onMarkSelectedMessagesHandled: beginMarkSelectedMessagesHandled,
                 onMarkAllHandled: beginMarkAllSelectedChatMessagesHandled,
-                onToggleMessageSentByAssistant: beginToggleMessageSentByAssistant
+                onToggleMessageSentByAssistant: beginToggleMessageSentByAssistant,
+                onRetryImageExtraction: beginRetryImageExtraction,
+                reextractingMessageId: reextractingMessageId
             )
             .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -326,6 +329,10 @@ struct ChatsScreen: View {
         Task { await markAllSelectedChatMessagesHandled() }
     }
 
+    private func beginRetryImageExtraction(_ message: ChatMessage) {
+        Task { await retryImageExtraction(for: message) }
+    }
+
     @MainActor
     private func refreshSelectedChatMessagesListener() async {
         messagesListener?.cancel()
@@ -449,6 +456,54 @@ struct ChatsScreen: View {
             await loadChats(autoSelect: false)
         } catch {
             errorMessage = "Failed to mark all chat messages as handled: \(error.localizedDescription)"
+        }
+    }
+
+    @MainActor
+    private func retryImageExtraction(for message: ChatMessage) async {
+        guard let messageId = message.id, !messageId.isEmpty else { return }
+        guard message.kind == .image || message.kind == .sticker else { return }
+        guard !message.localMediaPaths.isEmpty else {
+            errorMessage = "Cannot re-extract this message because no local media was stored."
+            return
+        }
+
+        reextractingMessageId = messageId
+        errorMessage = nil
+        defer {
+            if reextractingMessageId == messageId {
+                reextractingMessageId = nil
+            }
+        }
+
+        let imageURLs = message.localMediaPaths.map(ChatMediaStorage.absoluteURL(forRelativePath:))
+
+        do {
+            let extractedText = try await feature.imageExtractionService.extractTextAndDescription(
+                from: imageURLs,
+                mediaKind: message.kind
+            ).trimmingCharacters(in: .whitespacesAndNewlines)
+
+            try await feature.repository.setMessageImageExtractionResult(
+                chatId: message.chatId,
+                messageId: messageId,
+                text: extractedText.isEmpty ? nil : extractedText
+            )
+            await loadMessages(chatId: message.chatId, force: true)
+            await loadChats(autoSelect: false)
+        } catch {
+            do {
+                try await feature.repository.setMessageImageExtractionFailed(
+                    chatId: message.chatId,
+                    messageId: messageId,
+                    failed: true
+                )
+            } catch {
+                errorMessage = "Failed to mark the extraction attempt as failed: \(error.localizedDescription)"
+            }
+
+            await loadMessages(chatId: message.chatId, force: true)
+            errorMessage = "Failed to re-extract image text: \(error.localizedDescription)"
         }
     }
 
