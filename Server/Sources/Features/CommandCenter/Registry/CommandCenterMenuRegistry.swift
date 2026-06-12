@@ -53,12 +53,12 @@ enum CommandCenterMenuRegistry {
                     route: .whatsappWebYAMLDebug,
                     developerModeOnly: true
                 ),
-                CommandCenterMenuItem(
-                    title: "Native YAML Debug",
-                    icon: "curlybraces.square.fill",
-                    route: .whatsappNativeYAMLDebug,
-                    developerModeOnly: true
-                ),
+//                CommandCenterMenuItem(
+//                    title: "Native YAML Debug",
+//                    icon: "curlybraces.square.fill",
+//                    route: .whatsappNativeYAMLDebug,
+//                    developerModeOnly: true
+//                ),
                 CommandCenterMenuItem(title: "Logs", icon: "doc.text", route: .whatsappLogs)
             ]
         ),

@@ -49,6 +49,9 @@ final class ClientVoiceFeature: FeatureRuntime {
                         }
                     }
                 )
+            },
+            speakPerformer: { [settings] text in
+                try await SpeechSpeaker.speak(text: text, config: settings.speechSpeakConfig)
             }
         )
         self.repository = repository

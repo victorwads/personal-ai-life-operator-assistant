@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import AVFoundation
 
 struct ClientVoiceSettingsView: View {
     let wrapper: ClientVoiceSettingsWrapper
@@ -12,6 +13,15 @@ struct ClientVoiceSettingsView: View {
     @State private var whisperPostProcessingModelPath = ""
     @State private var whisperPostProcessingCoreMLModelPath = ""
     @State private var whisperPostProcessingLanguage = WhisperLanguage.auto
+
+    @State private var speechOutputMethod = SpeakMethod.command
+    @State private var speechOutputVoiceIdentifier = ""
+    @State private var speechOutputLanguage = "pt-BR"
+    @State private var speechOutputRate = AVSpeechUtteranceDefaultSpeechRate
+
+    @State private var testSpeechText = "Olá, esta é uma mensagem de teste."
+    @State private var isSpeakingTest = false
+    @State private var currentTestHandler: SpeechSpeakHandler? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -31,6 +41,88 @@ struct ClientVoiceSettingsView: View {
             )
 
             Text("How long the listener waits after the last partial transcription before ending audio and waiting for the native final result.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Divider()
+
+            Text("Speech Output")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Picker("Output Backend", selection: speechOutputMethodBinding) {
+                ForEach(SpeakMethod.allCases) { method in
+                    Text(method.title).tag(method)
+                }
+            }
+
+            Picker("Speech Language", selection: speechOutputLanguageBinding) {
+                ForEach(availableSpeechLanguages, id: \.self) { language in
+                    Text(language).tag(language)
+                }
+            }
+            .disabled(speechOutputMethod != .swiftAPI)
+
+            Picker("Voice", selection: speechOutputVoiceIdentifierBinding) {
+                Text("Auto").tag("")
+                ForEach(availableSpeechVoices(for: speechOutputLanguage), id: \.identifier) { voice in
+                    Text(speechVoiceTitle(voice)).tag(voice.identifier)
+                }
+            }
+            .disabled(speechOutputMethod != .swiftAPI)
+
+            HStack {
+                Text("Speech Rate")
+                Slider(
+                    value: speechOutputRateBinding,
+                    in: AVSpeechUtteranceMinimumSpeechRate...AVSpeechUtteranceMaximumSpeechRate
+                )
+                .frame(width: 220)
+
+                Text(String(format: "%.2f", speechOutputRate))
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .frame(width: 44, alignment: .trailing)
+            }
+
+            HStack(spacing: 8) {
+                TextField("Texto de teste", text: $testSpeechText)
+                    .textFieldStyle(.roundedBorder)
+
+                if isSpeakingTest {
+                    Button("Parar") {
+                        currentTestHandler?.cancel()
+                        isSpeakingTest = false
+                    }
+                    .buttonStyle(.bordered)
+                } else {
+                    Button("Testar") {
+                        let text = testSpeechText.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !text.isEmpty else { return }
+
+                        isSpeakingTest = true
+                        Task {
+                            do {
+                                let config = wrapper.speechSpeakConfig
+                                let handler = try await SpeechSpeaker.speak(text: text, config: config)
+                                currentTestHandler = handler
+                                await handler.await()
+                                isSpeakingTest = false
+                                currentTestHandler = nil
+                            } catch {
+                                print("Test speech failed: \(error.localizedDescription)")
+                                isSpeakingTest = false
+                                currentTestHandler = nil
+                            }
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(testSpeechText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+
+            Text("Terminal say uses the macOS say command and waits for the process to finish. AVSpeechSynthesizer uses the selected Apple voice and also only releases the handler await after didFinish or didCancel.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -226,6 +318,88 @@ struct ClientVoiceSettingsView: View {
         whisperPostProcessingModelPath = wrapper.whisperPostProcessingModelPath ?? ""
         whisperPostProcessingCoreMLModelPath = wrapper.whisperPostProcessingCoreMLModelPath ?? ""
         whisperPostProcessingLanguage = wrapper.whisperPostProcessingLanguage
+        speechOutputMethod = wrapper.speechOutputMethod
+        speechOutputVoiceIdentifier = wrapper.speechOutputVoiceIdentifier ?? ""
+        speechOutputLanguage = wrapper.speechOutputLanguage
+        speechOutputRate = wrapper.speechOutputRate
+    }
+
+    private var speechOutputMethodBinding: Binding<SpeakMethod> {
+        Binding {
+            speechOutputMethod
+        } set: { value in
+            speechOutputMethod = value
+            wrapper.speechOutputMethod = value
+        }
+    }
+
+    private var speechOutputVoiceIdentifierBinding: Binding<String> {
+        Binding {
+            speechOutputVoiceIdentifier
+        } set: { value in
+            speechOutputVoiceIdentifier = value
+            wrapper.speechOutputVoiceIdentifier = value.isEmpty ? nil : value
+        }
+    }
+
+    private var speechOutputLanguageBinding: Binding<String> {
+        Binding {
+            speechOutputLanguage
+        } set: { value in
+            speechOutputLanguage = value
+            wrapper.speechOutputLanguage = value
+            if !speechOutputVoiceIdentifier.isEmpty {
+                let available = availableSpeechVoices(for: value)
+                if !available.contains(where: { $0.identifier == speechOutputVoiceIdentifier }) {
+                    speechOutputVoiceIdentifier = ""
+                    wrapper.speechOutputVoiceIdentifier = nil
+                }
+            }
+        }
+    }
+
+    private var speechOutputRateBinding: Binding<Float> {
+        Binding {
+            speechOutputRate
+        } set: { value in
+            speechOutputRate = value
+            wrapper.speechOutputRate = value
+        }
+    }
+
+    private var availableSpeechVoices: [AVSpeechSynthesisVoice] {
+        AVSpeechSynthesisVoice.speechVoices()
+            .sorted { left, right in
+                if left.language != right.language { return left.language < right.language }
+                if left.quality != right.quality { return left.quality.rawValue > right.quality.rawValue }
+                return left.name < right.name
+            }
+    }
+
+    private var availableSpeechLanguages: [String] {
+        Array(Set(availableSpeechVoices.map(\.language))).sorted()
+    }
+
+    private func availableSpeechVoices(for language: String) -> [AVSpeechSynthesisVoice] {
+        let trimmed = language.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return availableSpeechVoices }
+
+        let matches = availableSpeechVoices.filter { $0.language == trimmed }
+        return matches.isEmpty ? availableSpeechVoices : matches
+    }
+
+    private func speechVoiceTitle(_ voice: AVSpeechSynthesisVoice) -> String {
+        let qualitySuffix: String
+        switch voice.quality {
+        case .enhanced:
+            qualitySuffix = " (Enhanced)"
+        case .premium:
+            qualitySuffix = " (Premium)"
+        default:
+            qualitySuffix = ""
+        }
+
+        return "\(voice.name)\(qualitySuffix)"
     }
 
     private func chooseModelFile() {

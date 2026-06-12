@@ -8,12 +8,14 @@ struct ClientVoiceScreen: View {
         openAnswerDialog = { request in
             feature.openAnswerDialog(for: request)
         }
+        let settings = feature.settings
         _viewModel = StateObject(
             wrappedValue: ClientVoiceScreenViewModel(
                 repository: feature.repository,
-                createManualRequestAction: {
-                    try await feature.openNewManualRequestDialog()
-                }
+                createManualRequestAction: { [weak feature] in
+                    try await feature?.openNewManualRequestDialog()
+                },
+                speakConfigProvider: { settings.speechSpeakConfig }
             )
         )
     }

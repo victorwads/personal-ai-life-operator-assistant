@@ -1,3 +1,4 @@
+@MainActor
 class SpeechSpeakHandler {
     func await() async {
     }

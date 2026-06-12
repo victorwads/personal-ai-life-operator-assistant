@@ -13,7 +13,9 @@ final class ProcessSpeechSpeakHandler: SpeechSpeakHandler, @unchecked Sendable {
 
     func start() throws {
         process.terminationHandler = { [weak self] launchedProcess in
-            self?.handleTermination(status: launchedProcess.terminationStatus)
+            Task { @MainActor in
+                self?.handleTermination(status: launchedProcess.terminationStatus)
+            }
         }
 
         do {

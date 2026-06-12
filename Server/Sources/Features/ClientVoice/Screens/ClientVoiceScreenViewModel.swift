@@ -34,6 +34,7 @@ final class ClientVoiceScreenViewModel: ObservableObject {
 
     private let repository: ClientInteractionRequestRepository
     private let createManualRequestAction: @MainActor () async throws -> Void
+    private let speakConfigProvider: @MainActor () -> SpeakConfig
     private var listenerToken: FirestoreListenerToken?
     private var hasLoaded = false
     @Published private var submissionErrors: [String: String] = [:]
@@ -44,10 +45,14 @@ final class ClientVoiceScreenViewModel: ObservableObject {
 
     init(
         repository: ClientInteractionRequestRepository,
-        createManualRequestAction: @escaping @MainActor () async throws -> Void
+        createManualRequestAction: @escaping @MainActor () async throws -> Void,
+        speakConfigProvider: @escaping @MainActor () -> SpeakConfig = {
+            SayCommandSpeakConfig()
+        }
     ) {
         self.repository = repository
         self.createManualRequestAction = createManualRequestAction
+        self.speakConfigProvider = speakConfigProvider
     }
 
     func loadIfNeeded() {
@@ -139,7 +144,8 @@ final class ClientVoiceScreenViewModel: ObservableObject {
             if let oldHandler = self.speakingHandler {
                 oldHandler.cancel()
             }
-            let handler = try await SpeechSpeaker.speak(text: textToSpeak, config: nil)
+            let config = await MainActor.run { speakConfigProvider() }
+            let handler = try await SpeechSpeaker.speak(text: textToSpeak, config: config)
             speakingHandler = handler
             
             await MainActor.run { self.speakingRequestID = requestID }

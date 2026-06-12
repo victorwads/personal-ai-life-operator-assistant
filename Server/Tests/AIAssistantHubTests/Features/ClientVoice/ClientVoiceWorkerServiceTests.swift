@@ -55,7 +55,7 @@ final class ClientVoiceWorkerServiceTests: FirestoreIntegrationTestCase {
             sharedLocks: sharedLocks,
             presenceService: presenceService,
             speakPerformer: { _ in
-                CompletedSpeechSpeakHandler()
+                await CompletedSpeechSpeakHandler()
             }
         )
 
@@ -122,7 +122,7 @@ final class ClientVoiceWorkerServiceTests: FirestoreIntegrationTestCase {
                 askDialogOpened.fulfill()
             },
             speakPerformer: { _ in
-                CompletedSpeechSpeakHandler()
+                await CompletedSpeechSpeakHandler()
             }
         )
 
@@ -165,6 +165,77 @@ final class ClientVoiceWorkerServiceTests: FirestoreIntegrationTestCase {
         await service.stop()
         XCTAssertEqual(service.state, .stopped)
     }
+
+    func testSpeakRequestUnlocksOnlyAfterSpeechCompletesUsingDeferredHandler() async throws {
+        let repository = FirestoreClientInteractionRequestRepository(scope: scope)
+        let sharedLocks = SharedLockRegistry()
+        let presenceRepository = ClientVoicePresenceStub(initialPresence: true)
+        let presenceService = ClientVoicePresenceService(repository: presenceRepository)
+        await presenceService.start()
+
+        let handler = WorkerDeferredSpeechSpeakHandler()
+
+        let service = ClientVoiceWorkerService(
+            id: "client.voice.worker",
+            title: "Voice Worker",
+            repository: repository,
+            sharedLocks: sharedLocks,
+            presenceService: presenceService,
+            speakPerformer: { _ in
+                handler
+            }
+        )
+
+        let request = try await repository.createRequest(
+            issueId: "issue-1",
+            kind: .speak,
+            status: .initialized,
+            promptText: "hello"
+        )
+        let requestID = try XCTUnwrap(request.id)
+
+        // Lock first so any future waiter will suspend until unlock is called
+        try await sharedLocks.lockAndWait(id: "announce_to_client:\(requestID)")
+
+        let waiterStarted = expectation(description: "waiter started")
+        let waiterResumed = expectation(description: "waiter resumed")
+
+        let waiter = Task {
+            waiterStarted.fulfill()
+            try await sharedLocks.lockAndWait(id: "announce_to_client:\(requestID)")
+            waiterResumed.fulfill()
+        }
+
+        await fulfillment(of: [waiterStarted], timeout: 1.0)
+        await service.start()
+
+        // Wait briefly for the worker to notice the request and process it
+        try? await Task.sleep(nanoseconds: 300_000_000)
+
+        // Request status should have transitioned to speaking
+        let intermediateRequest = try await repository.getRequest(id: requestID)
+        XCTAssertEqual(intermediateRequest.status, .speaking)
+
+        // The waiter should not be resumed yet
+        let isLockedBefore = await sharedLocks.isLocked(id: "announce_to_client:\(requestID)")
+        XCTAssertTrue(isLockedBefore)
+
+        // Finish speaking
+        handler.finish()
+
+        // Wait for the lock to be unlocked and waiter to resume
+        await fulfillment(of: [waiterResumed], timeout: 3.0)
+        _ = try await waiter.value
+
+        let finalRequest = try await repository.getRequest(id: requestID)
+        XCTAssertEqual(finalRequest.status, .completed)
+
+        let isLockedAfter = await sharedLocks.isLocked(id: "announce_to_client:\(requestID)")
+        XCTAssertFalse(isLockedAfter)
+
+        await service.stop()
+        await presenceService.stop()
+    }
 }
 
 private final class ClientVoicePresenceStub: ClientVoicePresenceRepository {
@@ -188,5 +259,44 @@ private final class ClientVoicePresenceStub: ClientVoicePresenceRepository {
 
     func getPresence() async throws -> Bool {
         isPresent
+    }
+}
+
+private final class WorkerDeferredSpeechSpeakHandler: SpeechSpeakHandler, @unchecked Sendable {
+    private let lock = NSLock()
+    private var finished = false
+    private var continuations: [CheckedContinuation<Void, Never>] = []
+
+    override func await() async {
+        await withCheckedContinuation { continuation in
+            lock.lock()
+            if finished {
+                lock.unlock()
+                continuation.resume()
+                return
+            }
+
+            continuations.append(continuation)
+            lock.unlock()
+        }
+    }
+
+    override func cancel() {
+        finish()
+    }
+
+    func finish() {
+        lock.lock()
+        guard !finished else {
+            lock.unlock()
+            return
+        }
+
+        finished = true
+        let continuations = self.continuations
+        self.continuations.removeAll()
+        lock.unlock()
+
+        continuations.forEach { $0.resume() }
     }
 }

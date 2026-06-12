@@ -17,7 +17,7 @@ struct SendMessageTool: MCPToolDefinition {
         )
     }
 
-    let name = "send_message"
+    let name = "whatsapp_send_chat_message"
     let icon = "paperplane"
     let description = "Sends one or more outbound assistant messages. Use `chatIdentification` with either a chat ID from chat listings or a phone number containing digits only."
     let group = "sentMessages"
