@@ -15,6 +15,7 @@ enum DesignSystemPreviewRoute: String, CaseIterable, Identifiable, Hashable {
     case messageBubbles
     case formFields
     case audioTranscriptionInput
+    case audioTranscriptionInputLive
 
     enum Category: String, CaseIterable, Identifiable {
         case foundations
@@ -73,6 +74,8 @@ enum DesignSystemPreviewRoute: String, CaseIterable, Identifiable, Hashable {
             return "Text Fields"
         case .audioTranscriptionInput:
             return "Audio Transcription Input"
+        case .audioTranscriptionInputLive:
+            return "Audio Transcription Live"
         }
     }
 
@@ -86,7 +89,7 @@ enum DesignSystemPreviewRoute: String, CaseIterable, Identifiable, Hashable {
             return .dataDisplay
         case .messageBubbles:
             return .messaging
-        case .formFields, .audioTranscriptionInput:
+        case .formFields, .audioTranscriptionInput, .audioTranscriptionInputLive:
             return .forms
         }
     }
@@ -121,6 +124,8 @@ enum DesignSystemPreviewRoute: String, CaseIterable, Identifiable, Hashable {
             return "textbox"
         case .audioTranscriptionInput:
             return "mic"
+        case .audioTranscriptionInputLive:
+            return "mic.fill"
         }
     }
 
@@ -155,6 +160,8 @@ enum DesignSystemPreviewRoute: String, CaseIterable, Identifiable, Hashable {
             FormFieldsPreviewPage()
         case .audioTranscriptionInput:
             AudioTranscriptionInputPreviewPage()
+        case .audioTranscriptionInputLive:
+            DSAudioTranscriptionInputLiveVoicePreview()
         }
     }
 

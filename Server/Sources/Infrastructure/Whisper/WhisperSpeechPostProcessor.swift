@@ -44,7 +44,10 @@ actor WhisperSpeechPostProcessor: SpeechFinalTextResolving {
         }
 
         do {
-            _ = try context(for: resolvedModelPath)
+            _ = try context(
+                for: resolvedModelPath,
+                useGPU: !(whisperConfig?.usesCPUOnly ?? false)
+            )
         } catch {
             print("[SpeechListener] Whisper warm-up failed: \(error)")
         }
@@ -70,12 +73,17 @@ actor WhisperSpeechPostProcessor: SpeechFinalTextResolving {
         }
 
         do {
-            let context = try context(for: resolvedModelPath)
+            let context = try context(
+                for: resolvedModelPath,
+                useGPU: !(whisperConfig?.usesCPUOnly ?? false)
+            )
             print("[SpeechListener] Whisper post-processing starting: model=\(resolvedModelPath), language=\(whisperConfig?.language ?? "auto"), samples=\(capturedAudioSamples.count), duration=\(formatSeconds(sampleCount: capturedAudioSamples.count))s, audio=\(audioSummary(capturedAudioSamples))")
             let whisperText = try context.transcribe(
                 samples: capturedAudioSamples,
                 language: whisperConfig?.language ?? "auto",
-                cancellationToken: cancellationToken
+                task: whisperConfig?.task ?? .transcribe,
+                cancellationToken: cancellationToken,
+                threadCount: whisperConfig?.usesCPUOnly == true ? whisperConfig?.cpuThreadCount : nil
             )
 
             let trimmedText = whisperText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -110,7 +118,8 @@ actor WhisperSpeechPostProcessor: SpeechFinalTextResolving {
         print("[SpeechListener] Whisper model configured: \(trimmedModelPath)")
         guard let preparedModelPath = ensureCoreMLCompanionIfNeeded(
             modelPath: trimmedModelPath,
-            configuredCoreMLModelPath: whisperConfig.coreMLModelPath
+            configuredCoreMLModelPath: whisperConfig.coreMLModelPath,
+            usesCPUOnly: whisperConfig.usesCPUOnly
         ) else {
             return nil
         }
@@ -120,8 +129,14 @@ actor WhisperSpeechPostProcessor: SpeechFinalTextResolving {
 
     private func ensureCoreMLCompanionIfNeeded(
         modelPath: String,
-        configuredCoreMLModelPath: String?
+        configuredCoreMLModelPath: String?,
+        usesCPUOnly: Bool
     ) -> String? {
+        if usesCPUOnly {
+            print("[SpeechListener] Whisper CPU-only mode enabled. Skipping Core ML companion setup.")
+            return modelPath
+        }
+
         let trimmedCoreMLModelPath = configuredCoreMLModelPath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard !trimmedCoreMLModelPath.isEmpty else {
             print("[SpeechListener] Whisper Core ML companion not configured. Using ggml model with available GPU backend.")
@@ -190,15 +205,17 @@ actor WhisperSpeechPostProcessor: SpeechFinalTextResolving {
             .path
     }
 
-    private func context(for modelPath: String) throws -> WhisperModelContext {
-        if let cachedContext = cachedContexts[modelPath] {
-            print("[SpeechListener] Reusing cached Whisper model context for \(modelPath).")
+    private func context(for modelPath: String, useGPU: Bool) throws -> WhisperModelContext {
+        let cacheKey = "\(modelPath)|useGPU:\(useGPU)"
+
+        if let cachedContext = cachedContexts[cacheKey] {
+            print("[SpeechListener] Reusing cached Whisper model context for \(modelPath) with use_gpu=\(useGPU).")
             return cachedContext
         }
 
-        print("[SpeechListener] Creating Whisper model context for \(modelPath).")
-        let context = try WhisperModelContext(modelPath: modelPath)
-        cachedContexts[modelPath] = context
+        print("[SpeechListener] Creating Whisper model context for \(modelPath) with use_gpu=\(useGPU).")
+        let context = try WhisperModelContext(modelPath: modelPath, useGPU: useGPU)
+        cachedContexts[cacheKey] = context
         return context
     }
 
@@ -245,11 +262,11 @@ private final class WhisperModelContext: @unchecked Sendable {
     private let modelPath: String
     private let context: OpaquePointer
 
-    init(modelPath: String) throws {
+    init(modelPath: String, useGPU: Bool) throws {
         self.modelPath = modelPath
 
         var contextParams = whisper_context_default_params()
-        contextParams.use_gpu = true
+        contextParams.use_gpu = useGPU
 
         print("[SpeechListener] Whisper context params: use_gpu=\(contextParams.use_gpu), model=\(modelPath)")
         guard let context = modelPath.withCString({ whisper_init_from_file_with_params($0, contextParams) }) else {
@@ -266,7 +283,9 @@ private final class WhisperModelContext: @unchecked Sendable {
     func transcribe(
         samples: [Float],
         language: String,
-        cancellationToken: WhisperProcessingCancellationToken
+        task: WhisperTranscriptionTask,
+        cancellationToken: WhisperProcessingCancellationToken,
+        threadCount: Int? = nil
     ) throws -> String {
         let normalizedLanguage = language.trimmingCharacters(in: .whitespacesAndNewlines)
         let effectiveLanguage = normalizedLanguage.isEmpty ? "auto" : normalizedLanguage
@@ -279,7 +298,9 @@ private final class WhisperModelContext: @unchecked Sendable {
         let primaryText = try transcribe(
             samples: samples,
             request: primaryRequest,
-            cancellationToken: cancellationToken
+            task: task,
+            cancellationToken: cancellationToken,
+            threadCount: threadCount
         )
         if !primaryText.isEmpty {
             return primaryText
@@ -295,7 +316,9 @@ private final class WhisperModelContext: @unchecked Sendable {
         let retryText = try transcribe(
             samples: samples,
             request: retryRequest,
-            cancellationToken: cancellationToken
+            task: task,
+            cancellationToken: cancellationToken,
+            threadCount: threadCount
         )
         if !retryText.isEmpty {
             return retryText
@@ -311,7 +334,9 @@ private final class WhisperModelContext: @unchecked Sendable {
             return try transcribe(
                 samples: samples,
                 request: forcedPortugueseRequest,
-                cancellationToken: cancellationToken
+                task: task,
+                cancellationToken: cancellationToken,
+                threadCount: threadCount
             )
         }
 
@@ -321,7 +346,9 @@ private final class WhisperModelContext: @unchecked Sendable {
     private func transcribe(
         samples: [Float],
         request: WhisperTranscriptionRequest,
-        cancellationToken: WhisperProcessingCancellationToken
+        task: WhisperTranscriptionTask,
+        cancellationToken: WhisperProcessingCancellationToken,
+        threadCount: Int?
     ) throws -> String {
         guard !cancellationToken.isCancelled else {
             throw WhisperSpeechPostProcessorError.cancelled
@@ -334,12 +361,12 @@ private final class WhisperModelContext: @unchecked Sendable {
         params.no_timestamps = true
         params.no_context = request.strategy.usesNoContext
         params.single_segment = request.strategy.usesSingleSegment
-        params.translate = false
+        params.translate = (task == .translate)
         params.suppress_blank = request.strategy.suppressesBlank
         params.suppress_nst = request.strategy.suppressesNonSpeechTokens
         params.temperature = request.strategy.temperature
         params.temperature_inc = request.strategy.temperatureIncrement
-        params.n_threads = max(1, Int32(ProcessInfo.processInfo.processorCount - 1))
+        params.n_threads = threadCount.map { max(1, Int32($0)) } ?? max(1, Int32(ProcessInfo.processInfo.processorCount - 1))
         params.no_speech_thold = request.strategy.noSpeechThreshold
         params.logprob_thold = request.strategy.logprobThreshold
         params.entropy_thold = request.strategy.entropyThreshold

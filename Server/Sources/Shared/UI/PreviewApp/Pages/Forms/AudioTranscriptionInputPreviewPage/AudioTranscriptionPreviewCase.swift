@@ -7,15 +7,15 @@ struct AudioTranscriptionPreviewCase: View {
     let config: DSAudioTranscriptionInputConfig
 
     @State private var text: String
-    @StateObject private var controller: FakeAudioTranscriptionController
+    @StateObject private var controller: DSAudioTranscriptionInputPreviewController
 
     init(
         title: String,
         mode: DSAudioTranscriptionInputMode,
         initialText: String,
-        controller: FakeAudioTranscriptionController,
+        controller: DSAudioTranscriptionInputPreviewController,
         placeholder: String,
-        config: DSAudioTranscriptionInputConfig = .init()
+        config: DSAudioTranscriptionInputConfig = .default
     ) {
         self.title = title
         self.mode = mode
@@ -31,10 +31,11 @@ struct AudioTranscriptionPreviewCase: View {
                 .font(.headline)
 
             DSAudioTranscriptionInput(
+                title: "Message",
+                placeholder: placeholder,
                 mode: mode,
                 text: $text,
                 controller: controller,
-                placeholder: placeholder,
                 config: config
             )
         }

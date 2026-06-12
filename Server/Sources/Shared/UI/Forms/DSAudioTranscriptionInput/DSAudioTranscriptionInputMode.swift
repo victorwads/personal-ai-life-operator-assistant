@@ -1,6 +1,6 @@
 import Foundation
 
-enum DSAudioTranscriptionInputMode {
+enum DSAudioTranscriptionInputMode: Equatable {
     case input
     case textarea
 }

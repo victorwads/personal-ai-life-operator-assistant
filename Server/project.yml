@@ -81,10 +81,17 @@ targets:
       - path: Sources/Shared/UI
         excludes:
           - "**/*.md"
+      - path: Sources/Features/Voice/Transcription
+      - path: Sources/Infrastructure/Whisper
+    dependencies:
+      - package: WhisperCPP
+        product: WhisperCPP
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.localaiassistant.aiassistanthub.designsystempreview
         GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: "This preview app uses the microphone to test live audio transcription."
+        INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "This preview app uses speech recognition to test realtime transcription."
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: DU6489YN3U
         CODE_SIGN_IDENTITY: "Apple Development"

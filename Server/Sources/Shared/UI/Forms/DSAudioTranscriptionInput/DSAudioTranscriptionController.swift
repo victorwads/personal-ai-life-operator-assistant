@@ -1,19 +1,32 @@
+import Combine
 import Foundation
-import SwiftUI
+
+struct DSAudioCommittedTextAppend {
+    let text: String
+    let shouldStartNewParagraph: Bool
+}
 
 @MainActor
 protocol DSAudioTranscriptionController: ObservableObject {
-    var status: DSAudioTranscriptionStatus { get }
-    var livePartialText: String { get }
-    var processingSegments: [DSAudioTranscriptionSegment] { get }
+    var lifecycle: DSAudioTranscriptionLifecycle { get }
 
-    var totalSegmentCount: Int { get }
+    var isListening: Bool { get }
+    var isSilent: Bool { get }
+    var isPostProcessing: Bool { get }
+
+    var statusText: String? { get }
+    var errorText: String? { get }
+
+    var inlineSegments: [DSAudioTranscriptionSegment] { get }
+
+    var queuedSegmentCount: Int { get }
     var processingSegmentCount: Int { get }
-    var completedSegmentCount: Int { get }
+    var committedTextAppendRevision: Int { get }
+    var textMutationRevision: Int { get }
 
-    func start()
-    func stop()
-    func cancel()
+    func startListening()
+    func stopListening()
+    func cancelAll()
 
-    func consumeCompletedSegmentTextToAppend() -> String?
+    func consumeTextMutation() -> DSAudioTextMutation?
 }

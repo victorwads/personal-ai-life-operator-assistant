@@ -1,363 +1,313 @@
 import SwiftUI
 
 struct DSAudioTranscriptionInput<Controller: DSAudioTranscriptionController>: View {
-    let mode: DSAudioTranscriptionInputMode
-    @Binding var text: String
-    @ObservedObject var controller: Controller
+    let title: String
     let placeholder: String
+    let mode: DSAudioTranscriptionInputMode
     let config: DSAudioTranscriptionInputConfig
 
-    @FocusState private var isFocused: Bool
+    @Binding var text: String
+    @ObservedObject var controller: Controller
 
     init(
-        mode: DSAudioTranscriptionInputMode,
+        title: String,
+        placeholder: String = "",
+        mode: DSAudioTranscriptionInputMode = .textarea,
         text: Binding<String>,
         controller: Controller,
-        placeholder: String,
-        config: DSAudioTranscriptionInputConfig = .init()
+        config: DSAudioTranscriptionInputConfig = .default
     ) {
-        self.mode = mode
-        _text = text
-        _controller = ObservedObject(wrappedValue: controller)
+        self.title = title
         self.placeholder = placeholder
+        self.mode = mode
         self.config = config
+        self._text = text
+        self._controller = ObservedObject(wrappedValue: controller)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: mode == .textarea ? 10 : 8) {
-            fieldSection
-
-            if shouldShowPreviewSection {
-                previewSection
+        VStack(alignment: .leading, spacing: 6) {
+            if config.showsHeader {
+                header
             }
 
-            if config.showsStatusBar {
-                statusSection
+            editor
+
+            if config.showsFooter, shouldShowFooter {
+                footer
             }
         }
+        .opacity(config.isEnabled ? 1 : 0.72)
         .onAppear {
-            appendCompletedSegmentsIfNeeded()
+            applyPendingTextMutationsIfNeeded()
         }
-        .onReceive(controller.objectWillChange) { _ in
-            appendCompletedSegmentsIfNeeded()
-        }
-        .onChange(of: isFocused) { _, newValue in
-            handleFocusChange(newValue)
+        .onChange(of: controller.textMutationRevision) { _, _ in
+            applyPendingTextMutationsIfNeeded()
         }
     }
 
-    @ViewBuilder
-    private var fieldSection: some View {
-        switch mode {
-        case .input:
-            TextField(placeholder, text: $text)
-                .textFieldStyle(.plain)
-                .focused($isFocused)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(fieldBackground)
-        case .textarea:
-            ZStack(alignment: .topLeading) {
-                TextEditor(text: $text)
-                    .font(.body)
-                    .scrollContentBackground(.hidden)
-                    .focused($isFocused)
-                    .frame(minHeight: 124)
-                    .padding(8)
-
-                if text.isEmpty {
-                    placeholderView
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 16)
-                        .allowsHitTesting(false)
-                }
-            }
-            .background(fieldBackground)
-        }
-    }
-
-    @ViewBuilder
-    private var previewSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if !controller.livePartialText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    previewLabel("Live transcription")
-                    Text(controller.livePartialText)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-
-            if config.showsSegments, !controller.processingSegments.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    previewLabel("Processing segments")
-
-                    ForEach(controller.processingSegments) { segment in
-                        HStack(alignment: .top, spacing: 8) {
-                            DSBadge(
-                                "S\(segment.index)",
-                                secondaryText: segmentStatusText(segment.status),
-                                style: segmentBadgeStyle(segment.status)
-                            )
-
-                            Text(segment.previewText.isEmpty ? "No preview text yet." : segment.previewText)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    }
-                }
-            }
-
-            if let errorMessage = failedMessage {
-                Text(errorMessage)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.secondary.opacity(0.08))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(Color.secondary.opacity(0.12), lineWidth: 1)
-        )
-    }
-
-    private var statusSection: some View {
+    private var header: some View {
         HStack(alignment: .center, spacing: 8) {
-            Image(systemName: statusIcon)
-                .foregroundStyle(statusColor)
-
-            Text(statusLabel)
-                .font(.caption.weight(.semibold))
+            Text(title)
+                .font(.caption)
                 .foregroundStyle(.secondary)
 
-            DSBadge(
-                "Segments",
-                secondaryText: "\(controller.completedSegmentCount)/\(controller.totalSegmentCount)",
-                style: .neutral
-            )
+            Spacer()
 
-            DSBadge(
-                "Processing",
-                secondaryText: "\(controller.processingSegmentCount)",
-                style: controller.processingSegmentCount > 0 ? .warning : .neutral
+            Button {
+                if controller.isListening {
+                    controller.stopListening()
+                } else {
+                    controller.startListening()
+                }
+            } label: {
+                Image(systemName: controller.isListening ? "mic.fill" : "mic")
+                    .imageScale(.medium)
+                    .foregroundStyle(controller.isListening ? Color.accentColor : Color.secondary)
+            }
+            .buttonStyle(.borderless)
+            .help(controller.isListening ? "Stop listening" : "Start listening")
+            .disabled(!config.isEnabled)
+        }
+    }
+
+    private var editor: some View {
+        ZStack(alignment: .topLeading) {
+            DSAudioTranscriptionTextView(
+                text: $text,
+                placeholder: "",
+                segments: controller.inlineSegments,
+                isEnabled: config.isEnabled,
+                badgePalette: config.badgePalette,
+                autoScrollsToBottom: config.autoScrollsToBottom,
+                autoScrollUserOverrideDistance: config.autoScrollUserOverrideDistance,
+                shouldAutoScrollToBottom: shouldAutoScrollToBottom,
+                forceFollowBottom: shouldForceFollowBottom
             )
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            if text.isEmpty && controller.inlineSegments.isEmpty {
+                Text(placeholder)
+                    .font(.body)
+                    .foregroundStyle(.tertiary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .allowsHitTesting(false)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(minHeight: heightForMode, maxHeight: config.maxHeight, alignment: .topLeading)
+        .background {
+            RoundedRectangle(cornerRadius: config.cornerRadius)
+                .fill(Color(nsColor: .textBackgroundColor))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: config.cornerRadius)
+                .strokeBorder(borderColor, lineWidth: 1)
+        }
+    }
+
+    private var footer: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            if let errorText = trimmed(controller.errorText) {
+                Text(errorText)
+                    .font(.caption2)
+                    .foregroundStyle(.red)
+                    .lineLimit(2)
+            }
 
             Spacer(minLength: 8)
 
-            if shouldShowCancelButton {
-                Button("Cancel") {
-                    controller.cancel()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+            if hasStructuredStatus {
+                statusLegend
+            } else if let statusText = usefulStatusText {
+                Text(statusText)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+        }
+        .frame(minHeight: 14)
+    }
+
+    private var shouldShowFooter: Bool {
+        trimmed(controller.errorText) != nil || hasStructuredStatus || usefulStatusText != nil
+    }
+
+    private var usefulStatusText: String? {
+        trimmed(controller.statusText)
+    }
+
+    private var isRecognizing: Bool {
+        controller.inlineSegments.contains { $0.kind == .appleRealtime } ||
+        controller.lifecycle == .recognizing
+    }
+
+    private var hasStructuredStatus: Bool {
+        controller.isPostProcessing ||
+        controller.queuedSegmentCount > 0 ||
+        isRecognizing
+    }
+
+    private var statusLegend: some View {
+        HStack(spacing: 8) {
+            if controller.isPostProcessing {
+                statusLegendItem(
+                    kind: .whisperProcessing,
+                    title: "Post-processing"
+                )
             }
 
-            Button(primaryActionTitle) {
-                handlePrimaryAction()
+            if controller.queuedSegmentCount > 0 {
+                statusLegendItem(
+                    kind: .queued,
+                    title: "Queue: \(controller.queuedSegmentCount)"
+                )
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
+
+            if isRecognizing {
+                statusLegendItem(
+                    kind: .appleRealtime,
+                    title: "Recognizing"
+                )
+            }
         }
     }
 
-    private var placeholderView: some View {
-        Text(placeholder)
-            .foregroundStyle(.tertiary)
+    private func statusLegendItem(
+        kind: DSAudioTranscriptionSegmentKind,
+        title: String
+    ) -> some View {
+        HStack(spacing: 4) {
+            segmentStatusIcon(kind)
+            Text(title)
+                .font(.caption2)
+                .fontWeight(.semibold)
+        }
+        .foregroundStyle(statusColor(for: kind))
+        .lineLimit(1)
     }
 
-    private var fieldBackground: some View {
-        RoundedRectangle(cornerRadius: 10, style: .continuous)
-            .fill(Color(nsColor: .textBackgroundColor))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(
-                        isFocused ? Color.accentColor.opacity(0.7) : Color.secondary.opacity(0.28),
-                        lineWidth: 1
-                    )
+    private func statusColor(for kind: DSAudioTranscriptionSegmentKind) -> Color {
+        Color(
+            nsColor: DSAudioTranscriptionTextViewAttributes.badgeForegroundColor(
+                for: kind,
+                badgePalette: config.badgePalette
             )
+        )
     }
 
-    private var shouldShowPreviewSection: Bool {
-        !controller.livePartialText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-        (config.showsSegments && !controller.processingSegments.isEmpty) ||
-        failedMessage != nil
-    }
+    @ViewBuilder
+    private func segmentStatusIcon(_ kind: DSAudioTranscriptionSegmentKind) -> some View {
+        switch kind.icon {
+        case .text(let value):
+            Text(value)
+                .font(.caption2.weight(.semibold))
 
-    private var shouldShowCancelButton: Bool {
-        switch controller.status {
-        case .listening, .processing, .stopping, .failed:
-            return true
-        case .idle, .stopped:
-            return false
+        case .systemSymbol(let symbolName):
+            Image(systemName: symbolName)
+                .font(.caption2.weight(.semibold))
         }
     }
 
-    private var primaryActionTitle: String {
-        shouldShowStopAction ? "Stop" : "Start"
-    }
-
-    private var shouldShowStopAction: Bool {
-        switch controller.status {
-        case .listening, .processing, .stopping:
-            return true
-        case .idle, .stopped, .failed:
-            return false
+    private var heightForMode: CGFloat {
+        switch mode {
+        case .input:
+            return max(44, min(config.minHeight, 44))
+        case .textarea:
+            return config.minHeight
         }
     }
 
-    private var statusLabel: String {
-        switch controller.status {
-        case .idle:
-            return "Idle"
-        case .listening:
-            return "Listening"
-        case .processing:
-            return "Processing"
-        case .stopping:
-            return "Stopping"
-        case .stopped:
-            return "Stopped"
-        case .failed:
-            return "Failed"
+    private var borderColor: Color {
+        if trimmed(controller.errorText) != nil {
+            return .red.opacity(0.65)
+        }
+
+        if controller.isListening {
+            return .accentColor.opacity(0.75)
+        }
+
+        return Color(nsColor: .separatorColor)
+    }
+
+    private var shouldAutoScrollToBottom: Bool {
+        controller.isListening ||
+        controller.lifecycle == .recognizing ||
+        controller.isPostProcessing ||
+        controller.queuedSegmentCount > 0 ||
+        !controller.inlineSegments.isEmpty
+    }
+
+    private var shouldForceFollowBottom: Bool {
+        controller.isListening ||
+        controller.lifecycle == .recognizing ||
+        controller.isPostProcessing
+    }
+
+    private func trimmed(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedValue.isEmpty ? nil : trimmedValue
+    }
+
+    private func applyPendingTextMutationsIfNeeded() {
+        while let textMutation = controller.consumeTextMutation() {
+            applyTextMutation(textMutation)
         }
     }
 
-    private var statusIcon: String {
-        switch controller.status {
-        case .idle, .stopped:
-            return "mic"
-        case .listening:
-            return "mic.fill"
-        case .processing:
-            return "waveform"
-        case .stopping:
-            return "mic.slash"
-        case .failed:
-            return "exclamationmark.triangle.fill"
+    private func applyTextMutation(_ mutation: DSAudioTextMutation) {
+        switch mutation {
+        case .insertParagraphBreak:
+            insertParagraphBreakIfNeeded()
+        case .appendCommittedText(let append):
+            appendCommittedText(append)
         }
     }
 
-    private var statusColor: Color {
-        switch controller.status {
-        case .idle, .stopped:
-            return .secondary
-        case .listening:
-            return .red
-        case .processing, .stopping:
-            return .orange
-        case .failed:
-            return .red
-        }
-    }
+    private func insertParagraphBreakIfNeeded() {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
 
-    private var failedMessage: String? {
-        if case let .failed(message) = controller.status {
-            return message
+        guard !trimmed.isEmpty else {
+            return
         }
 
-        return nil
-    }
+        if text.hasSuffix("\n\n") {
+            return
+        }
 
-    private func handlePrimaryAction() {
-        if shouldShowStopAction {
-            controller.stop()
+        if text.hasSuffix("\n") {
+            text += "\n"
         } else {
-            controller.start()
+            text += "\n\n"
         }
     }
 
-    private func handleFocusChange(_ isFocused: Bool) {
-        if isFocused, config.autoStartOnFocus {
-            controller.start()
-        } else if !isFocused, config.stopOnFocusLost {
-            controller.stop()
-        }
-    }
+    private func appendCommittedText(_ append: DSAudioCommittedTextAppend) {
+        let trimmedCommittedText = append.text.trimmingCharacters(in: .whitespacesAndNewlines)
 
-    private func appendCompletedSegmentsIfNeeded() {
-        var appendedTexts: [String] = []
-
-        while let nextText = controller.consumeCompletedSegmentTextToAppend() {
-            let trimmedText = nextText.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmedText.isEmpty {
-                appendedTexts.append(trimmedText)
-            }
+        guard !trimmedCommittedText.isEmpty else {
+            return
         }
 
-        guard !appendedTexts.isEmpty else { return }
+        if append.shouldStartNewParagraph {
+            insertParagraphBreakIfNeeded()
+        }
 
-        let addition = appendedTexts.joined(separator: "\n")
+        let currentText = text
 
-        if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            text = addition
+        if currentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            text = trimmedCommittedText
+            return
+        }
+
+        if currentText.hasSuffix("\n") {
+            text = currentText + trimmedCommittedText
         } else {
-            text += separatorBeforeAppending(to: text, addition: addition) + addition
-        }
-    }
-
-    private func separatorBeforeAppending(to currentText: String, addition: String) -> String {
-        guard let lastCharacter = currentText.last else { return "" }
-        if lastCharacter == "\n" {
-            return ""
-        }
-
-        let additionStartsWithPunctuation = addition.first.map { ",.;:!?)]}".contains($0) } ?? false
-        if additionStartsWithPunctuation {
-            return ""
-        }
-
-        if ".!?".contains(lastCharacter) {
-            return "\n"
-        }
-
-        if lastCharacter.isWhitespace {
-            return ""
-        }
-
-        return " "
-    }
-
-    private func previewLabel(_ text: String) -> some View {
-        Text(text)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.secondary)
-            .textCase(.uppercase)
-    }
-
-    private func segmentStatusText(_ status: DSAudioTranscriptionSegment.Status) -> String {
-        switch status {
-        case .recording:
-            return "Recording"
-        case .queued:
-            return "Queued"
-        case .transcribing:
-            return "Transcribing"
-        case .completed:
-            return "Completed"
-        case .failed:
-            return "Failed"
-        }
-    }
-
-    private func segmentBadgeStyle(_ status: DSAudioTranscriptionSegment.Status) -> DSBadge.Style {
-        switch status {
-        case .recording, .queued:
-            return .warning
-        case .transcribing:
-            return .info
-        case .completed:
-            return .success
-        case .failed:
-            return .danger
+            text = currentText + " " + trimmedCommittedText
         }
     }
 }

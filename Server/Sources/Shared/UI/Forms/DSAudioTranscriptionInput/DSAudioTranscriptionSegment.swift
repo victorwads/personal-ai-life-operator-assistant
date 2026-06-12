@@ -1,16 +1,20 @@
 import Foundation
 
 struct DSAudioTranscriptionSegment: Identifiable, Equatable {
-    enum Status {
-        case recording
-        case queued
-        case transcribing
-        case completed
-        case failed
-    }
-
     let id: UUID
-    var index: Int
-    var status: Status
-    var previewText: String
+    var kind: DSAudioTranscriptionSegmentKind
+    var text: String
+    var audioSamplesCount: Int?
+
+    init(
+        id: UUID = UUID(),
+        kind: DSAudioTranscriptionSegmentKind,
+        text: String,
+        audioSamplesCount: Int? = nil
+    ) {
+        self.id = id
+        self.kind = kind
+        self.text = text
+        self.audioSamplesCount = audioSamplesCount
+    }
 }
