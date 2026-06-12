@@ -589,6 +589,7 @@ final class WhatsAppChatCrawlingOrchestrator {
                 mediaKind: mediaKind
             )
             let trimmedText = extractedText.trimmingCharacters(in: .whitespacesAndNewlines)
+            messages[messageIndex].imageExtractionFailed = false
             guard !trimmedText.isEmpty else {
                 logStore.append(source: "Media", "AI image extraction returned no text for \(messageId).")
                 return
@@ -597,6 +598,7 @@ final class WhatsAppChatCrawlingOrchestrator {
             messages[messageIndex].text = trimmedText
             logStore.append(source: "Media", "Saved AI image text for \(messageId).")
         } catch {
+            messages[messageIndex].imageExtractionFailed = true
             logStore.append(source: "Media", "AI image extraction failed for \(messageId): \(error.localizedDescription)")
         }
     }

@@ -195,6 +195,6 @@ final class StubWhatsAppMessageSender: WhatsAppMessageSending, @unchecked Sendab
 
     func sendMessages(_ request: WhatsAppMessageSendRequest) async throws -> WhatsAppMessageSendResult {
         receivedRequests.append(request)
-        result
+        return result
     }
 }

@@ -4,7 +4,7 @@ import XCTest
 final class SendMessageMCPToolSupportTests: XCTestCase {
     func testMessagesExtractionFailsWhenPayloadContainsEmptyStrings() throws {
         let call = MCPToolCall(
-            name: "send_message",
+            name: "whatsapp_send_chat_message",
             arguments: [
                 "issueId": .string("Mqa6MrQAz5PiaDxCE42T"),
                 "chatIdentification": .string("whatsapp-d951c84c4d86f507"),
@@ -36,7 +36,7 @@ final class SendMessageMCPToolSupportTests: XCTestCase {
 
     func testMessagesExtractionAcceptsSamePayloadWithoutEmptyStrings() throws {
         let call = MCPToolCall(
-            name: "send_message",
+            name: "whatsapp_send_chat_message",
             arguments: [
                 "issueId": .string("Mqa6MrQAz5PiaDxCE42T"),
                 "chatIdentification": .string("whatsapp-d951c84c4d86f507"),

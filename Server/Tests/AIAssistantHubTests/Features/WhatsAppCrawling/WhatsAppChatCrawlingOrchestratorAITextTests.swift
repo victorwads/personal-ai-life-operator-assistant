@@ -34,6 +34,7 @@ final class WhatsAppChatCrawlingOrchestratorAITextTests: XCTestCase {
         )
 
         XCTAssertEqual(messages[0].text, "AI extracted text")
+        XCTAssertEqual(messages[0].imageExtractionFailed, false)
         XCTAssertEqual(messages[0].localMediaPaths, [relativePath])
         XCTAssertEqual(extractor.receivedImageURLs, [ChatMediaStorage.absoluteURL(forRelativePath: relativePath)])
     }
@@ -68,6 +69,7 @@ final class WhatsAppChatCrawlingOrchestratorAITextTests: XCTestCase {
         )
 
         XCTAssertNil(messages[0].text)
+        XCTAssertEqual(messages[0].imageExtractionFailed, true)
         XCTAssertEqual(messages[0].localMediaPaths, [relativePath])
         XCTAssertEqual(extractor.receivedImageURLs, [ChatMediaStorage.absoluteURL(forRelativePath: relativePath)])
     }
@@ -165,6 +167,8 @@ private final class StubChatRepository: ChatRepository {
     func countUnhandledMessages(chatId _: String) async throws -> Int { 0 }
     func updateUnhandledCount(chatId _: String, count _: Int?) async throws {}
     func setMessageSentByAssistant(chatId _: String, messageId _: String, sentByAssistant _: Bool) async throws {}
+    func setMessageImageExtractionFailed(chatId _: String, messageId _: String, failed _: Bool) async throws {}
+    func setMessageImageExtractionResult(chatId _: String, messageId _: String, text _: String?) async throws {}
 }
 
 @MainActor
