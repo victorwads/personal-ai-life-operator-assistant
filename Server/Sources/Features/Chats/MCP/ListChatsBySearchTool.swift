@@ -63,8 +63,8 @@ struct ListChatsBySearchTool: MCPToolDefinition {
             .enumerated()
             .compactMap { index, chat in
                 let score = max(
-                    similarityScore(query: query, text: chat.title),
-                    similarityScore(query: query, text: chat.lastMessagePreview)
+                    TextSimilarity.score(query: query, text: chat.title),
+                    TextSimilarity.score(query: query, text: chat.lastMessagePreview)
                 )
                 guard score > 0 else { return nil }
                 return RankedChat(index: index, chat: chat, score: score)
@@ -109,47 +109,6 @@ struct ListChatsBySearchTool: MCPToolDefinition {
         Últimas 10 conversas:
         \(listing)
         """
-    }
-
-    private func similarityScore(query: String, text: String?) -> Double {
-        guard let text else { return 0 }
-
-        let normalizedQuery = normalizedSearchText(query)
-        let normalizedText = normalizedSearchText(text)
-        guard !normalizedQuery.isEmpty, !normalizedText.isEmpty else {
-            return 0
-        }
-
-        if normalizedText.contains(normalizedQuery) {
-            return 1
-        }
-
-        let queryTokens = normalizedQuery.split(separator: " ").map(String.init)
-        guard !queryTokens.isEmpty else {
-            return 0
-        }
-
-        let textTokens = Set(normalizedText.split(separator: " ").map(String.init))
-        let matchedTokens = queryTokens.filter { queryToken in
-            textTokens.contains(where: { textToken in
-                textToken == queryToken || textToken.contains(queryToken) || queryToken.contains(textToken)
-            })
-        }.count
-
-        return Double(matchedTokens) / Double(queryTokens.count)
-    }
-
-    private func normalizedSearchText(_ text: String) -> String {
-        let folded = text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "pt_BR"))
-        let normalizedScalars = folded.unicodeScalars.map { scalar -> Character in
-            if CharacterSet.alphanumerics.contains(scalar) {
-                return Character(scalar)
-            }
-            return " "
-        }
-        return String(normalizedScalars)
-            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
