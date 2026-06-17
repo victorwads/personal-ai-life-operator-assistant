@@ -25,7 +25,7 @@ public final class AppWindowController: NSWindowController, NSWindowDelegate {
         let hostingController = NSHostingController(rootView: request.rootView)
         let window = NSWindow(contentViewController: hostingController)
         window.title = request.title
-        window.styleMask.insert(.closable)
+        window.styleMask.insert([.closable, .resizable, .miniaturizable])
         window.isReleasedWhenClosed = false
         _ = window.setFrameAutosaveName(frameAutosaveName)
         let restoredFrame = window.setFrameUsingName(frameAutosaveName)

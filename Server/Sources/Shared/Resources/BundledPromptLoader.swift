@@ -1,25 +1,35 @@
 import Foundation
 
-enum AIConnectionPromptLoader {
-    static func loadBundledPrompt(
+enum BundledPromptLoader {
+    static func loadPrompt(
         named name: String,
         subdirectory: String? = nil
     ) throws -> String {
-        guard let url = Bundle.main.url(forResource: name, withExtension: "md", subdirectory: subdirectory) else {
-            throw AIConnectionPromptLoaderError.missingPromptResource(name: name, subdirectory: subdirectory)
+        guard let url = Bundle.main.url(
+            forResource: name,
+            withExtension: "md",
+            subdirectory: subdirectory
+        ) else {
+            throw BundledPromptLoaderError.missingPromptResource(
+                name: name,
+                subdirectory: subdirectory
+            )
         }
 
         let contents = try String(contentsOf: url, encoding: .utf8)
         let trimmed = contents.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            throw AIConnectionPromptLoaderError.emptyPromptResource(name: name, subdirectory: subdirectory)
+            throw BundledPromptLoaderError.emptyPromptResource(
+                name: name,
+                subdirectory: subdirectory
+            )
         }
 
         return contents
     }
 }
 
-enum AIConnectionPromptLoaderError: LocalizedError {
+enum BundledPromptLoaderError: LocalizedError {
     case missingPromptResource(name: String, subdirectory: String?)
     case emptyPromptResource(name: String, subdirectory: String?)
 

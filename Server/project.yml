@@ -17,6 +17,12 @@ fileGroups:
   - Sources
   - Tests
 packages:
+  MLXSwift:
+    url: https://github.com/ml-explore/mlx-swift
+    from: "0.31.4"
+  MLXSwiftLM:
+    url: https://github.com/ml-explore/mlx-swift-lm
+    from: "3.31.3"
   MCP:
     url: https://github.com/modelcontextprotocol/swift-sdk.git
     from: "0.12.1"
@@ -28,6 +34,9 @@ packages:
     from: "9.1.0"
   WhisperCPP:
     path: Packages/WhisperCPP
+  SwiftTransformers:
+    url: https://github.com/huggingface/swift-transformers
+    from: "1.3.0"
   Yams:
     url: https://github.com/jpsim/Yams.git
     from: "6.0.1"
@@ -43,6 +52,14 @@ targets:
       - path: Resources
         buildPhase: resources
     dependencies:
+      - package: MLXSwift
+        product: MLX
+      - package: MLXSwiftLM
+        product: MLXLMCommon
+      - package: MLXSwiftLM
+        product: MLXLLM
+      - package: MLXSwiftLM
+        product: MLXVLM
       - package: MCP
         product: MCP
       - package: Firebase
@@ -55,6 +72,8 @@ targets:
         product: FirebaseDatabase
       - package: GoogleSignIn
         product: GoogleSignIn
+      - package: SwiftTransformers
+        product: Tokenizers
       - package: WhisperCPP
         product: WhisperCPP
       - package: Yams
@@ -81,6 +100,7 @@ targets:
       - path: Sources/Shared/UI
         excludes:
           - "**/*.md"
+      - path: Sources/Shared/Settings/Models
       - path: Sources/Features/Voice/Transcription
       - path: Sources/Infrastructure/Whisper
     dependencies:
@@ -119,9 +139,11 @@ schemes:
         AIAssistantHub: all
         AIAssistantHubTests: [test]
     run:
-      config: Debug
+      config: Release
+      enableGPUValidationMode: false
     test:
-      config: Debug
+      config: Release
+      enableGPUValidationMode: false
       gatherCoverageData: true
       coverageTargets:
         - AIAssistantHub
@@ -134,4 +156,5 @@ schemes:
       targets:
         AIAssistantHubDesignSystemPreview: all
     run:
-      config: Debug
+      config: Release
+      enableGPUValidationMode: false

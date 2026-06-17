@@ -17,17 +17,20 @@ public final class TrayMenuBuilder {
 
     public struct Actions {
         public let openDefaultWindow: () -> Void
+        public let openAIRuntimePoCWindow: () -> Void
         public let clearFirestoreCacheAndQuit: () -> Void
         public let signOut: (() -> Void)?
         public let quit: () -> Void
 
         public init(
             openProfiles: @escaping () -> Void,
+            openAIRuntimePoCWindow: @escaping () -> Void,
             clearFirestoreCacheAndQuit: @escaping () -> Void,
             signOut: (() -> Void)?,
             quit: @escaping () -> Void
         ) {
             self.openDefaultWindow = openProfiles
+            self.openAIRuntimePoCWindow = openAIRuntimePoCWindow
             self.clearFirestoreCacheAndQuit = clearFirestoreCacheAndQuit
             self.signOut = signOut
             self.quit = quit
@@ -87,6 +90,8 @@ public final class TrayMenuBuilder {
         }
 
         menu.addItem(NSMenuItem.separator())
+        menu.addItem(developerMenu(actions: actions))
+        menu.addItem(NSMenuItem.separator())
         menu.addItem(actionItem(title: "Clear Local Cache and Quit", action: actions.clearFirestoreCacheAndQuit))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(actionItem(title: "Quit", action: actions.quit))
@@ -99,6 +104,14 @@ public final class TrayMenuBuilder {
         item.target = item
         item.action = #selector(CallbackMenuItem.performAction)
         return item
+    }
+
+    private func developerMenu(actions: Actions) -> NSMenuItem {
+        let developerItem = NSMenuItem(title: "Developer", action: nil, keyEquivalent: "")
+        let submenu = NSMenu(title: "Developer")
+        submenu.addItem(actionItem(title: "AI PoC", action: actions.openAIRuntimePoCWindow))
+        developerItem.submenu = submenu
+        return developerItem
     }
 }
 

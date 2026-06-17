@@ -48,6 +48,12 @@ final class AppModel: ObservableObject {
                     .environmentObject(self.coordinator)
             )
         }
+        windowManager.configureAIRuntimePoCWindow { [weak self] in
+            guard let self else { return AnyView(EmptyView()) }
+            let activeRuntime = self.profilesController.runtimeController.registry.allRuntimes.first(where: { $0.state == .running })
+            let settings = activeRuntime?.container?.appFeatures.feature(AIRuntimeFeature.self).settings
+            return AnyView(AIRuntimePoCScreen(runtime: AIRuntimeFeature.sharedRuntime, settings: settings))
+        }
 
         coordinator.onProfilesChanged = { [weak self] _ in
             Task { @MainActor in
@@ -82,6 +88,9 @@ final class AppModel: ObservableObject {
             actions: TrayMenuBuilder.Actions(
                 openProfiles: { [weak self] in
                     self?.openDefaultWindowForCurrentState()
+                },
+                openAIRuntimePoCWindow: { [weak self] in
+                    self?.windowManager.showAIRuntimePoCWindow()
                 },
                 clearFirestoreCacheAndQuit: { [weak self] in
                     Task { @MainActor in

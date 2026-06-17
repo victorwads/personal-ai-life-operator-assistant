@@ -1380,3 +1380,142 @@ Rever as regras de perda de contexto do `AIConnection` para que o runtime não d
 
 **Por que isso entra no backlog**  
 Isso melhora muito a capacidade de debug e reduz a chance de o assistente “esquecer” o que aconteceu entre uma sessão e outra sem motivo real.
+
+---
+
+## 74) Segregar `AI Runtime` em `LLMs` e `Voice`
+
+Valor: `V4 - Alto`
+Risco de Desenvolvimento: `R3 - Médio`
+Risco da Feature: `R2 - Baixo`
+Score de Execução: `0.57`
+
+**Descrição**  
+Mover e organizar tudo o que é runtime de IA para uma estrutura própria de `AI Runtime`, separando o que é relativo a `LLMs` do que é relativo a `Voice`. A feature `AI Runtime` deve ser a base para rodar modelos e expor a API de geração/assistência de LLM, enquanto a parte de voz deve viver separadamente em `AI Runtime/Voice`, com as funções de transcrição, captura e tratamento de áudio. A ideia é deixar claro o domínio de cada parte, organizar melhor a codebase e facilitar o reaproveitamento das configurações e dos componentes compartilhados.
+
+**Dependências**  
+- `53) Avaliar `AIJSONValue` como bridge JSON compartilhada`
+- `65) Adicionar campo `extraction` em `ChatMessage``
+
+**Comportamento desejado**  
+- Criar uma estrutura de pastas separando `AI Runtime/LLMs` e `AI Runtime/Voice`.
+- Deixar a feature de `AI Runtime` expor as funções públicas corretas para geração de LLM e para transcrição/áudio.
+- Reaproveitar settings compartilhadas, mas organizar a UI e a arquitetura por domínio.
+- Permitir que features diferentes usem configurações de voz e de LLM de forma consistente.
+- Manter a separação clara entre runtime de modelo e runtime de áudio, mesmo quando o código interno for parecido.
+
+**Notas técnicas**  
+- As configurações já existem em partes de `Shared` e no Design System, então o trabalho aqui é de reorganização arquitetural e não de inventar novos componentes do zero.
+- Faz sentido ter settings específicas como `AI Voice Settings` para extração de áudio e `LLM Settings` para prompts, extraction e assistentes.
+- A feature deve continuar expondo a API necessária para as features consumidoras, mas a organização interna precisa refletir o novo domínio.
+- O split deve ajudar a evitar que voz, imagem/LLM e runtime operacional fiquem todos misturados na mesma pasta.
+
+**Por que isso entra no backlog**  
+Isso deixa a arquitetura da IA mais legível e sustentável, facilitando o crescimento das features de modelo e voz sem virar uma pasta única difícil de manter.
+
+---
+
+## 75) AI Runtime local para MLX e controle de KV-cache
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R5 - Muito alto`
+Risco da Feature: `R4 - Alto`
+Score de Execução: `0.43`
+
+**Descrição**  
+Adicionar ao backlog a implementação de um provider local de LLM dentro do próprio app, para que a aplicação consiga rodar modelos MLX sem depender exclusivamente do LM Studio quando estiver em modo local. A motivação principal é trazer a execução do modelo para dentro do `AI Runtime`, permitindo que o app controle melhor os `KV-caches`, mantenha o contexto de forma persistente e assuma a responsabilidade de rodar o fluxo de inferência local. O LM Studio pode continuar existindo como provider externo ou via API, mas o caminho local passa a ser um runtime próprio e integrado à aplicação.
+
+**Dependências**  
+- `74) Segregar AI Runtime em LLMs e Voice`
+- `72) Investigar reinício de sessão sem `wait_for_event``
+- `73) Reter contexto do AIConnection entre sessões e validar boundaries de fechamento`
+
+**Comportamento desejado**  
+- Rodar modelos locais MLX dentro do próprio app.
+- Controlar `KV-cache` de forma explícita e persistida.
+- Permitir reaproveitar caches por prompt/base e por contexto de sessão.
+- Reduzir dependência do LM Studio para o caminho local.
+- Manter o fluxo de provider externo para cenários via API, quando necessário.
+- Expor esse runtime local como mais uma opção do `AIConnection`.
+
+**Notas técnicas**  
+- O objetivo aqui é mover a execução local do modelo para dentro do app e não apenas chamar um serviço externo com outro nome.
+- Esse provider precisa conversar com o pipeline de prompt, cache e ciclo de sessão já existentes.
+- Vale pensar em hashes de prompt/contexto para validar quando o KV-cache pode ser reaproveitado.
+- O runtime local deve ser compatível com a estratégia futura de sessões por issue e de retomada de contexto.
+- Como essa mudança é estrutural, o backlog deve tratar isso como um novo provider de LLM e não apenas como um ajuste de configuração.
+
+**Por que isso entra no backlog**  
+Isso dá ao app controle real sobre a execução local do modelo, abrindo caminho para contexto mais persistente, menor dependência externa e um runtime de IA mais integrado à arquitetura do assistente.
+
+---
+
+## 76) Reestruturar o assistente em sub-agentes por issue e roteador de eventos
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R5 - Muito alto`
+Risco da Feature: `R4 - Alto`
+Score de Execução: `0.42`
+
+**Descrição**  
+Reestruturar completamente a forma como o assistente funciona para dividir o fluxo em sub-agentes especializados. Em vez de um único prompt decidir tudo, o sistema passa a ter um agente roteador de eventos, responsável por receber mensagens, e-mails, pedidos do client voice e outros eventos, escolher ou criar a issue correta e vincular cada evento ao contexto certo. Em seguida, um segundo agente passa a processar somente a issue selecionada, com contexto fechado daquela thread, podendo conversar, enviar mensagens, atualizar estados e avançar o trabalho sem misturar assuntos distintos. A ideia é que as issues deixem de ser apenas registros e passem a ser a thread real do assistente, com `messages` append-only, contexto durável e status como `processing` representando o assunto atualmente ativo.
+
+**Dependências**  
+- `75) AI Runtime local para MLX e controle de KV-cache`
+- `68) Suspensão de issues por chat, data e alarme`
+- `67) Reforçar no prompt a prevenção de issues duplicadas`
+
+**Comportamento desejado**  
+- Separar o runtime em pelo menos dois papéis: roteador de eventos/issues e processador de issue.
+- Fazer o roteador apenas criar, selecionar e vincular eventos a issues.
+- Fazer o processador atuar só sobre o contexto da issue escolhida.
+- Tratar `Issue` como thread do assistente, com `messages` append-only.
+- Permitir que eventos como WhatsApp, e-mail, client voice e outros sejam associados a uma issue correta antes do processamento.
+- Introduzir `processing` como status para a issue atualmente ativa pelo assistente.
+- Permitir que `wait_for_event` volte para o roteador decidir qual issue deve continuar.
+
+**Notas técnicas**  
+- O agente roteador deve ter acesso mínimo: listar issues, obter issue por ID, criar issue e marcar mensagens como handled quando as vincular ao contexto certo.
+- O agente de processamento da issue deve receber o `issueId` automaticamente e operar com o contexto já fechado daquela thread.
+- O backlog deve tratar isso como mudança de paradigma: prompts, tools, lifecycle e cache passam a ser desenhados por issue.
+- O fluxo precisa preparar a base para múltiplos KV-caches por issue, sem exigir paralelismo imediato se a primeira implementação ainda operar de forma sequencial.
+- Como consequência, updates de issue deixam de ser “editar campos” e passam a ser novas mensagens/eventos na thread da própria issue.
+
+**Por que isso entra no backlog**  
+Isso remove a principal fonte de perda de contexto do assistente atual, separa assuntos por thread real e abre caminho para um runtime muito mais estável, escalável e fácil de retomar.
+
+---
+
+## 77) Otimizar KV-cache persistente do AI Runtime por prompt e issue
+
+Valor: `V5 - Altíssimo`
+Risco de Desenvolvimento: `R5 - Muito alto`
+Risco da Feature: `R4 - Alto`
+Score de Execução: `0.41`
+
+**Descrição**  
+Criar uma estratégia persistente de `KV-cache` para o `AI Runtime`, com caches base pré-computados em disco e reaproveitados quando a aplicação sobe ou quando uma nova sessão precisa iniciar a partir de um prompt já conhecido. A ideia é manter caches separados para o sistema de extração de imagem, para o roteador/resolve de issues e para o assistente principal, sempre carregando uma cópia do cache base e então derivando uma sessão corrente a partir dele. Além disso, cada issue deve poder salvar e restaurar seu próprio cache com chave baseada em `issueId` e `messagesHash`, para que o assistente volte exatamente do ponto em que parou sem reprocessar toda a thread.
+
+**Dependências**  
+- `75) AI Runtime local para MLX e controle de KV-cache`
+- `76) Reestruturar o assistente em sub-agentes por issue e roteador de eventos`
+- `73) Reter contexto do AIConnection entre sessões e validar boundaries de fechamento`
+
+**Comportamento desejado**  
+- Pré-calcular e persistir em disco os caches base dos prompts principais do runtime.
+- Carregar esses caches na inicialização do modelo sempre que possível.
+- Separar caches base por domínio: extração de imagem, issue resolver e assistente.
+- Derivar uma sessão corrente a partir do cache base, sem reprocessar o prompt inteiro.
+- Salvar o cache da issue no disco quando a sessão chegar em boundary legítima, como `wait_for_event` ou encerramento equivalente.
+- Restaurar o cache da issue quando a mesma thread voltar a ser processada.
+- Evitar reprocessar todas as mensagens da issue a cada retomada, mantendo apenas o que mudou desde o último snapshot.
+
+**Notas técnicas**  
+- O desenho conceitual é usar um cache base persistido para o prefill do system prompt + tools e um cache derivado por issue para o contexto operacional corrente.
+- O cache por issue pode ser indexado por `issueId` + hash das mensagens relevantes, para invalidar quando a thread mudar.
+- Faz sentido manter esse mecanismo no próprio `AI Runtime`, porque ele é o ponto que conhece prompt, tools, mensagens e boundaries de sessão.
+- A estratégia também precisa conviver com o fluxo de retomada do assistente sem quebrar o comportamento de `wait_for_event`.
+- Se a implementação do backend de MLX limitar alguma parte do snapshot/restauração, o item ainda continua válido como objetivo arquitetural e pode exigir ajuste de granularidade.
+
+**Por que isso entra no backlog**  
+Isso reduz custo de reprocessamento, melhora retomada de contexto e prepara o runtime para sessões longas com muito menos perda de eficiência quando o app reinicia ou quando uma issue volta a ser processada.

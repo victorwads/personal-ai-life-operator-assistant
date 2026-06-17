@@ -1,10 +1,10 @@
 import Foundation
 import SwiftUI
-
 @MainActor
 public final class AppWindowManager: ObservableObject, ProfileWindowManaging {
     public static let rootWindowId = "root"
     public static let profilesHomeWindowId = "profiles_home"
+    public static let aiRuntimePoCWindowId = "ai_runtime_poc"
 
     public let visibilityTracker: WindowVisibilityTracker
     private let dockVisibilityController: DockVisibilityController
@@ -12,6 +12,7 @@ public final class AppWindowManager: ObservableObject, ProfileWindowManaging {
     private var windowControllers: [String: AppWindowController] = [:]
     private var rootContentFactory: (() -> AnyView)?
     private var profilesHomeContentFactory: (() -> AnyView)?
+    private var aiRuntimePoCContentFactory: (() -> AnyView)?
     private weak var profilesController: ProfilesController?
 
     public init(
@@ -89,6 +90,30 @@ public final class AppWindowManager: ObservableObject, ProfileWindowManaging {
 
     public func hideProfilesHomeWindow() {
         hideWindow(id: Self.profilesHomeWindowId)
+    }
+
+    public func configureAIRuntimePoCWindow(contentFactory: @escaping () -> AnyView) {
+        aiRuntimePoCContentFactory = contentFactory
+    }
+
+    public func showAIRuntimePoCWindow(contentFactory: (() -> AnyView)? = nil) {
+        let factory = contentFactory ?? aiRuntimePoCContentFactory
+        if windowControllers[Self.aiRuntimePoCWindowId] == nil, let factory {
+            windowControllers[Self.aiRuntimePoCWindowId] = makeWindowController(
+                request: AppWindowRequest(
+                    id: Self.aiRuntimePoCWindowId,
+                    title: "AI PoC",
+                    rootView: factory(),
+                    size: CGSize(width: 920, height: 760)
+                )
+            )
+        }
+
+        windowControllers[Self.aiRuntimePoCWindowId]?.show()
+    }
+
+    public func hideAIRuntimePoCWindow() {
+        hideWindow(id: Self.aiRuntimePoCWindowId)
     }
 
     public func installProfileWindow(profileId: String, title: String, rootView: AnyView) {

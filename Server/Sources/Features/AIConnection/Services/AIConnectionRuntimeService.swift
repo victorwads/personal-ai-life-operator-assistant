@@ -38,7 +38,7 @@ final class AIConnectionRuntimeService: ObservableObject {
                 baseURL: "",
                 apiKey: "",
                 model: "",
-                temperature: 0.6,
+                temperature: 0.8,
                 reasoningEffort: .omit,
                 maxOutputTokens: nil,
                 streamingEnabled: true,

@@ -1,10 +1,10 @@
 import Foundation
 
-enum AIConnectionCacheMode: String, Codable, CaseIterable, Sendable {
+public enum AIConnectionCacheMode: String, Codable, CaseIterable, Sendable {
     case automatic
     case disabled
 
-    var displayName: String {
+    public var displayName: String {
         switch self {
         case .automatic:
             return "Automatic"

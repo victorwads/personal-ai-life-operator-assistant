@@ -17,6 +17,7 @@ enum DesignSystemPreviewRoute: String, CaseIterable, Identifiable, Hashable {
     case audioTranscriptionConfig
     case audioTranscriptionInput
     case audioTranscriptionInputLive
+    case aiSettings
 
     enum Category: String, CaseIterable, Identifiable {
         case foundations
@@ -79,6 +80,8 @@ enum DesignSystemPreviewRoute: String, CaseIterable, Identifiable, Hashable {
             return "Audio Transcription Input"
         case .audioTranscriptionInputLive:
             return "Audio Transcription Live"
+        case .aiSettings:
+            return "AI Settings"
         }
     }
 
@@ -92,7 +95,7 @@ enum DesignSystemPreviewRoute: String, CaseIterable, Identifiable, Hashable {
             return .dataDisplay
         case .messageBubbles:
             return .messaging
-        case .formFields, .audioTranscriptionConfig, .audioTranscriptionInput, .audioTranscriptionInputLive:
+        case .formFields, .audioTranscriptionConfig, .audioTranscriptionInput, .audioTranscriptionInputLive, .aiSettings:
             return .forms
         }
     }
@@ -131,6 +134,8 @@ enum DesignSystemPreviewRoute: String, CaseIterable, Identifiable, Hashable {
             return "mic"
         case .audioTranscriptionInputLive:
             return "mic.fill"
+        case .aiSettings:
+            return "cpu"
         }
     }
 
@@ -169,6 +174,8 @@ enum DesignSystemPreviewRoute: String, CaseIterable, Identifiable, Hashable {
             AudioTranscriptionInputPreviewPage()
         case .audioTranscriptionInputLive:
             DSAudioTranscriptionInputLiveVoicePreview()
+        case .aiSettings:
+            AISettingsPreviewPage()
         }
     }
 

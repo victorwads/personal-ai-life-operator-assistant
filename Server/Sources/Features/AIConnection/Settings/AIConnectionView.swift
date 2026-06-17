@@ -4,50 +4,76 @@ struct AIConnectionSettingsView: View {
     let wrapper: AIConnectionSettingsWrapper
 
     @State private var autoStart = false
-    @State private var assistantProviderKind = AIConnectionProviderKind.openRouter
-    @State private var assistantBaseURL = ""
-    @State private var assistantAPIKey = ""
-    @State private var assistantModel = ""
-    @State private var temperature = 0.6
-    @State private var assistantReasoningEffort = AIConnectionReasoningEffort.omit
-    @State private var maxOutputTokens = ""
-    @State private var assistantCacheMode = AIConnectionCacheMode.automatic
-    @State private var imageProviderKind = AIConnectionProviderKind.openRouter
-    @State private var imageBaseURL = ""
-    @State private var imageAPIKey = ""
-    @State private var imageModel = ""
-    @State private var imageReasoningEffort = AIConnectionReasoningEffort.omit
-    @State private var imageCacheMode = AIConnectionCacheMode.automatic
+    @State private var assistantProvider = AIProviderSettings(
+        providerKind: .openRouter,
+        baseURL: "",
+        apiKey: "",
+        model: "",
+        reasoningEffort: .omit,
+        cacheMode: .automatic
+    )
+    @State private var assistantRuntime = AIRuntimeGenerationSettings.defaultSettings
+
+    @State private var imageProvider = AIProviderSettings(
+        providerKind: .openRouter,
+        baseURL: "",
+        apiKey: "",
+        model: "",
+        reasoningEffort: .omit,
+        cacheMode: .automatic
+    )
+    @State private var imageRuntime = AIRuntimeGenerationSettings.defaultSettings
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Toggle("Auto Start AI Connection", isOn: autoStartBinding)
-            providerSection(
-                title: "Assistant Provider",
-                providerKind: assistantProviderKindBinding,
-                baseURL: assistantBaseURLBinding,
-                apiKey: assistantAPIKeyBinding,
-                model: assistantModelBinding,
-                reasoningEffort: assistantReasoningEffortBinding,
-                cacheMode: assistantCacheModeBinding
-            )
-            Stepper(
-                "Temperature: \(temperature, specifier: "%.1f")",
-                value: temperatureBinding,
-                in: 0...2,
-                step: 0.1
-            )
-            TextField("Max Output Tokens (optional)", text: maxOutputTokensBinding)
-                .autocorrectionDisabled()
-            providerSection(
-                title: "Image Extraction Provider",
-                providerKind: imageProviderKindBinding,
-                baseURL: imageBaseURLBinding,
-                apiKey: imageAPIKeyBinding,
-                model: imageModelBinding,
-                reasoningEffort: imageReasoningEffortBinding,
-                cacheMode: imageCacheModeBinding
-            )
+
+            // Assistant Section
+            GroupBox("Assistant Provider") {
+                VStack(alignment: .leading, spacing: 12) {
+                    Picker("Provider", selection: assistantProviderKindBinding) {
+                        ForEach(AIConnectionProviderKind.allCases, id: \.self) { provider in
+                            Text(provider.displayName).tag(provider)
+                        }
+                    }
+
+                    if assistantProvider.providerKind == .aiRuntime {
+                        DSLocalAIRuntimeSettingsView(settings: assistantRuntimeBinding)
+                    } else {
+                        DSAIProviderSettingsView(settings: assistantProviderBinding)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            if assistantProvider.providerKind != .aiRuntime {
+                Stepper(
+                    "Temperature: \(assistantRuntime.temperature, specifier: "%.1f")",
+                    value: assistantTemperatureBinding,
+                    in: 0...2,
+                    step: 0.1
+                )
+                TextField("Max Output Tokens (optional)", text: assistantMaxTokensBinding)
+                    .autocorrectionDisabled()
+            }
+
+            // Image Extraction Section
+            GroupBox("Image Extraction Provider") {
+                VStack(alignment: .leading, spacing: 12) {
+                    Picker("Provider", selection: imageProviderKindBinding) {
+                        ForEach(AIConnectionProviderKind.allCases, id: \.self) { provider in
+                            Text(provider.displayName).tag(provider)
+                        }
+                    }
+
+                    if imageProvider.providerKind == .aiRuntime {
+                        DSLocalAIRuntimeSettingsView(settings: imageRuntimeBinding)
+                    } else {
+                        DSAIProviderSettingsView(settings: imageProviderBinding)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
 
             Text("Streaming is always used. Cache behavior depends on the selected provider.")
                 .foregroundStyle(.secondary)
@@ -68,186 +94,90 @@ struct AIConnectionSettingsView: View {
 
     private var assistantProviderKindBinding: Binding<AIConnectionProviderKind> {
         Binding {
-            assistantProviderKind
+            assistantProvider.providerKind
         } set: { value in
-            assistantProviderKind = value
-            wrapper.providerKind = value
-            assistantBaseURL = wrapper.baseURL
+            assistantProvider.providerKind = value
+            wrapper.saveProviderSettings(assistantProvider, for: .assistant)
+            // Refresh settings from wrapper to handle defaults correctly
+            assistantProvider = wrapper.loadProviderSettings(for: .assistant)
         }
     }
 
-    private var assistantBaseURLBinding: Binding<String> {
+    private var assistantProviderBinding: Binding<AIProviderSettings> {
         Binding {
-            assistantBaseURL
+            assistantProvider
         } set: { value in
-            assistantBaseURL = value
-            wrapper.baseURL = value
+            assistantProvider = value
+            wrapper.saveProviderSettings(value, for: .assistant)
         }
     }
 
-    private var assistantAPIKeyBinding: Binding<String> {
+    private var assistantRuntimeBinding: Binding<AIRuntimeGenerationSettings> {
         Binding {
-            assistantAPIKey
+            assistantRuntime
         } set: { value in
-            assistantAPIKey = value
-            wrapper.apiKey = value
+            assistantRuntime = value
+            wrapper.saveRuntimeSettings(value, for: .assistant)
         }
     }
 
-    private var assistantModelBinding: Binding<String> {
+    private var assistantTemperatureBinding: Binding<Double> {
         Binding {
-            assistantModel
+            assistantRuntime.temperature
         } set: { value in
-            assistantModel = value
-            wrapper.model = value
+            assistantRuntime.temperature = value
+            wrapper.saveRuntimeSettings(assistantRuntime, for: .assistant)
         }
     }
 
-    private var temperatureBinding: Binding<Double> {
+    private var assistantMaxTokensBinding: Binding<String> {
         Binding {
-            temperature
+            assistantRuntime.maxTokens > 0 ? String(assistantRuntime.maxTokens) : ""
         } set: { value in
-            let normalizedValue = min(max(value, 0), 2)
-            temperature = normalizedValue
-            wrapper.temperature = normalizedValue
-        }
-    }
-
-    private var assistantReasoningEffortBinding: Binding<AIConnectionReasoningEffort> {
-        Binding {
-            assistantReasoningEffort
-        } set: { value in
-            assistantReasoningEffort = value
-            wrapper.assistantReasoningEffort = value
-        }
-    }
-
-    private var maxOutputTokensBinding: Binding<String> {
-        Binding {
-            maxOutputTokens
-        } set: { value in
-            maxOutputTokens = value
-            let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
-            wrapper.maxOutputTokens = Int(trimmedValue)
-        }
-    }
-
-    private var assistantCacheModeBinding: Binding<AIConnectionCacheMode> {
-        Binding {
-            assistantCacheMode
-        } set: { value in
-            assistantCacheMode = value
-            wrapper.cacheMode = value
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let intVal = Int(trimmed), intVal > 0 {
+                assistantRuntime.maxTokens = intVal
+            } else {
+                assistantRuntime.maxTokens = 0
+            }
+            wrapper.saveRuntimeSettings(assistantRuntime, for: .assistant)
         }
     }
 
     private var imageProviderKindBinding: Binding<AIConnectionProviderKind> {
         Binding {
-            imageProviderKind
+            imageProvider.providerKind
         } set: { value in
-            imageProviderKind = value
-            wrapper.imageExtractionProviderKind = value
-            imageBaseURL = wrapper.imageExtractionBaseURL
+            imageProvider.providerKind = value
+            wrapper.saveProviderSettings(imageProvider, for: .imageExtraction)
+            // Refresh settings from wrapper to handle defaults correctly
+            imageProvider = wrapper.loadProviderSettings(for: .imageExtraction)
         }
     }
 
-    private var imageBaseURLBinding: Binding<String> {
+    private var imageProviderBinding: Binding<AIProviderSettings> {
         Binding {
-            imageBaseURL
+            imageProvider
         } set: { value in
-            imageBaseURL = value
-            wrapper.imageExtractionBaseURL = value
+            imageProvider = value
+            wrapper.saveProviderSettings(value, for: .imageExtraction)
         }
     }
 
-    private var imageAPIKeyBinding: Binding<String> {
+    private var imageRuntimeBinding: Binding<AIRuntimeGenerationSettings> {
         Binding {
-            imageAPIKey
+            imageRuntime
         } set: { value in
-            imageAPIKey = value
-            wrapper.imageExtractionAPIKey = value
-        }
-    }
-
-    private var imageModelBinding: Binding<String> {
-        Binding {
-            imageModel
-        } set: { value in
-            imageModel = value
-            wrapper.imageExtractionModel = value
-        }
-    }
-
-    private var imageCacheModeBinding: Binding<AIConnectionCacheMode> {
-        Binding {
-            imageCacheMode
-        } set: { value in
-            imageCacheMode = value
-            wrapper.imageExtractionCacheMode = value
-        }
-    }
-
-    private var imageReasoningEffortBinding: Binding<AIConnectionReasoningEffort> {
-        Binding {
-            imageReasoningEffort
-        } set: { value in
-            imageReasoningEffort = value
-            wrapper.imageExtractionReasoningEffort = value
+            imageRuntime = value
+            wrapper.saveRuntimeSettings(value, for: .imageExtraction)
         }
     }
 
     private func load() {
         autoStart = wrapper.autoStart
-        assistantProviderKind = wrapper.providerKind
-        assistantBaseURL = wrapper.baseURL
-        assistantAPIKey = wrapper.apiKey
-        assistantModel = wrapper.model
-        temperature = wrapper.temperature
-        assistantReasoningEffort = wrapper.assistantReasoningEffort
-        maxOutputTokens = wrapper.maxOutputTokens.map(String.init) ?? ""
-        assistantCacheMode = wrapper.cacheMode
-        imageProviderKind = wrapper.imageExtractionProviderKind
-        imageBaseURL = wrapper.imageExtractionBaseURL
-        imageAPIKey = wrapper.imageExtractionAPIKey
-        imageModel = wrapper.imageExtractionModel
-        imageReasoningEffort = wrapper.imageExtractionReasoningEffort
-        imageCacheMode = wrapper.imageExtractionCacheMode
-    }
-
-    @ViewBuilder
-    private func providerSection(
-        title: String,
-        providerKind: Binding<AIConnectionProviderKind>,
-        baseURL: Binding<String>,
-        apiKey: Binding<String>,
-        model: Binding<String>,
-        reasoningEffort: Binding<AIConnectionReasoningEffort>,
-        cacheMode: Binding<AIConnectionCacheMode>
-    ) -> some View {
-        GroupBox(title) {
-            VStack(alignment: .leading, spacing: 12) {
-                Picker("Provider", selection: providerKind) {
-                    ForEach(AIConnectionProviderKind.allCases, id: \.self) { provider in
-                        Text(provider.displayName).tag(provider)
-                    }
-                }
-                TextField("Base URL", text: baseURL)
-                    .autocorrectionDisabled()
-                SecureField("API Key", text: apiKey)
-                TextField("Model", text: model)
-                    .autocorrectionDisabled()
-                Picker("Reasoning", selection: reasoningEffort) {
-                    ForEach(AIConnectionReasoningEffort.allCases, id: \.self) { effort in
-                        Text(effort.displayName).tag(effort)
-                    }
-                }
-                Picker("Cache Mode", selection: cacheMode) {
-                    ForEach(AIConnectionCacheMode.allCases, id: \.self) { mode in
-                        Text(mode.displayName).tag(mode)
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
+        assistantProvider = wrapper.loadProviderSettings(for: .assistant)
+        assistantRuntime = wrapper.loadRuntimeSettings(for: .assistant)
+        imageProvider = wrapper.loadProviderSettings(for: .imageExtraction)
+        imageRuntime = wrapper.loadRuntimeSettings(for: .imageExtraction)
     }
 }

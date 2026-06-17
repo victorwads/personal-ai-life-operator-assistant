@@ -30,7 +30,7 @@ final class AIConnectionSettingsWrapper {
         static let imageExtractionCacheMode = "imageExtractionCacheMode"
     }
 
-    private enum ProviderTarget {
+    enum ProviderTarget {
         case assistant
         case imageExtraction
 
@@ -156,7 +156,7 @@ final class AIConnectionSettingsWrapper {
         get {
             let rawValue = settings.value(scope: Self.scopeName, key: Key.temperature) ?? ""
             guard let value = Double(rawValue) else {
-                return 0.6
+                return 0.8
             }
 
             return value
@@ -251,30 +251,34 @@ final class AIConnectionSettingsWrapper {
     }
 
     var assistantProviderConfiguration: AIConnectionProviderConfiguration {
-        AIConnectionProviderConfiguration(
+        let runtime = loadRuntimeSettings(for: .assistant)
+        return AIConnectionProviderConfiguration(
             providerKind: providerKind,
             baseURL: baseURL,
             apiKey: apiKey,
             model: model,
-            temperature: temperature,
+            temperature: runtime.temperature,
             reasoningEffort: assistantReasoningEffort,
             maxOutputTokens: maxOutputTokens,
             streamingEnabled: streamingEnabled,
-            cacheMode: cacheMode
+            cacheMode: cacheMode,
+            runtimeSettings: runtime
         )
     }
 
     var imageExtractionProviderConfiguration: AIConnectionProviderConfiguration {
-        AIConnectionProviderConfiguration(
+        let runtime = loadRuntimeSettings(for: .imageExtraction)
+        return AIConnectionProviderConfiguration(
             providerKind: imageExtractionProviderKind,
             baseURL: imageExtractionBaseURL,
             apiKey: imageExtractionAPIKey,
             model: imageExtractionModel,
-            temperature: 0.0,
+            temperature: runtime.temperature,
             reasoningEffort: imageExtractionReasoningEffort,
-            maxOutputTokens: 4096,
+            maxOutputTokens: runtime.maxTokens,
             streamingEnabled: true,
-            cacheMode: imageExtractionCacheMode
+            cacheMode: imageExtractionCacheMode,
+            runtimeSettings: runtime
         )
     }
 
@@ -413,5 +417,119 @@ final class AIConnectionSettingsWrapper {
     private static func format(_ value: Double) -> String {
         let roundedValue = (value * 100).rounded() / 100
         return String(roundedValue)
+    }
+
+    func loadProviderSettings(for target: ProviderTarget) -> AIProviderSettings {
+        AIProviderSettings(
+            providerKind: providerKind(for: target),
+            baseURL: baseURL(for: target),
+            apiKey: apiKey(for: target),
+            model: model(for: target),
+            reasoningEffort: {
+                switch target {
+                case .assistant: return assistantReasoningEffort
+                case .imageExtraction: return imageExtractionReasoningEffort
+                }
+            }(),
+            cacheMode: {
+                switch target {
+                case .assistant: return cacheMode
+                case .imageExtraction: return imageExtractionCacheMode
+                }
+            }()
+        )
+    }
+
+    func saveProviderSettings(_ settings: AIProviderSettings, for target: ProviderTarget) {
+        setProviderKind(settings.providerKind, for: target)
+        setBaseURL(settings.baseURL, for: target)
+        setAPIKey(settings.apiKey, for: target)
+        setModel(settings.model, for: target)
+        switch target {
+        case .assistant:
+            assistantReasoningEffort = settings.reasoningEffort
+            cacheMode = settings.cacheMode
+        case .imageExtraction:
+            imageExtractionReasoningEffort = settings.reasoningEffort
+            imageExtractionCacheMode = settings.cacheMode
+        }
+    }
+
+    func loadRuntimeSettings(for target: ProviderTarget) -> AIRuntimeGenerationSettings {
+        let prefix = target == .assistant ? "assistant_runtime_" : "imageExtraction_runtime_"
+        let defaults = AIRuntimeGenerationSettings.defaultSettings
+        let fallbackTemp = (target == .assistant) ? temperature : 0.8
+        let fallbackMaxTokens = (target == .assistant) ? (maxOutputTokens ?? 4096) : 4096
+
+        return AIRuntimeGenerationSettings(
+            temperature: doubleValue(for: prefix + "temperature", default: fallbackTemp),
+            topP: doubleValue(for: prefix + "topP", default: defaults.topP),
+            topK: intValue(for: prefix + "topK", default: defaults.topK),
+            maxTokens: intValue(for: prefix + "maxTokens", default: fallbackMaxTokens),
+            maxContextTokens: intValue(for: prefix + "maxContextTokens", default: defaults.maxContextTokens),
+            streamOutputEnabled: boolValue(for: prefix + "streamOutputEnabled", default: defaults.streamOutputEnabled),
+            showPerformanceMetrics: boolValue(for: prefix + "showPerformanceMetrics", default: defaults.showPerformanceMetrics),
+            kvCacheEnabled: boolValue(for: prefix + "kvCacheEnabled", default: defaults.kvCacheEnabled),
+            kvCacheQuantizationEnabled: boolValue(for: prefix + "kvCacheQuantizationEnabled", default: defaults.kvCacheQuantizationEnabled),
+            kvBits: intValue(for: prefix + "kvBits", default: defaults.kvBits),
+            kvGroupSize: intValue(for: prefix + "kvGroupSize", default: defaults.kvGroupSize),
+            quantizedKVStart: intValue(for: prefix + "quantizedKVStart", default: defaults.quantizedKVStart),
+            reasoningEnabled: boolValue(for: prefix + "reasoningEnabled", default: defaults.reasoningEnabled),
+            reasoningTokensLimit: intValue(for: prefix + "reasoningTokensLimit", default: defaults.reasoningTokensLimit),
+            selectedPreset: {
+                if let rawPreset = settings.value(scope: Self.scopeName, key: prefix + "selectedPreset"),
+                   let preset = AIRuntimePreset(rawValue: rawPreset) {
+                    return preset
+                }
+                return defaults.selectedPreset
+            }()
+        )
+    }
+
+    func saveRuntimeSettings(_ settings: AIRuntimeGenerationSettings, for target: ProviderTarget) {
+        let prefix = target == .assistant ? "assistant_runtime_" : "imageExtraction_runtime_"
+
+        setDouble(settings.temperature, for: prefix + "temperature")
+        setDouble(settings.topP, for: prefix + "topP")
+        setInt(settings.topK, for: prefix + "topK")
+        setInt(settings.maxTokens, for: prefix + "maxTokens")
+        setInt(settings.maxContextTokens, for: prefix + "maxContextTokens")
+        setBool(settings.streamOutputEnabled, for: prefix + "streamOutputEnabled")
+        setBool(settings.showPerformanceMetrics, for: prefix + "showPerformanceMetrics")
+        setBool(settings.kvCacheEnabled, for: prefix + "kvCacheEnabled")
+        setBool(settings.kvCacheQuantizationEnabled, for: prefix + "kvCacheQuantizationEnabled")
+        setInt(settings.kvBits, for: prefix + "kvBits")
+        setInt(settings.kvGroupSize, for: prefix + "kvGroupSize")
+        setInt(settings.quantizedKVStart, for: prefix + "quantizedKVStart")
+        setBool(settings.reasoningEnabled, for: prefix + "reasoningEnabled")
+        setInt(settings.reasoningTokensLimit, for: prefix + "reasoningTokensLimit")
+        self.settings.setValue(scope: Self.scopeName, key: prefix + "selectedPreset", value: settings.selectedPreset.rawValue)
+
+        if target == .assistant {
+            temperature = settings.temperature
+            maxOutputTokens = settings.maxTokens
+        }
+    }
+
+    private func intValue(for key: String, default defaultValue: Int) -> Int {
+        guard let rawValue = settings.value(scope: Self.scopeName, key: key), let value = Int(rawValue) else {
+            return defaultValue
+        }
+        return value
+    }
+
+    private func setInt(_ value: Int, for key: String) {
+        settings.setValue(scope: Self.scopeName, key: key, value: String(value))
+    }
+
+    private func doubleValue(for key: String, default defaultValue: Double) -> Double {
+        guard let rawValue = settings.value(scope: Self.scopeName, key: key), let value = Double(rawValue) else {
+            return defaultValue
+        }
+        return value
+    }
+
+    private func setDouble(_ value: Double, for key: String) {
+        settings.setValue(scope: Self.scopeName, key: key, value: Self.format(value))
     }
 }

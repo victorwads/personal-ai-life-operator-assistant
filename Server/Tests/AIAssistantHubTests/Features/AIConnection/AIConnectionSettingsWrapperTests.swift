@@ -75,6 +75,39 @@ final class AIConnectionSettingsWrapperTests: XCTestCase {
         XCTAssertEqual(wrapper.assistantProviderConfiguration.reasoningEffort, .enabled)
         XCTAssertEqual(wrapper.imageExtractionProviderConfiguration.reasoningEffort, .qwenOff)
     }
+
+    func testLoadAndSaveProviderAndRuntimeSettings() {
+        let repository = InMemoryAIConnectionSettingsRepository()
+        let settings = SettingsStore(profileId: "profile-1", repository: repository)
+        let wrapper = AIConnectionSettingsWrapper(settings: settings)
+
+        // Test Provider Settings
+        let initialProviderSettings = AIProviderSettings(
+            providerKind: .openRouter,
+            baseURL: "https://openrouter.ai/api/v1/chat/completions",
+            apiKey: "test-api-key",
+            model: "test-model",
+            reasoningEffort: .high,
+            cacheMode: .automatic
+        )
+        wrapper.saveProviderSettings(initialProviderSettings, for: .assistant)
+
+        let loadedProviderSettings = wrapper.loadProviderSettings(for: .assistant)
+        XCTAssertEqual(loadedProviderSettings, initialProviderSettings)
+
+        // Test Runtime Settings
+        var initialRuntimeSettings = AIRuntimeGenerationSettings.defaultSettings
+        initialRuntimeSettings.temperature = 1.25
+        initialRuntimeSettings.topP = 0.85
+        initialRuntimeSettings.maxTokens = 1024
+        initialRuntimeSettings.kvCacheQuantizationEnabled = true
+        initialRuntimeSettings.reasoningEnabled = true
+        initialRuntimeSettings.reasoningTokensLimit = 256
+        wrapper.saveRuntimeSettings(initialRuntimeSettings, for: .assistant)
+
+        let loadedRuntimeSettings = wrapper.loadRuntimeSettings(for: .assistant)
+        XCTAssertEqual(loadedRuntimeSettings, initialRuntimeSettings)
+    }
 }
 
 @MainActor

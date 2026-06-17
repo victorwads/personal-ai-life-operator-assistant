@@ -157,6 +157,7 @@ Feature- and infrastructure-specific architecture rules live close to the code t
 - [Server/Sources/Shared/Settings/Architecture.md](../Server/Sources/Shared/Settings/Architecture.md)
 - [Server/Sources/Infrastructure/Firebase/Architecture.md](../Server/Sources/Infrastructure/Firebase/Architecture.md)
 - [Server/Sources/Features/AIConnection/Architecture.md](../Server/Sources/Features/AIConnection/Architecture.md)
+- [Server/Sources/Features/AIRuntime/Architecture.md](../Server/Sources/Features/AIRuntime/Architecture.md)
 - [Server/Sources/Features/Settings/Architecture.md](../Server/Sources/Features/Settings/Architecture.md)
 - [Server/Sources/Features/Profiles/Architecture.md](../Server/Sources/Features/Profiles/Architecture.md)
 - [Server/Sources/Features/CommandCenter/Architecture.md](../Server/Sources/Features/CommandCenter/Architecture.md)
