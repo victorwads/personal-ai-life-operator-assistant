@@ -13,6 +13,23 @@ struct ChatListView: View {
     let onDeleteAll: () -> Void
 
     @State private var isConfirmingDeleteAll = false
+    @State private var searchQuery = ""
+
+    private var filteredChats: [Chat] {
+        let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return chats }
+
+        return chats.compactMap { chat -> (chat: Chat, score: Double)? in
+            let score = max(
+                TextSimilarity.score(query: query, text: chat.title),
+                TextSimilarity.score(query: query, text: chat.lastMessagePreview)
+            )
+            guard score > 0 else { return nil }
+            return (chat: chat, score: score)
+        }
+        .sorted { $0.score > $1.score }
+        .map { $0.chat }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -49,6 +66,34 @@ struct ChatListView: View {
                 Text("This deletes all chats and all chat messages from the local database.")
             }
 
+            if !chats.isEmpty {
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                    TextField("Search chats by similarity...", text: $searchQuery)
+                        .textFieldStyle(.plain)
+                    if !searchQuery.isEmpty {
+                        Button {
+                            searchQuery = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color(NSColor.controlBackgroundColor))
+                .cornerRadius(6)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                )
+                .padding(.horizontal, 16)
+                .padding(.bottom, 10)
+            }
+
             Divider()
 
             if let errorMessage {
@@ -67,6 +112,13 @@ struct ChatListView: View {
                     title: "No chats found",
                     message: "Chats will appear here after crawling syncs message history.",
                     systemImage: "tray"
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if filteredChats.isEmpty {
+                EmptyStateView(
+                    title: "Nenhum chat correspondente",
+                    message: "Tente buscar por termos diferentes.",
+                    systemImage: "magnifyingglass"
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -100,7 +152,7 @@ struct ChatListView: View {
                             }
                         }
                     } else {
-                        ForEach(chats) { chat in
+                        ForEach(filteredChats) { chat in
                             chatRow(chat)
                                 .tag(chat.id)
                         }
@@ -112,11 +164,11 @@ struct ChatListView: View {
     }
 
     private var allowedChats: [Chat] {
-        chats.filter { ChatPermissionResolver.isChatAllowed($0, mode: permissionMode) }
+        filteredChats.filter { ChatPermissionResolver.isChatAllowed($0, mode: permissionMode) }
     }
 
     private var notAllowedChats: [Chat] {
-        chats.filter { !ChatPermissionResolver.isChatAllowed($0, mode: permissionMode) }
+        filteredChats.filter { !ChatPermissionResolver.isChatAllowed($0, mode: permissionMode) }
     }
 
     private var hasUnhandledChats: Bool {
