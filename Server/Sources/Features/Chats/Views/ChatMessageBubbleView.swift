@@ -88,6 +88,15 @@ struct ChatMessageBubbleView: View {
 
             Divider()
 
+            if canRetryImageExtraction {
+                Button(isRetryingImageExtraction ? "Re-extracting image..." : "Re-extract image text") {
+                    onRetryImageExtraction(message)
+                }
+                .disabled(isRetryingImageExtraction)
+
+                Divider()
+            }
+
             Button(role: .destructive) {
                 onDeleteMessage(message)
             } label: {
