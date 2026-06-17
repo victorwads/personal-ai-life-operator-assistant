@@ -17,6 +17,7 @@ final class AppFeatures {
             ServerLogsFeature(context: context),
             ToolsBrowserFeature(context: context),
             AIConnectionFeature(context: context),
+            AIRuntimeFeature(context: context),
             GoogleWorkspaceFeature(context: context),
             WhatsAppCrawlingFeature(context: context),
         ]

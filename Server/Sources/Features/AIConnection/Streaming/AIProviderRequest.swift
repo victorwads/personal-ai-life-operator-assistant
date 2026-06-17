@@ -14,7 +14,7 @@ struct AIProviderRequest: Equatable, Sendable {
         model: String,
         messages: [AIConversationMessage],
         tools: [AIToolDefinition] = [],
-        temperature: Double = 0.6,
+        temperature: Double = 0.8,
         reasoningEffort: AIConnectionReasoningEffort = .omit,
         maxOutputTokens: Int? = nil,
         cacheMode: AIConnectionCacheMode = .automatic,

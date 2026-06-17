@@ -15,6 +15,7 @@ enum CommandCenterRoute: String, CaseIterable, Identifiable, Hashable {
     case whatsappLogs
     case tools
     case aiConnection
+    case aiRuntime
     case aiResourceUsage
     case serverLogs
     case settings

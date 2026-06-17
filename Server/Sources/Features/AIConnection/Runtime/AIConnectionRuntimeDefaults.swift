@@ -19,7 +19,7 @@ enum AIConnectionRuntimeDefaults {
     }
 
     private static func loadSystemPrompt() -> String {
-        if let contents = try? AIConnectionPromptLoader.loadBundledPrompt(named: "AssistantSystemPrompt") {
+        if let contents = try? BundledPromptLoader.loadPrompt(named: "AssistantSystemPrompt") {
             return contents
         }
 

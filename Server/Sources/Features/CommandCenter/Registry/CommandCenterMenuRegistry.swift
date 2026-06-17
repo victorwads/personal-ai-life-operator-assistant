@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 enum CommandCenterMenuRegistry {
     static func sections(
         showDeveloperItems: Bool = true,
@@ -7,7 +8,7 @@ enum CommandCenterMenuRegistry {
     ) -> [CommandCenterSection] {
         allSections.compactMap { section in
             let visibleItems = section.items.filter { item in
-                isVisible(
+                return isVisible(
                     item,
                     showDeveloperItems: showDeveloperItems,
                     isWhatsAppWebViewVisible: isWhatsAppWebViewVisible
@@ -68,6 +69,7 @@ enum CommandCenterMenuRegistry {
             items: [
                 CommandCenterMenuItem(title: "Tools", icon: "wrench.and.screwdriver", route: .tools),
                 CommandCenterMenuItem(title: "AI Connection", icon: "bolt.horizontal.circle", route: .aiConnection),
+                CommandCenterMenuItem(title: "AI Runtime", icon: "photo.on.rectangle.angled", route: .aiRuntime, developerModeOnly: true),
                 CommandCenterMenuItem(title: "Resource Usage", icon: "chart.bar.doc.horizontal", route: .aiResourceUsage),
                 CommandCenterMenuItem(title: "Server Logs", icon: "terminal", route: .serverLogs)
             ]

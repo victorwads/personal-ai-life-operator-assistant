@@ -1,11 +1,12 @@
 import Foundation
 
-enum AIConnectionProviderKind: String, Codable, CaseIterable, Sendable {
+public enum AIConnectionProviderKind: String, Codable, CaseIterable, Sendable {
     case openRouter
     case lmStudio
     case openAICompatible
+    case aiRuntime
 
-    var displayName: String {
+    public var displayName: String {
         switch self {
         case .openRouter:
             return "OpenRouter"
@@ -13,16 +14,20 @@ enum AIConnectionProviderKind: String, Codable, CaseIterable, Sendable {
             return "LM Studio"
         case .openAICompatible:
             return "OpenAI-Compatible"
+        case .aiRuntime:
+            return "Local AIRuntime (MLX)"
         }
     }
 
-    var defaultBaseURL: String {
+    public var defaultBaseURL: String {
         switch self {
         case .openRouter:
             return "https://openrouter.ai/api/v1"
         case .lmStudio:
             return "http://localhost:1234/v1"
         case .openAICompatible:
+            return ""
+        case .aiRuntime:
             return ""
         }
     }

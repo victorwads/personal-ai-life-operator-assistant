@@ -1,6 +1,7 @@
 import XCTest
 @testable import AIAssistantHub
 
+@MainActor
 final class CommandCenterMenuRegistryTests: XCTestCase {
     func testIntegrationsSectionExposesGoogleWorkspaceInsteadOfEmailAndCalendar() {
         let sections = CommandCenterMenuRegistry.sections()

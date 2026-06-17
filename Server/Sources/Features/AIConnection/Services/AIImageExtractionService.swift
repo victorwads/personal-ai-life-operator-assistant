@@ -133,7 +133,7 @@ final class AIImageExtractionService: AIImageExtracting {
             tools: [],
             temperature: 0.0,
             reasoningEffort: configuration.reasoningEffort,
-            maxOutputTokens: 4096,
+            maxOutputTokens: 8192,
             cacheMode: configuration.cacheMode,
             loadAvailableTools: false
         )
@@ -143,7 +143,75 @@ final class AIImageExtractionService: AIImageExtracting {
         var providerUsage: AIUsage?
         var provider: AIConnectionProviderKind?
         var model: String?
-        for try await event in streamingService.streamEvents(for: request, overrideConfiguration: configuration) {
+
+        let eventsStream: AsyncThrowingStream<AIStreamEvent, Error>
+        if configuration.providerKind == .aiRuntime {
+            if await !AIRuntimeFeature.sharedRuntime.isModelLoaded() {
+                try await AIRuntimeFeature.sharedRuntime.start()
+            }
+            let runtimeStream = try await AIRuntimeFeature.sharedRuntime.streamImageExtractionDetails(
+                imageURL: imageURL,
+                prompt: "",
+                systemPrompt: prompt,
+                runtimeSettings: configuration.runtimeSettings
+            )
+            eventsStream = AsyncThrowingStream { continuation in
+                let task = Task {
+                    do {
+                        continuation.yield(.requestStarted(provider: .aiRuntime, model: "Local Model"))
+                        continuation.yield(.responseStarted(id: nil))
+                        
+                        var accumulatedText = ""
+                        for try await event in runtimeStream {
+                            switch event {
+                            case .startedDecoding:
+                                break
+                            case .chunk(let text):
+                                accumulatedText += text
+                                continuation.yield(.textDelta(text))
+                            case .stats(let stats):
+                                let usage = AIUsage(
+                                    promptTokens: stats.promptTokenCount,
+                                    completionTokens: stats.generationTokenCount,
+                                    reasoningTokens: nil,
+                                    totalTokens: stats.promptTokenCount + stats.generationTokenCount,
+                                    cachedInputTokens: nil
+                                )
+                                continuation.yield(.usage(usage))
+                                let response = AIProviderResponse(
+                                    id: nil,
+                                    model: "Local Model",
+                                    provider: .aiRuntime,
+                                    finishReason: "stop",
+                                    text: accumulatedText,
+                                    reasoning: "",
+                                    toolCalls: [],
+                                    usage: usage
+                                )
+                                continuation.yield(.completed(response))
+                            }
+                        }
+                        continuation.finish()
+                    } catch {
+                        let failure = AIProviderFailure(
+                            message: error.localizedDescription,
+                            provider: .aiRuntime,
+                            model: "Local Model",
+                            underlyingError: String(describing: error)
+                        )
+                        continuation.yield(.failed(failure))
+                        continuation.finish()
+                    }
+                }
+                continuation.onTermination = { _ in
+                    task.cancel()
+                }
+            }
+        } else {
+            eventsStream = streamingService.streamEvents(for: request, overrideConfiguration: configuration)
+        }
+
+        for try await event in eventsStream {
             switch event {
             case let .requestStarted(eventProvider, eventModel):
                 provider = eventProvider

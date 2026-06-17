@@ -82,7 +82,7 @@ final class AIConnectionFeature: FeatureRuntime {
                 }
             },
             promptProvider: {
-                try AIConnectionPromptLoader.loadBundledPrompt(named: "ImageExtraction")
+                try BundledPromptLoader.loadPrompt(named: "ImageExtraction")
             },
             cacheRepository: imageExtractionCacheRepository,
             resourceUsageRepository: resourceUsageRepository,
