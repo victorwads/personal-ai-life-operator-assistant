@@ -10,7 +10,8 @@ struct WhatsAppCrawlingSettingsSectionProvider: SettingsSectionProvider {
         [
             SettingsSectionDefinition(
                 scopeName: "whatsappCrawling",
-                title: "WhatsApp Crawling/Polling"
+                title: "WhatsApp Crawling/Polling",
+                featureTitle: "WhatsApp"
             ) {
                 AnyView(
                     WhatsAppCrawlingSettingsView(
@@ -21,7 +22,8 @@ struct WhatsAppCrawlingSettingsSectionProvider: SettingsSectionProvider {
             },
             SettingsSectionDefinition(
                 scopeName: "whatsappWebView",
-                title: "WhatsApp WebView"
+                title: "WhatsApp WebView",
+                featureTitle: "WhatsApp"
             ) {
                 AnyView(
                     WhatsAppWebViewSettingsView(wrapper: webViewSettings)
